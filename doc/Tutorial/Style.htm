@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Style</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Manual of style</h1>
+
+<p>Under normal circumstances line breaks are disallowed in
+expressions, because a line break marks the end of a statement.
+</p>
+
+<pre class="moss">
+# This is not what we want.
+x = alpha
++beta
+
+# It can be done this way,
+# but do not do it, it is not reliable.
+x = alpha\
++beta
+
+# Instead use brackets.
+x = (alpha
++beta)
+
+# The same applies to conditions.
+if(alpha
+and beta)
+  ...
+end
+
+if(
+  alpha
+  and beta
+) then
+  ...
+end
+
+# The same is recommendable if string literals
+# have to be connected.
+s = ("a"
+  "b"
+  "c")
+
+# An alternative.
+s = ("a"
+  +"b"
+  +"c")
+</pre>
+
+
+</body>
+</html>
+

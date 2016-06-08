@@ -1,0 +1,306 @@
+
+# a simple function grapher
+import math: tanh
+import cmath: arg, re, im
+import gx, time
+
+gw=960; gw2=gw//2
+gh=640; gh2=gh//2
+
+sub setw(x,y)
+  global gw,gh,gw2,gh2
+  gw=x; gw2=gw//2
+  gh=y; gh2=gh//2
+end
+
+sub vline(c,x)
+  for y in gh
+    c.fill(x,y,2,2)
+  end
+end
+
+sub hline(c,y)
+  for x in gw
+    c.fill(x,y,2,2)
+  end
+end
+
+sub grid(c)
+  c.cset(0.9,0.9,0.84)
+  for x in -9..9
+    vline(c,int(gw2+gw2/10*x))
+  end
+  for y in -10..10
+    hline(c,int(gh2+gw2/10*y))
+  end
+  c.cset(0.7,0.7,0.64)
+  vline(c,gw2)
+  hline(c,gh2)
+  c.flush()
+end
+
+color_table = [
+  [0,0,0.4],
+  [0,0.4,0],
+  [0.6,0,0.6],
+  [0,0.4,0.4],
+  [0.4,0.0,0.0]
+]
+
+sub plot(a,*argv)
+  t = size(argv)==1?argv[0]:{}
+  c=gx.new(gw,gh,1)
+  c.clear(1,1,1)
+  c.mix(0)
+  grid(c)
+  if type(a) is function.type
+    a=[a]
+  end
+  wx = "wx" in t? t["wx"]: 10.0
+  wy = "wy" in t? t["wy"]: 10.0
+  px = "px" in t? t["px"]: 0.0
+  py = "py" in t? t["py"]: 0.0
+  n = "n" in t? t["n"]: 1000
+  d=wx/n
+  index=0
+  x1=px-wx
+  x2=px+wx
+  for f in a
+    color = color_table[index%3]
+    c.cset(color[0],color[1],color[2])
+    x=x1
+    while x<x2
+      c.point((x-px)/wx,(f(x)-py)/wy)
+      x+=d
+    end
+    c.flush()
+    index++
+  end
+  while c.key()!="q"
+    time.sleep(0.2)
+  end
+end
+
+tplot = table
+  sub idle
+    c = self.canvas
+    while c.key()!="q"
+      time.sleep(0.2)
+    end
+  end,
+  
+  sub plot(f,*argv)
+    t = size(argv)==1?argv[0]:{}
+    n = "n" in t? t["n"]: 1000
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    d=wx/n
+    x1=px-wx
+    x2=px+wx
+    m = size(color_table)
+    color = color_table[self.index%m]
+    self.index++
+    c = self.canvas
+    c.cset(color[0],color[1],color[2])
+    x=x1
+    while x<x2
+      c.point((x-px)/wx,(f(x)-py)/wy)
+      x+=d
+    end
+    c.flush()
+  end,
+
+  sub vplot(f,*argv)
+    t = size(argv)==1?argv[0]:{}
+    n = "n" in t? t["n"]: 1000
+    t1 = "t1" in t? t["t1"]: 0.0
+    t2 = "t2" in t? t["t2"]: 10.0
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    d=abs(t2-t1)/n
+    m = size(color_table)
+    color = color_table[self.index%m]
+    self.index++
+    c = self.canvas
+    c.cset(color[0],color[1],color[2])
+    t=t1
+    while t<t2
+      x,y=f(t)
+      c.point((x-px)/wx,(y-py)/wy)
+      t+=d
+    end
+    c.flush()
+  end,
+
+  sub scatter(a)
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    m = size(color_table)
+    color = color_table[self.index%m]
+    self.index++
+    c=self.canvas
+    c.cset(color[0],color[1],color[2])
+    for t in a
+      c.scatter((t[0]-px)/wx,(t[1]-py)/wy)
+    end
+    c.flush()
+  end,
+
+  sub palette(i)
+    self.index=i
+  end,
+
+  sub interlace(f,*argv)
+    t = size(argv)==1?argv[0]:{}
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    x1=px-wx
+    x2=px+wx
+    color = color_table[0]
+    c = self.canvas
+    c.cset(color[0],color[1],color[2])
+    d=wx/100
+    while true
+      k=0
+      x=x1
+      while x<x2
+        c.point((x-px)/wx,(f(x)-py)/wy)
+        x+=d
+        if k%1000==0
+          c.flush()
+          if c.key()=="q" then return null
+          end
+          time.sleep(0.1)
+        end
+        k++
+      end
+      d=d/2
+    end
+  end of sub
+end of table
+
+sub new(*argv)
+  t = size(argv)==1?argv[0]:{}
+  c=gx.new(gw,gh,1)
+  c.clear(1,1,1)
+  c.mix(0)
+  grid(c)
+  y = table[tplot] canvas=c, index=0 end
+  y.wx = "wx" in t? t["wx"]: 10.0
+  y.wy = "wy" in t? t["wy"]: 10.0
+  y.px = "px" in t? t["px"]: 0.0
+  y.py = "py" in t? t["py"]: 0.0
+  return y
+end
+
+sub sigmoid(x)
+  tanh(0.2*x)
+end
+
+sub cplot(f,*argv)
+  t = size(argv)==1?argv[0]:{}
+  wx = "wx" in t? t["wx"]: 10
+  wy = "wy" in t? t["wy"]: 10
+  px = "px" in t? t["px"]: 0
+  py = "py" in t? t["py"]: 0
+  a=gw//4; b=gh//4
+  a2=gw/8; b2=gh/8
+  c=gx.new(gw,gh,1)
+  c.clear(1,1,1)
+  c.mix(0)
+  for x in a
+    for y in b
+      z = ((x-a2)/a*wx+px)+(py-(y-b2)/a*wy)*1i
+      w = f(z)
+      c.HSL(arg(w),1,sigmoid(abs(w)))
+      c.fill(4*x,4*y,4,4)
+    end
+  end
+  c.flush()
+  while c.key()!="q"
+    time.sleep(0.2)
+  end
+end
+
+sub get_color_new(c1,c2)
+  r1,g1,b1=c1
+  r2,g2,b2=c2
+  return sub|x|
+    x=x%2.0
+    x=x>1? 2-x: x
+    r = (r2-r1)*x+r1
+    g = (g2-g1)*x+g1
+    b = (b2-b1)*x+b1
+    return r,g,b
+  end
+end
+
+sub fractal(f,g)
+  W=1024; H=640
+  canvas = gx.new(W,H,1)
+  get_color = get_color_new(
+    [0.0,0.0,0.1], [1.0,1.0,0.4]
+  )
+  px=0; py=0; m=1
+  label new
+  pw=8; w=W//pw; h=H//pw
+  while true
+    for y in h
+      for x in w
+        c = ((4*x/h-3)*m-px)-((4*y/h-2)*m-py)*1i
+        z=g(c)
+        canvas.cset(0,0,0)
+        canvas.fill(pw*x,pw*y,pw,pw)
+        for i in 100
+          z=f(z,c)
+          if abs(z)>2
+            color = get_color(i/10)
+            canvas.cset(color[0],color[1],color[2])
+            canvas.fill(pw*x,pw*y,pw,pw)
+            break
+          end
+        end
+      end
+      canvas.cset(0.8,0,0.4)
+      canvas.pos(10,10)
+      canvas.print(str(py*1i-px))
+      canvas.print("m = "+str(m))
+      canvas.flush()
+      key = canvas.key()
+      if not key is null
+        label choose
+        if key=="q"
+          goto out
+        elif key=="left"
+          px+=m/2; goto new
+        elif key=="right"
+          px-=m/2; goto new
+        elif key=="up"
+          py+=m/2; goto new
+        elif key=="down"
+          py-=m/2; goto new
+        elif key=="+"
+          m=m/2; goto new
+        elif key=="-"
+          m=m*2; goto new
+        end
+      end of if
+    end of for
+    pw//=2; w*=2; h*=2
+    if pw==0
+      break
+    end
+  end of while
+  while true
+    key = canvas.key()
+    if key=="q"
+      break
+    elif not key is null
+      goto choose
+    end
+    time.sleep(0.1)
+  end
+  label out
+end of sub
+
+

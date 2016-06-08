@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Advanced topics</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Stringbuffer">Stringbuffers</a>
+<li><a href="#Memoisation">Memoisation</a>
+<li><a href="#uniq">Unique</a>
+</ol>
+
+<h2 id="Regression">Stringbuffers</h2>
+
+<p>In Moss strings are immutable. That means, after construction,
+a string cannot be modified. Therefore one cannot append a
+string <code>s2</code> to a string <code>s1</code>. To bypass
+this problem one could write <code>s1=s1+s2</code>. But this
+sparks off another problem. To understand this we should have
+a look on the following statement.
+</p>
+
+<pre class="moss">
+s = s1+s2+s3+s4+s5+s6
+</pre>
+
+<p>All additions except the last require the construction of
+a temporary string that will be deleted after the next addition.
+This results in a huge amount of memory allocations and memory
+displacements. And the memory to displace gets longer and longer.
+The following program unveils the full painfullness of this
+approach.
+</p>
+
+<pre class="moss">
+n=1000
+s=""
+for i in 1..n
+  s=s+"."
+end
+</pre>
+
+<p>We may increase <code>n</code> to <code>10000</code>
+or <code>100000</code> and measure
+how long it takes. A better method is to use the
+method <code>join</code> that glues strings together.
+</p>
+
+<pre class="moss">
+s = [s1,s2,s3,s4,s5,s6].join()
+</pre>
+
+<p>Now one can use a list as a buffer.
+</p>
+
+<pre class="moss">
+a=[]
+for i in 1..n
+  a.push(".")
+end
+s=a.join()
+</pre>
+
+<h2 id="Memoisation">
+Memoisation</h2>
+
+<p>We can directly obtain an implementation from the
+recursive definition of the Fibonacci-squence.
+</p>
+
+<pre class="moss">
+fib = |n| if n==1 or n==2 then 1 else fib(n-1)+fib(n-2) end
+</pre>
+
+<p>If <code>n</code> increases by one the number of needed calls
+to <code>fib</code> is <em>multiplied</em> by factor of two.
+Ok, let <code>N</code> be this number of needed calls. Then we have
+</p>
+<pre>
+  N(n+1) = 2N(n).
+</pre>
+<p>Mathematics says, the solution of this equation is
+<code>N(n)=c+2^n</code>. That <code>c</code> is some uninteresting
+constant. If <code>t</code> is the amount of time
+a call would take, the computer spends <code>t*N(n)</code>
+for the computation.
+</p>
+
+<p>But <code>fib</code> is so simple, it is obvious, that
+the computation should take only <code>N(n)=c+n</code> calls.
+</p>
+
+<p>The following memoizing fixed point combinator achieves this.
+</p>
+<pre class="moss">
+fix = sub|F|
+  m={}
+  return sub g|n|
+    if n not in m then m[n]=F(g,n) end
+    return m[n]
+  end
+end
+
+fib = fix(|f,n| if n==1 or n==2 then 1 else f(n-1)+f(n-2) end)
+</pre>
+
+
+<h2 id="uniq">Unique</h2>
+
+<p>Uniq(ue) is an operation that removes duplicates from a list.
+Sets and dictionarys provide a simple way to state this operation.
+It can be stated in the following way.
+</p>
+
+<pre class="moss">
+# (1)
+uniq = |a| list(set(a))
+</pre>
+
+<p>If two non-equal elements have a different string representation
+we can use a dictionary construction instead of a set construction.
+</p>
+
+<pre class="moss">
+# (2)
+uniq = |a| a.dict(|x| [str(x),x]).values()
+</pre>
+
+<p>What should be equal and what not, is abstracted by
+a projection function&nbsp;<code>p</code>.
+</p>
+
+<pre class="moss">
+uniq = |a,p| a.dict(|x| [p(x),x]).values()
+</pre>
+
+<p>The last one is very general, with <code>uniq(a,|x|x)</code>
+equivalent to (1) and <code>uniq(a,str)</code> equivalent to (2).
+</p>
+
+</body>
+</html>
+

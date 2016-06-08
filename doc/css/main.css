@@ -1,0 +1,64 @@
+
+body{
+  margin-left: 10%;
+  margin-top: 4em;
+  margin-bottom: 10em;
+  max-width: 40em;
+  color: #403020;
+  font-family: "DejaVu Sans", sans-serif;
+}
+
+a{
+  color: #600030;
+}
+
+pre, code{
+  font-family: "FreeMono", "Courier New", monospace;
+}
+
+.keyword{
+  font-weight: bold;
+  color: #204080;
+}
+.string{
+  color: #a00060;
+}
+.comment{
+  color: #604000;
+}
+.symbol{
+  font-weight: bold;
+  color: #202020;
+}
+.bracket{
+  font-weight: bold;
+  color: #006060;
+}
+.number{
+  color: #204040;
+}
+.code dt{
+  font-family: "FreeMono", "Courier New", "monospace";
+}
+.code dd{
+  margin-bottom: 1em;
+}
+
+table.bt{
+  border-collapse: collapse;
+}
+
+table.bt td, table.bt th{
+  border: 1px solid #b0b0a0;
+  padding-left: 0.2em;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.bt th{
+  background-color: #e0e0c0;
+}
+
+table td.r{
+  text-align: right;
+}

@@ -1,2 +1,0 @@
-# moss
-Moss interpreter

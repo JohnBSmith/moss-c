@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Interface</title>
+  <link rel="stylesheet" href="css/main.css">
+  <script src = "js/csyntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h2>Interface to the Moss interpreter</h2>
+
+<b style="color: #800000; font-style: italic;
+font-size: 120%">outdated</b>
+
+<h3 id="toc">Table of contents</h3>
+<ol>
+<li><a href="#reserved">Reserved identifiers</a>
+<li><a href="#buffer">Dynamic buffer</a>
+<li><a href="#general">General functions</a>
+<li><a href="#string">String functions</a>
+</ol>
+
+<h3 id="reserved">Reserved identifiers</h3>
+
+<pre>
+All identifiers that start with
+  mf_ (moss function),
+  mt_ (moss type),
+  mv_ (moss value).
+</pre>
+
+
+<h3 id="buffer">Dynamic buffer</h3>
+
+<pre class="c">
+typedef struct{
+  long block_size;
+  long size;
+  long capacity;
+  unsigned char* a;
+  int allocated.
+} mt_vec;
+
+void mf_vec_init(mt_vec* v, long block_size);
+void mf_vec_delete(mt_vec* v);
+void mf_vec_push(mt_vec* v, void* data);
+void mf_vec_pop(mt_vec* v, long n);
+void mf_vec_extend(mt_vec* v, mt_vec* v2);
+
+void mf_vec_set(mt_vec* v, long index, void* data);
+// Negative index means size+index.
+// Does not perform bounds check.
+
+void* mf_vec_get(mt_vec* v, long index);
+// Get pointer to the data, without allocation and copy.
+// Negative index means size+index.
+// Does not perform bounds check.
+
+// Example
+mt_vec v;
+mf_vec_init(&amp;v,sizeof(int));
+int x=360;
+mf_vec_push(&amp;v,&x);
+</pre>
+
+<h3 id="general">General functions</h3>
+
+<pre class="c">
+int mf_print(mt_object* x);
+// Print an object to the command-line interface
+// and then enter a new line.
+
+int mf_put(mt_object* x);
+// Print an object to the command-line interface
+// but do not enter a new line.
+
+void mf_dec_refcount(mt_object* x);
+// Decrement the reference count of x.
+
+void* mf_malloc(size_t size);
+// Like 'malloc', but never returns NULL.
+
+void mf_free(void* p);
+// Like 'free'.
+</pre>
+
+<h3 id="string">String functions</h3>
+<pre class="c">
+typedef struct{
+  long size;
+  unsigned char* a;
+} mt_bstr;
+// Byte string type
+
+typedef struct{
+  long_size;
+  unsigned char* a;
+} mt_str;
+// String type
+
+void mf_encode_utf8(mt_bstr* s, long size, uint32_t* a);
+// This functions never sets s-&gt;a to NULL, it has always to be freed.
+// The result of encode is always null terminated.
+
+void mf_decode_utf8(mt_str* s, long size, unsigned char* a);
+// This function never sets s-&gt;a to NULL, it has always to be
+// freed. If the UTF-8 string conains invalid character, the result
+// will contain fill characters. Information about the error is
+// stored in global variables.
+
+mt_string* mf_str_decode_utf8(long size, unsigned char* a);
+// This function never returns NULL.
+// If the UTF-8 string contains invalid characters, the result will
+// contain fill characters. Information about the error is stored in
+// global variables. 
+</pre>
+
+
+</body>
+</html>
+

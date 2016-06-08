@@ -1,0 +1,561 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Functions</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Functions</h1>
+
+<h2 id="toc">Table of contents</h2>
+
+<ol>
+<li><a href="#rec">Recursion</a>
+<li><a href="#pf">Passing functions</a>
+<li><a href="#currying">Currying</a>
+<li><a href="#closures">Closures</a>
+<li><a href="#rp">Reference parameters</a>
+<li><a href="#var">Variadic functions</a>
+<li><a href="#opt">Optional arguments</a>
+<li><a href="#named">Named arguments</a>
+<li><a href="#unpacking">List unpacking</a>
+<li><a href="#argc">Argument count</a>
+<li><a href="#methods">Methods</a>
+<li><a href="#app">Function application</a>
+<li><a href="#return">Multiple return values</a>
+<li><a href="#static">Static variables</a>
+</ol>
+
+<h2 id="rec">Recursion</h2>
+
+<p>Let <code>sum</code> be a function that takes two arguments
+<code>a,b</code> and returns their sum <code>a+b</code>. There is a
+recursive algorithm which only needs the functions successor and
+predecessor to perform the computation.
+</p>
+
+<pre class="moss">
+succ = sub|x| x+1 end
+pred = sub|x| x-1 end
+
+sum = sub|a,b|
+  return if b==0 then a else sum(succ(a),pred(b)) end
+end
+</pre>
+
+<p>Inside of the last function there is a call to the global variable
+<code>sum</code> which points to the function itself. Note that
+because of this we are not allowed to change the name of the function
+and overwrite its old name. Instead of using a global variable we
+can use a private variable which will point to the function itself more
+directly. Then overwriting the old name becomes possible.
+</p>
+
+<pre class="moss">
+sum = sub f|a,b|
+  return if b==0 then a else f(succ(a),pred(b)) end
+end
+
+# Now valid
+old_sum = sum
+sum = some_other_function
+</pre>
+
+<h2 id="pf">Passing functions</h2>
+
+<p>Normal control flow has a specific restriction which is dissolved
+if we regard functions as objects that can be stored in variables
+and passed to other functions.
+</p>
+
+<p>In normal control flow a program can call a subprogram which
+can call another subprogram which can call another subprogram
+and so on. The program can choose which subprogram is called
+by using if-statements, but <i>knows</i> already what subprograms
+are avaiable. What if the program <i>does not</i> know about
+the subprograms it can call? Not that the number of possible
+subprograms is to great, but that the
+program really does not know the subprogram in before.
+</p>
+
+<p>If the subprogram to call is stored in a global variable,
+a compound object or passed as an argument, the program only needs
+to know the subprogram just before the call.
+</p>
+
+<p>One of the easiest examples is the function <code>map</code>
+which applies a given function to each element of a list.
+</p>
+
+<pre class="moss">
+map = sub|a,f|
+  b=[]
+  for x in a
+    b.push(f(x))
+  end
+  return b
+end
+
+A = [1,2,3,4]
+F = |x| 2*x
+print(map(A,F))
+# Output:
+# [2, 4, 6, 8]
+</pre>
+
+<p>Interestingly, passing functions allows the construction of custom
+control structures. A basic for loop is written without much effort.
+</p>
+
+<pre class="moss">
+For = sub|a,b,f|
+  i=a
+  while i<=b
+    f(i)
+    i++
+  end
+end
+
+For(1,4,sub|i|
+  print(i, "^ = ", str(2^i).rjust(2,"0"))
+end)
+# 2^1 = 02
+# 2^2 = 04
+# 2^3 = 08
+# 2^4 = 16
+</pre>
+
+
+<h2 id="currying">Currying
+</h2>
+
+<p>Let us implement numerical differentiation.
+The first way one can think to do this, is to use the
+definition of the derivative directly.
+</p>
+<pre class="moss">
+diff = sub|f,x| h=0.001
+  return (f(x+h)-f(x))/h
+end
+</pre>
+<p>This is a little bit naive. The following algorithm does it
+better, because it cancels out errors.
+</p>
+<pre class="moss">
+diff = sub|f,x| h=0.001
+  return (f(x+h)-f(x-h)/(2*h)
+end
+</pre>
+
+<p>The differential operator can also be seen as an operator that
+takes a function and returns a function (the derivative). If we
+use currying, we can use both views directly.
+</p>
+<pre class="moss">
+D = |f| |x| diff(f,x)
+</pre>
+<p>Now <code>D</code> is the differential operator, <code>D(f)</code>
+is the first derivative and <code>D(f)(x)</code> is the same
+as <code>diff(f,x)</code>. And that is simply currying. The
+operator&nbsp;<code>D</code> is the curried form of <code>diff</code>.
+</p>
+
+
+<h2 id="closures">
+Closures</h2>
+
+<p>In Moss we are able to generate functions from data at runtime.
+To achieve this, it must be possible to bind some data to a
+function dynamicly. Such a binding is called <em>closure</em>.
+</p>
+
+<p>A simple example is the conversion of a list <code>a</code>
+into a function <code>f</code>, so
+that <code>f(i)==a[i]</code> for all indices of <code>a</code>.
+</p>
+
+<pre class="moss">
+&gt; g = |a| |i| a[i]
+&gt; f = g([4,2,3,1])
+</pre>
+
+<p>Furthermore, the bound data can itself be a function, because data,
+that are all kinds of objects. A basic example is again the
+differential operator.
+</p>
+
+
+<h2 id="rp">
+Reference parameters</h2>
+
+<p>Moss has only (only has) "call by value". The following code does not work, because <code>city</code> is called by value. We cannot modify the variable <code>city</code> from inside of the function <code>stars</code>.
+</p>
+
+<pre class="moss">
+sub stars(s)
+  s="*"+s+"*"
+end
+
+city = "London"
+stars(city)
+print(city)
+# London
+</pre>
+
+<p>If we want reference parameters we have to use a reference variable. Such a variable can be simulated as a list with only one element.
+</p>
+
+<pre class="moss">
+sub stars(a)
+  a[0]="*"+a[0]+"*"
+end
+
+city = ["London"]
+stars(city)
+print(city[0])
+# *London*
+</pre>
+
+<p>If performance does not matter, an object can be used instead.
+</p>
+
+<pre class="moss">
+sub stars(s)
+  s.value = "*"+s.value+"*"
+end
+
+city = object()
+city.value = "London"
+stars(city)
+print(city.value)
+# *London*
+</pre>
+
+<h2 id="var">
+Variadic functions</h2>
+
+<p>If the formal argument of a function is prefixed by an asterisk,
+the argument list might have any argument count and will be
+automatically converted into a list.
+</p>
+
+<pre class="moss">
+&gt; p = |*a| a.join("|")
+&gt; p(1,2,3,4)
+"1|2|3|4"
+</pre>
+
+<p>There may be obligatory arguments.
+</p>
+
+<pre class="moss">
+&gt; p = |x,y,*a| x+a.join("|")+y
+&gt; p("(",")",1,2,3,4)
+"(1|2|3|4)"
+</pre>
+
+<p>In most situations it is preferable to use explicit lists
+instead. That is, to simply remove the asterisks. Then the
+function call is as follows.
+</p>
+
+<pre class="moss">
+&gt; p("(",")",[1,2,3,4])
+"(1|2|3|4)"
+</pre>
+
+<h2 id="opt">
+Optional arguments</h2>
+
+<p>Optional arguments can be simulated by
+a variadic function with obligatory arguments
+(the non-optional ones).
+</p>
+
+<pre class="moss">
+p = sub|x,y,*a|
+  sep = if size(a)==0 then ", " else a[0] end
+  return ["(",x,sep,y,")"].join()
+end
+
+&gt; p(1,2)
+"(1, 2)"
+&gt; p(1,2,"|")
+"(1|2)"
+</pre>
+
+<h2 id="named">
+Named arguments</h2>
+
+<p>Currently the language does not support named arguments.
+But they can be simulated by dictionarys.
+</p>
+
+<pre class="moss">
+&gt; p = |d| ["(",d["x"],d["sep"],d["y"],")"].join()
+&gt; p({x=1,y=2,sep="|"})
+"(1|2)"
+</pre>
+
+<h2 id="unpacking">
+List unpacking</h2>
+
+<p>Sometimes we want a variadic function to take the elements of
+a list as its arguments. To make this task simple, there is a
+function called <code>apply</code>.
+</p>
+
+<pre class="moss">
+# variadic summation function
+&gt; s = |*a| a.sum()
+
+# normal call
+&gt; s(1,2,3,4)
+10
+
+# unpacking call
+&gt; a = [1,2,3,4]
+&gt; s.apply(null,a)
+10
+</pre>
+
+<p>The first argument of <code>apply</code> is the self argument.
+So, if <code>x</code> is an object and <code>m</code> is a two
+argument method of <code>x</code>, we have</code>
+
+<pre class="moss">
+  x.m(a,b) == x.m.apply(x,[a,b]).
+</pre>
+
+<h2 id="argc">
+Argument count</h2>
+
+<p>If a function <code>f</code> is not variadic, it has a fixed
+number of arguments. This number is determined by
+<code>f.argc()</code>.</p>
+
+<p>An application is a general truth table
+printing program, that determines the table to print based on
+the number of arguments of a given boolean function.
+</p>
+
+<pre class="moss">
+sub truth_table(f)
+  a = [false,true]^f.argc()
+  for x in a
+    print((x+[f.apply(null,x)]).map(int))
+  end
+end
+</pre>
+
+<h2 id="methods">
+Methods</h2>
+
+<p>In Moss, every function has a hidden argument, called
+<code>self</code>. In a function call of the form
+<code>x.m(a,b)</code>, the function <code>m</code> takes
+<code>a,b</code> as normal arguments, and <code>x</code> as its
+self argument. Viewed this way, <code>m</code> is called
+<em>a method</em> of <code>x</code>.
+</p>
+
+<p>There is a function, called <code>call</code>, that enables us
+to choose the self argument freely. More precisely, we have
+</p>
+
+<pre class="moss">
+  x.m(a,b) == x.m.call(x,a,b).
+</pre>
+
+<p>A simple example shows how self arguments work.
+</p>
+
+<pre class="moss">
+&gt; m = sub|a,b| [self,a,b] end
+&gt; m(1,2)
+[null, 1, 2]
+&gt; m.call(0,1,2)
+[0, 1, 2]
+</pre>
+
+<p>If <code>m</code> is inserted in <code>str.type</code>,
+all strings will have <code>m</code> as a method.
+</p>
+
+<pre class="moss">
+&gt; str.type.m=m
+&gt; "alpha".m(1,2)
+["alpha", 1, 2]
+</pre>
+
+<p>Conversely, we can extract some method of
+<code>str.type</code>.
+</p>
+
+<pre class="moss">
+&gt; "tree".upper()
+"TREE"
+&gt; upper = str.type.upper
+&gt; upper.call("tree")
+"TREE"
+</pre>
+
+<p>But in most cases this is not what we want.
+If you want the method <code>upper</code> to be converted into a
+function, simply create such a function.
+</p>
+
+<pre class="moss">
+&gt; upper = |s| s.upper()
+&gt; upper("tree")
+"TREE"
+</pre>
+
+<h2 id="app">Function application
+</h2>
+
+<p>As just said, in Moss there is no invisible times. Instead
+of <code>ab</code> or <code>a&nbsp;b</code> one must write
+<code>a*b</code>. But the function application operator is
+invisible. The expression <code>f(x,y)</code> means
+</p>
+<pre>
+  f applied to (x,y).
+</pre>
+<p>The parenthesis pair on the right hand side is obligatory.
+Now note, that the left hand side of this operator can itself
+be an expression. If <code>e</code> is some expression, then
+<code>(e)(x,y)</code> means
+</p>
+<pre>
+  (e) applied to (x,y).
+</pre>
+<p>Here are some examples.
+</p>
+<pre>
+f(x)(y) means (f applied to x) applied to y
+a[k](x) means a[k] applied to x
+</pre>
+<p>Let us define addition of functions pointwise.
+Look what that means.
+</p>
+<pre class="moss">
+function.type.add = sub|g| f=self
+  return |x| f(x)+g(x)
+end
+</pre>
+<p>Now one can write <code>(f+g)(x)</code>.</p>
+
+<p>The function application operator is a special case of
+the function called <code>call</code>. And <code>call</code> is itself
+a special case of <code>apply</code>.
+</p>
+
+<pre class="moss">
+  f(x,y) == f.call(null,x,y) == f.apply(null,[x,y])
+a.m(x,y) == a.m.call(a,x,y)  == a.m.apply(a,[x,y])
+</pre>
+
+<p>Frankly speaking we can call apply a general method of
+application.
+</p>
+
+<h2 id="return">Multiple return values
+</h2>
+
+<p>In Moss one can assign two values to two variables in one
+statement.
+</p>
+<pre class="moss">
+x,y = 360,240
+# is the same as
+x=360; y=240
+</pre>
+<p>But there is more going on here. Actually it is a shorthand.
+Firstly the numbers on the right hand side are bundled, so that a
+list is constructed. The square brackets are simply omitted.
+Secondly the list is deconstructed on the right hand side.
+The long, more powerful, form of this statement is as follows.
+</p>
+<pre class="moss">
+[x,y] = [360,240]
+</pre>
+
+<p>We want <code>x,y</code> to be the coordinates of some
+point of a circle line. This can be achieved by the following
+function&nbsp;<code>f</code>.
+</p>
+<pre class="moss">
+import math: pi, sin, cos
+
+f = |t,r| [r*cos(2*pi*t), r*sin(2*pi*t)]
+
+for i in 0..11
+  x,y = f(i/12,1)
+  print("x = ",x,"; y = ",y)
+end
+</pre>
+
+<h2 id="static">
+Static variables</h2>
+
+<p>Sometimes one wants a local variable to survive between two
+function calls. We could use a global variable instead of a
+local one.
+</p>
+
+<pre class="moss">
+counter_c=0
+sub counter
+  counter_c++
+  return counter_c
+end
+</pre>
+
+<p>It is wiser to clarify more clearly that <code>c</code> belongs
+to the function. Here is the way to go.
+</p>
+
+<pre class="moss">
+sub counter
+  counter.c++
+  return counter.c
+end
+counter.c=0
+</pre>
+
+<p>Now we are able to construct multiple instances of
+<code>counter</code>.
+</p>
+
+<pre class="moss">
+c1 = copy(counter)
+c2 = copy(counter)
+c2.c = 1000
+c3 = copy(c2)
+</pre>
+
+<p>There is an alternative construction that is more didactical.
+It is secure against any kind of misuse.
+</p>
+
+<pre class="moss">
+sub new_counter(c)
+  return begin
+    c++
+    return c
+  end
+end
+
+c1 = new_counter(0)
+c2 = new_counter(1000)
+c3 = copy(c2)
+</pre>
+
+</body>
+</html>
+

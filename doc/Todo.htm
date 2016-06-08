@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Todo</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<h2>Todo list</h2>
+
+<ol>
+<li>New general multi dimension slicing: <code>a[i,j,k]</code>
+  will behave like <code>a.get(i,j,k)</code> and <code>a[i,j,k]=value</code>
+  will behave like <code>a.set(value,i,j,k)</code>. This enables
+  slice assignments too.
+<li>Wich names should be chosen for shallow copy and deep copy?
+<li>Cache hash value in a string object.
+<li>Allow cyclic data structures? Think about <code>a==b</code> and deallocation.
+<li>Predefined functions: how to achieve superglobal access?
+<li>Module system: export every global variable?
+<li>Constant dictionarys
+<li>Make shure to write <code>mt_object args[n+1]</code> if n
+  arguments are needed. The first one (<code>args[0]</code>) is the self-argument.
+<li>Keyword-Arguments
+<li>Basic regex implementation
+<li>Basic <code>format</code> (snprintf analog)
+<li>Strided array datatype, basic interfaces to BLAS and LAPACK.
+  (This is the datatype that supports vectorized operations
+  like in MATLAB)
+<li>Make all subsystems free from memory leaks
+<li>Coroutine system
+<li>Rewrite the implementation in a memory safe lange
+</ol>
+
+<h2>Finished</h2>
+
+<table class="bt" style="width: 52em">
+<tr>
+<th>Date
+<th>Task
+<th>Notes
+
+<tr>
+<td><code>201507</code>
+<td>New slicing and range Syntax: <code>a..b||step</code>.
+<td>This was changed to <code>a..b:step</code> in <code>201603</code>.
+
+<tr>
+<td><code>201507</code>
+<td>Use flexible array member (C-struct hack)
+in the implementations of <code>mt_tuple</code>
+and <code>mt_string</code>.
+<td>
+
+<tr>
+<td><code>201508</code>
+<td>Should isalpha and so on on empty string be true or false?
+<td>True, due to compability with allquantor.
+
+<tr>
+<td><code>201509</code>
+<td>Construct string objects from literals only on module load.
+<td>
+
+<tr>
+<td><code>201509</code>
+<td>Hash function has to be separated from insert function.
+<td>
+
+<tr>
+<td><code>201509</code>
+<td>Specify overwriting rules for <code>extend(a,b)</code>.
+<td>Already existent slots in <code>a</code> shall not be overwritten, because <code>extend</code> should have the same semantics as delegating. Overwriting is already possible via <code>record(a).update(record(b))</code>.
+
+<tr>
+<td><code>201603</code>
+<td>Replace non-strict Compiler (shunting yard, no AST) written in C++ with
+  Compiler with strict syntactic analysis (AST producing recursive descent)
+  written in&nbsp;C.
+<td>Now the new compiler is almost complete and compiles a superset
+of the old.
+
+<tr>
+<td><code>201605</code>
+<td>Replace plain pointer approach with tagged union approach
+<td>This was a major bunch of work. In arithmetic benchmarks,
+execution got faster by a factor of three and seems now to be
+faster (<code>gcc -O3</code>) than Python 2.7. But it is slower than
+Lua 5.2 by a factor of two.
+<br><br>
+Arithmetic does not need malloc anymore, and thats a good thing
+if we consider memory allocations evil in a certain way
+(runtime <i>and</i> memory consumption).
+One does never know what is inside of malloc and it can get slower
+if memory is rare. Implementations can differ between different
+operating systems.
+
+<tr>
+<td><code>201605</code>
+<td>Add import-statement to the
+programming language.
+<td><code>import math: pi, sin, cos</code>
+</table>
+
+</body>
+</html>
+

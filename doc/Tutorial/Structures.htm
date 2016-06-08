@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Structures</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Data structures</h1>
+
+<h2 id="toc">Table of contents</h2>
+
+<ol>
+<li><a href="#Singly">Singly linked list</a>
+</ol>
+
+<p>There are interesting, more complex data structures that
+are not supported in the core language. But the language
+provides the basic tools that are necessary for the construction
+of such data structures like linked lists or trees.
+</p>
+
+<h2 id="Singly">
+Singly linked list</h2>
+
+<p>What follows is a basic implementation of a singly linked list
+data type.
+</p>
+
+<pre class="moss">
+List = sub|a|
+  y = table[List.type]
+    first=null, last=null
+  end
+  for x in a
+    y.push(x)
+  end
+  return y
+end
+
+List.type = table
+  list = begin
+    t=self.first
+    a=[]
+    while not t is null
+      a.push(t.value)
+      t=t.next
+    end
+    return a
+  end,
+  
+  str = begin
+    return "List(["+self.list().join(", ")+"])"
+  end,
+
+  push = sub|x|
+    if self.first is null
+      self.last = table value=x, next=null end
+      self.first=self.last
+    else
+      self.last.next = table value=x, next=null end
+      self.last=self.last.next
+    end
+  end,
+
+  shift = sub|x|
+    t = table value=x, next=self.first end
+    self.first=t
+  end,
+
+  unshift = begin
+    if self.first is null
+      return null
+    else
+      value=self.first.value
+      self.first=self.first.next
+      return value
+    end
+  end
+end of table
+</pre>
+
+</body>
+</html>
+
+

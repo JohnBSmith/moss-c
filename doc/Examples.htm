@@ -1,0 +1,604 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Examples</title>
+  <link rel="stylesheet" href="css/main.css">
+  <script src = "js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Examples</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#fac">Factorial</a>
+<li><a href="#fib">Fibonacci sequence</a>
+<li><a href="#fc">Function composition</a>
+<li><a href="#pa">Partial application</a>
+<li><a href="#currying">Currying</a>
+<li><a href="#rn">Random numbers</a>
+<li><a href="#stat">Statistics</a>
+<li><a href="#qsort">Quicksort</a>
+<li><a href="#msort">Mergesort</a>
+<li><a href="#cl">Combinatory logic</a>
+<li><a href="#sets">Set theory</a>
+<li><a href="#comb">Combinatorics</a>
+<li><a href="#numerics">Numerics</a>
+<li><a href="#la">Linear algebra</a>
+<li><a href="#nt">Number theory</a>
+<li><a href="#lex">Lexical analysis</a>
+<li><a href="#basic">Basic algorithms</a>
+<li><a href="#ms">Mandelbrot set</a>
+<li><a href="#rot13">ROT13</a>
+<li><a href="#fft">FFT</a>
+</ol>
+
+<h2 id="fac">Factorial</h2>
+
+<pre class="moss">
+# Iterative
+fac = sub|n|
+  p=1
+  for i in 1..n
+    p=p*i
+  end
+  return p
+end
+
+# Recursive
+fac = |n| if n==0 then 1 else n*fac(n-1) end
+
+# Functional
+fac = |n| (1..n).reduce(1,|x,y| x*y)
+
+# Functional iteration
+Fac = |x| [x[0]*x[1],x[1]+1]
+fac = |n| (Fac^n)([1,1])[0]
+
+# Semifunctional iteration
+f = sub|n| i=0; (sub|x| i=i+1; x*i end^n)(1) end
+
+# As a product
+fac = |n| (1..n).prod()
+
+# Recursive, with fixed-point combinator
+fix = |F| sub g|n| F(g,n) end
+fac = fix(|f,n| if n==0 then 1 else n*f(n-1) end)
+
+# Tail-recursive
+call = sub|f,m,n|
+  x=f(m,n)
+  while type(x) is function.type
+    x=x()
+  end
+  return x
+end
+
+Fac = sub|m,n|
+  if n==0
+    return m
+  else
+    return begin Fac(m*n,n-1) end
+  end
+end
+
+fac = |n| call(Fac,1,n)
+
+# Solve the functional equation
+solve = sub|g,m,f0|
+  a = list(0..m)
+  a[0]=f0
+  f = |x| a[x]
+  for n in 1..m
+    s=0
+    while not g(f,n)
+      s=s+1
+      a[n]=s
+      # print(a)
+    end
+  end
+  return f
+end
+
+fac = sub|m|
+  g = |f,n| f(n)==n*f(n-1)
+  return solve(g,m,1)(m)
+end
+
+# Construct the list of permutations
+fac = sub|n|
+  size((list(1..n)^n).filter(sub|t|
+    (1..n).all(|x| x in t)
+  end))
+end
+
+# Recursive, Lisp style
+eq = |a,b| a==b
+mpy = |a,b| a*b
+minus = |a,b| a-b
+If = |c,f,g| if c then f() else g() end
+define = sub|s,f|
+  gtab()[s]=f
+end
+
+define("fac",sub|n|
+  If(eq(n,0),
+    begin 1 end,
+    begin mpy(n,fac(minus(n,1))) end) end)
+
+# Tacit programming
+compose = |f| |g| |x| f(g(x))
+r = |a| |b| list(a..b)
+mpy = |x,y| x*y
+reduce = |f| |e| |a| a.reduce(e,f)
+
+fac = compose(reduce(mpy)(1))(r(1))
+</pre>
+
+<h2 id="fib">Fibonacci sequence</h2>
+
+<pre class="moss">
+# Recursive
+memo = sub|f|
+  m={}
+  return sub|n|
+    if n not in m then m[n]=f(n) end
+    return m[n]
+  end
+end
+
+fib = |n| if n==1 or n==2 then 1 else fib(n-1)+fib(n-2) end
+fib = memo(fib)
+
+# Functional iteration
+Fib = |x| [x[0]+x[1],x[0]]
+fib = |n| (Fib^(n-1))([1,1])[1]
+</pre>
+
+
+<h2 id="fc">Function composition</h2>
+<pre class="moss">
+compose = |f,g| |x| f(g(x))
+f = |x| 2*x
+print(compose(f,f)(10))
+
+function.type.o = sub|g|
+  f = self
+  return |x| f(g(x))
+end
+print(f.o(f).o(f)(10))
+</pre>
+
+<h2 id="pa">Partial application</h2>
+<pre class="moss">
+first = |f,x| |y| f(x,y)
+second = |f,y| |x| f(x,y)
+
+# variadic, fix first arguments
+first = |f,*a| |*b| f.apply(null,a+b)
+
+# variadic, fix last arguments
+last = |f,*a| |*b| f.apply(null,b+a)
+</pre>
+
+<h2 id="currying">Currying</h2>
+<pre class="moss">
+curry = sub|f|
+  n=f.argc()
+  a=list(0..n-1)
+  g = sub|x| a[n-1]=x; f.apply(null,a) end
+  for i in 2..n
+    g = sub|x| a[n-i]=x; g end
+  end
+  return g
+end
+
+uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
+</pre>
+
+<h2 id="rn">Random numbers</h2>
+<pre class="moss">
+a = list(1..100).map(|x| rand(0,9))
+print(a)
+
+a = list(1..100).shuffle()
+print(a)
+</pre>
+
+<h2 id="stat">Statistics</h2>
+<pre class="moss">
+import math: sqrt
+
+# Mean value
+mean = |a| a.sum()/size(a)
+print(mean(1..4))
+print(mean(rand(0,1).list(1000)))
+
+# Estimated standard deviation
+sigma = sub|a| m=mean(a)
+  sqrt(a.sum(|x| (x-m)^2)/(size(a)-1))
+end
+
+# Variance
+var = sub|a| m=mean(a)
+  a.sum(|x| (x-m)^2)/size(a)
+end
+
+# Covariance
+cov = sub|a,b| ma=mean(a); mb=mean(b)
+  map(a,b,sub|x,y| (x-ma)*(y-mb) end).sum()/size(a)
+end
+
+# Covariance matrix
+cov_matrix = |X| X.map(|a| X.map(|b| cov(a,b)))
+</pre>
+
+
+
+<h2 id="qsort">Quicksort</h2>
+
+<pre class="moss">
+qsort = |a| if size(a)==0 then [] else
+  qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+  qsort(a[1..].filter(|x| x&gt;=a[0])) end
+
+# Test function
+issorted = |a| (0..size(a)-2).all(|i| a[i]&lt;=a[i+1])
+
+</pre>
+
+<h2 id="msort">Mergesort</h2>
+
+<pre class="moss">
+msort = |a| if size(a)<=1 then copy(a) else
+  merge(msort(a[1..:2]),msort(a[0..:2])) end
+
+merge = sub|L,R| y=[]
+  while size(L)!=0 and size(R)!=0
+    y.push(if L[-1]>R[-1] then L else R end.pop())
+  end; L+R+y.rev() end
+</pre>
+
+
+<h2 id="cl">Combinatory logic</h2>
+
+<pre class="moss">
+I = |x| x
+K = |x| |y| x
+Y = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
+Y = |F| sub g|n| F(g)(n) end
+S = |f| |x| |u| f(u)(x(u))
+B = |f| |g| |x| f(g(x))
+C = |f| |x| |u| f(u)(x)
+
+# Y-Combinator without currying
+Y = |F| sub g|n| F(g,n) end
+
+# Y-Combinator with memoization
+Y = sub|F|
+  m={}
+  return sub g|n|
+    if n not in m then m[n]=F(g,n) end
+    return m[n]
+  end
+end
+</pre>
+
+<h2 id="sets">Set theory</h2>
+
+<pre class="moss">
+# Simulation by lists
+
+issubset = |a,b| a.all(|x| x in b)
+eq = |a,b| issubset(a,b) and issubset(b,a)
+cup = |a,b| a+b.filter(|x| x not in a)
+cap = |a,b| a.filter(|x| x in b)
+diff = |a,b| a.filter(|x| x not in b)
+symdiff = |a,b| diff(a,b)+diff(b,a)
+prod = |a,b| a.map(|x| b.map(|y| [x,y])).chain()
+powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
+
+# Remove duplicates
+uniq = |a| a.dict(|x| [str(x),x]).values()
+
+# Quotient set
+partition = |a,R| a.chunks(R)
+
+# Get equivalence relation
+# from quotient set Q
+relation = |Q| |x,y| Q.any(|a| x in a and y in a)
+
+# Get equivalence class
+# from quotient set Q
+# and representative x
+class = |Q,x| Q.match(|a| x in a)
+</pre>
+
+<h2 id="comb">Combinatorics</h2>
+
+<pre class="moss">
+# Permutations
+perm = sub|a|
+  if size(a)==0
+    return [[]]
+  end
+  b=[]
+  for i in 0..size(a)-1
+    for x in perm(a[..i-1]+a[i+1..])
+      b.push([a[i]]+x)
+    end
+  end
+  return b
+end
+
+perm(list("abc")).map(|a| a.join()).each(print)
+# abc
+# acb
+# bac
+# bca
+# cab
+# cba
+
+# Permutations with repetitions
+(list("abc")^3).map(|a| a.join()).each(print)
+# aaa
+# aab
+# ...
+# ccc
+</pre>
+
+
+<h2 id="numerics">Numerics</h2>
+
+<pre class="moss">
+# Square root
+sqrt = |a| (sub|x| 0.5*(x+a/x) end^10)(1)
+
+# Differential operator
+D = sub|f| h=0.001
+  return |x| (f(x+h)-f(x-h))/(2*h)
+end
+
+f = |x| x^3+2*x
+f1 = D(f)
+f2 = D(D(f))
+f2 = (D^2)(f)
+
+# Simpson's rule
+int = sub|f,a,b,n|
+  h = (b-a)/n
+  y=0
+  for i in 0..n-1
+    x = a+h*i
+    y = y+f(x)+4*f(x+0.5*h)+f(x+h)
+  end
+  return y*h/6
+end
+
+int = sub|f,a,b,n| h=(b-a)/n
+  list(n).map(|i| a+h*i).sum(|x| f(x)+4*f(x+0.5*h)+f(x+h))*h/6
+end
+
+# Newton's method
+N = sub|f,x|
+  f1 = D(f)
+  for i in 1..20
+    x=x-f(x)/f1(x)
+  end
+  return x
+end
+
+N = sub|f,x|
+  f1 = D(f)
+  phi = |t| t-f(t)/f1(t)
+  return (phi^20)(x)
+end
+</pre>
+
+
+<h2 id="la">Linear algebra</h2>
+
+<pre class="moss">
+# Vector arithmetic
+c = map(a,b,|x,y| x+y)
+c = map(a,b,|x,y| 4*x-2*y)
+norm = |a| math.sqrt(a.sum(|x| x^2))
+unit = sub|a| n=norm(a); a.map(|x| x/n) end
+
+# Scalar product
+sprod = |a,b| map(a,b,|x,y| x*y).sum()
+
+# Matrix multiplication
+mpy = |a,b| b.flip().map(|x| a.map(|y| sprod(x,y)))
+
+# Zero matrix
+zero = |n| ([0]*n).map(|x| [0]*n)
+
+# Identity matrix
+eye = |n| list(0..n-1).map(|i| i*[0]+[1]+(n-1-i)*[0])
+
+# Diagonal matrix
+diag = sub|a| n=size(a)
+  list(0..n-1).map(|i| i*[0]+[a[i]]+(n-1-i)*[0])
+end
+
+# Operator overloading
+import math: fac
+import la: matrix
+
+exp = |A| (0..9).sum(|k| A^k/fac(k))
+A = matrix([1,2],[3,4])
+B = exp(A)
+</pre>
+
+
+
+<h2 id="nt">Number theory</h2>
+
+<pre class="moss">
+isprime = |n| n&gt;1 and (2..n-1).all(|k| n%k!=0)
+print(list(1..100).filter(isprime))
+
+# A prime is a number that has two divisors.
+isprime = |n| (1..n).count(|k| n%k==0)==2
+
+sieve = |a| if size(a)==0 then [] else
+  [a[0]]+sieve(a[1..].filter(|x| x%a[0]!=0)) end
+
+print(sieve(list(2..100)))
+
+gcd = |a,b| if b==0 then a else gcd(b,a%b) end
+
+gcd = sub|a,b|
+  while b!=0 do a,b=b,a%b end
+  return a
+end
+
+lcm = |a| a.reduce(|x,y| x*y//gcd(x,y))
+
+powmod = sub|a,n,m|
+  y=1; a=a%m
+  while n&gt;0
+    if n%2==0
+      n=n//2; a=(a*a)%m
+    else
+      n=n-1; y=(y*a)%m
+    end
+  end
+  return y
+end
+
+# List of divisors
+divisors = |n| list(1..n).filter(|k| n%k==0)
+
+# Divisor function
+sigma = |x,n| (1..n).filter(|k| n%k==0).sum(|k| k^x)
+
+sigma0 = |n| (1..n).count(|k| n%k==0)
+
+# Prime factorization
+factor = sub|n|
+  list(2..n).filter(sub|k|
+    n%k==0 and isprime(k)
+  end).map(sub|p|
+    [p,(1..).until(|k| n%(p^k)!=0).count()]
+  end)
+end
+</pre>
+
+
+<h2 id="lex">Lexical analysis</h2>
+
+<pre class="moss">
+# Simple tokenizer
+
+syntax_error = object()
+
+sub scan(s)
+  a=[]
+  i=0; n=size(s)
+  while i&lt;n
+    if s[i] in "+-*/^(){}[];,"
+      a.push(s[i])
+      i++
+    elif s[i].isalpha()
+      j=i
+      while i&lt;n and s[i].isalnum()
+        i++
+      end
+      a.push(s[j..i-1])
+    elif s[i].isdigit()
+      j=i
+      while i&lt;n and (s[i].isdigit() or s[i]=='.')
+        i++
+      end
+      a.push(s[j..i-1])
+    elif s[i].isspace()
+      i++
+    else
+      raise table[syntax_error]
+        value="unexpected character: '"+s[i]+"'"
+      end
+    end
+  end
+  return a
+end
+
+while true
+  s = input("&gt; ")
+  try
+    print(scan(s))
+  catch e: syntax_error
+    print("Syntax error: ", e.value, ".")
+  end
+end
+</pre>
+
+<h2 id="basic">Basic algorithms</h2>
+
+<pre class="moss">
+to_int = |s,b| s.reduce(0,|x,c| b*x+ord(c)-ord('0'))
+
+to_str = sub|n,b|
+  s=if n==0 then "0" else "" end
+  while n!=0
+    s=chr(n%b+ord('0'))+s
+    n=n//b
+  end
+  return s
+end
+
+to_str = sub|n,s|
+  b=size(s)
+  return if n&lt;b then s[n]
+  else to_str(n//b,s)+s[n%b] end
+end
+
+rev = sub|a|
+  n=size(a)-1
+  for i in 0..size(a)//2-1
+    a.swap(i,n-i)
+  end
+end
+</pre>
+
+
+<h2 id="ms">Mandelbrot set</h2>
+
+<pre class="moss">
+(0..25).map(|x|
+  (0..39).map(sub|y| c = (x/10-2)+(y/10-2)*1i
+    abs((sub|z| z^2+c end^10)(0))&lt;2? "*": "\s"
+  end).join()).each(print)
+</pre>
+
+
+<h2 id="rot13">ROT13</h2>
+
+<pre class="moss">
+rot13 = |s| s.map(|c|
+  c in 'a'..'z'? chr((ord(c)-97+13)%26+97):
+  c in 'A'..'Z'? chr((ord(c)-65+13)%26+65): c).join()
+</pre>
+
+<h2 id="fft">FFT</h2>
+
+<pre class="moss">
+import math: pi
+import cmath: exp
+
+# size(a) is a power of two
+fft = sub|a| if size(a)<=1 then return a end
+  even = fft(a[0..:2]); odd = fft(a[1..:2])
+  N = size(a); L = list(0..N//2-1)
+  T = L.map(|k| exp(-2i*pi*k/N)*odd[k])
+  return (L.map(|k| even[k]+T[k])+
+          L.map(|k| even[k]-T[k])) end
+</pre>
+
+
+</body>
+</html>
+

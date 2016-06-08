@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Applications</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Applications</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Regression">Linear regression</a>
+<li><a href="#FRNG">Random numbers</a>
+</ol>
+
+<h2 id="Regression">Linear regression</h2>
+<p>We want to implement a linear regression quickly.
+Outlier tests are leaved aside and on numerical effects no care
+is taken.
+</p>
+
+<pre class="moss">
+import math
+
+sub mean(a)
+  a.sum()/size(a)
+end
+
+sub square_sum(a,m)
+  a.sum(|x| (x-m)^2)
+end
+
+sub product_sum(a,b,mx,my)
+  map(a,b,sub|x,y| (x-mx)*(y-my) end).sum()
+end
+
+sub linear_regression(a)
+  x,y = unzip(a)
+  mx = mean(x)
+  my = mean(y)
+  sx = square_sum(x,mx)
+  sy = square_sum(y,my)
+  sxy = product_sum(x,y,mx,my)
+  rxy = sxy/math.sqrt(sx*sy)
+  return table
+    mx=mx, my=my, r=rxy, c=[mx,my],
+    ax=sxy/sx, bx=my-sxy/sx*mx,
+    ay=sxy/sy, by=mx-sxy/sy*my
+  end
+end
+
+sub print_linear_regression(a)
+  t = linear_regression(a)
+  print("y(x) = ax*x+bx = ax*(x-mx)+my")
+  print("ax = ", t.ax)
+  print("bx = ", t.bx)
+  print("mx = ", t.mx)
+  print("my = ", t.my)
+  print("rxy = ", t.r)
+  print("R^2 = " t.r^2)
+end
+</pre>
+
+<p>Mathematical question: one can replace <code>product_sum(x,y,mx,my)</code>
+with <code>product_sum(x,y,r,my)</code> or <code>product_sum(x,y,mx,r)</code> where <code>r</code>
+is an arbitrary real number. Why is this possible?
+</p>
+
+<h2 id="FRNG">
+Random numbers</h2>
+
+<p>We want to generate random numbers that are distributed
+according to a certain distribution function.
+</p>
+
+<pre class="moss">
+import math: erf, sqrt
+import ma: inv
+
+# F: a cumulative distribution function
+random = sub|F| r=rand()
+  return || inv(F,r(),-1000,1000)
+end
+
+# Cumulative standard normal distribution
+norm = |x| 1/2*erf(x/sqrt(2))+1/2
+
+# Obtain a cumulative distribution function
+# from a list of random numbers.
+cdf = |a| |x| a.count(|X| X&lt;=x)/size(a)
+
+# Example
+a = random(norm).list(100)
+F = cdf(a)
+</pre>
+
+</body>
+</html>
+

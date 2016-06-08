@@ -1,0 +1,22 @@
+
+import math: e, pi, nan, floor, ceil, sqrt,\
+  exp, ln, fac, gamma, sin, cos, tan, sinh, cosh, tanh
+import cmath: re, im, arg
+import ma: diff, int, inv
+import sys: argv
+import plotlib: plot, cplot
+import time: sleep
+# import nt: isprime, gcd, lcm, factor, base
+import os: cd, ls, wd, isdir, isfile
+
+grad = pi/180
+gon = pi/200
+tau = 2*pi
+
+p = print
+
+sub info(x)
+  print(record(x).keys().sort().join("\s"))
+end
+
+

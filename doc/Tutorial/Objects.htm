@@ -1,0 +1,440 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Object system</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Object system</h1>
+
+<h2 id="toc">Table of contents</h2>
+
+<ol>
+<li><a href="#Construction">Construction</a>
+<li><a href="#Literal">Object literal</a>
+<li><a href="#Prototypes">Prototypes</a>
+<li><a href="#Inheritance">Multiple inheritance</a>
+<li><a href="#Reflection">Reflection</a>
+<li><a href="#Monkey">Monkey patching</a>
+<li><a href="#Overloading">Operator overloading</a>
+</ol>
+
+<h2 id="Construction">
+Construction</h2>
+
+<p>We can take different approaches to construct an object. A simple
+object can be constructed in one of the following three ways or
+a mixture of them.
+</p>
+
+<pre class="moss">
+# imperative construction
+# vmax in kn
+Bristol = object()
+Bristol.id = "HMS Bristol"
+Bristol.color = "gray blue"
+Bristol.engine = "diesel"
+Bristol.vmax = 25
+
+# via dictionary literal
+Bristol = object(null,{
+  id="HMS Bristol",
+  color="gray blue",
+  engine="diesel",
+  vmax=25
+})
+
+# via object literal
+Bristol = table
+  id = "HMS Bristol",
+  color = "gray blue",
+  engine = "diesel",
+  vmax = 25
+end
+</pre>
+
+<p>Such an object may have a method which operates on it.
+We will define one.
+</p>
+
+<pre class="moss">
+Bristol.move = begin
+  print(self.id, " moves at ", self.vmax//2, " kn.")
+end
+
+Bristol.move()
+# HMS Bristol moves at 12 kn.
+</pre>
+
+<p>If there shall be more than one ship, there are certain options
+now. Firstly we can simply delegate to HMS Bristol and shadow
+some of the member objects.
+</p>
+
+<pre class="moss">
+Hermes = object(Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+</pre>
+
+<p>But we might also clone HMS Hermes completely and then
+overwrite some of the member objects.
+</p>
+
+<pre class="moss">
+Hermes = object()
+extend(Hermes,Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+</pre>
+
+<p>Another way is to use a constructor <code>ship</code>
+and a metaobject <code>ship.type</code>.
+</p>
+
+<pre class="moss">
+ship = sub|id,vmax|
+  return object(ship.type,{"id": id, "vmax": vmax})
+end
+
+ship.type = table
+  color = "gray blue",
+  engine = "diesel",
+  move = begin
+    print(self.id, " moves at ", self.vmax//2 " kn.")
+  end
+end of table
+
+Bristol = ship("HMS Bristol",25)
+Hermes = ship("HMS Hermes",25)
+</pre>
+
+<p>Frankly speaking, the metaobject <code>ship.type</code> can be
+regarded as a table of virtual methods and class variables.
+</p>
+
+
+<h2 id="Literal">
+Object literal</h2>
+
+<p>The following ways to construct Hermes have the same result.
+</p>
+
+<pre class="moss">
+Hermes = object(Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+
+Hermes = object(Bristol,{
+  id = "HMS Hermes",
+  vmax = 24
+})
+
+Hermes = table[Bristol]
+  id = "HMS Hermes",
+  vmax = 24
+end
+
+Hermes = table[Bristol]
+  "id": "HMS Hermes",
+  "vmax": 24
+end
+</pre>
+
+
+<h2 id="Prototypes">
+Prototypes</h2>
+
+<p>Every object <code>x</code> has a prototype.
+If some member object is not found in <code>x</code>, it will be
+looked up in the prototype of <code>x</code> and then in the
+prototype of the prototype of <code>x</code> and so on.
+</p>
+
+<p>In Moss, the type of an object and its prototype coincide,
+because the type of an object is determined by its prototype.
+The prototype stores the propertys and operations, that objects
+of some kind have in common.
+</p>
+
+<pre class="moss">
+a = object(null,{time="14:12"})
+# a is a new object with prototype null
+
+b = object(a)
+# b is a new object with prototype a
+
+type(b) is a
+# true
+
+type(null) is null
+# true, null is its own prototype and is the only
+# object which shall have this property
+
+print(b.time)
+# 14:12
+# b does not have 'time', but a has it
+</pre>
+
+<p>There are two ways to determine, whether some object is of some
+type or not.
+</p>
+<pre class="moss">
+&gt; T = object()
+&gt; S = object(T)
+&gt; a = object(S)
+
+# T is not the direct prototype of a.
+&gt; type(a) is T
+false
+&gt; type(a) is S
+true
+
+# But a is an ancestor of T.
+&gt; a is in T
+true
+&gt; a is in S
+true
+
+# S is a subtype of T.
+&gt; S is in T
+true
+
+# S is a direct subtype of T.
+&gt; type(S) is T
+true
+</pre>
+
+<p>If <code>S</code> was extended by <code>T</code>, we must
+take a different approach.
+</p>
+
+<pre class="moss">
+&gt; T = table a=1, b=2 end
+&gt; S = table c=3 end
+&gt; extend(S,T)
+
+# This won't work anymore.
+&gt; S is in T
+false
+
+# But one can test, whether all members of T
+# are contained in S.
+&gt; record(T) &lt; record(S)
+true
+</pre>
+
+
+<h2 id="Inheritance">Multiple inheritance
+</h2>
+
+<p>An object can have more than one prototype.
+</p>
+
+<pre class="moss">
+plane_type = table
+  take_off = begin
+    print(self.id, " is in the sky.")
+  end
+end
+
+sea_duck = object([ship.type, plane_type],{
+  id="Sea duck",
+  vmax = 40
+})
+
+sea_duck.move()
+# Sea duck moves at 20 kn.
+
+sea_duck.take_off()
+# Sea duck is in the sky.
+</pre>
+
+<p>A method is searched at first in <code>ship.type</code>,
+and then, if not found, in <code>plane_type</code>.
+</p>
+
+<h2 id="Reflection">
+Reflection</h2>
+
+<p>Reflection is the possibility to construct, obtain and modify the
+structure of a type at runtime.
+</p>
+
+<pre class="moss">
+# direct construction
+Bristol = table color = "gray blue", engine = "diesel" end
+
+# reflection
+x = "color"; y = "engine"
+Bristol = table x: "gray blue", y: "diesel" end
+
+# direct access
+&gt; Bristol.engine
+"diesel"
+
+# reflection
+&gt; record(Bristol)["engine"]
+"diesel"
+
+# direct method call
+&gt; Bristol.move()
+
+# reflection
+&gt; record(Bristol)["move"].call(Bristol)
+</pre>
+
+<h2 id="Monkey">
+Monkey patching</h2>
+
+<p>We are able to add methods to already existent types. This
+technique is called <em>monkey patching</em> and considered a bad
+practice, because it can result in name conflicts.
+</p>
+
+<p>As an example, we will add a method to the string type, that
+converts a string of numbers into the list of these numbers.
+</p>
+
+<pre class="moss">
+str.type.numbers = begin
+  self.split(",").map(int)
+end
+
+&gt; "12, 14, 16".numbers()
+[12, 14, 16]
+</pre>
+
+<h2 id="Overloading">
+Operator overloading</h2>
+
+<p>Table of binary overloadable operators.
+</p>
+<table class="bt">
+<tr>
+  <th>Op.
+  <th>left
+  <th>right
+<tr>
+  <td class="r"><code>a+b</code>
+  <td><code>add</code>
+  <td><code>radd</code>
+<tr>
+  <td class="r"><code>a-b</code>
+  <td><code>sbt</code>
+  <td><code>rsbt</code>
+<tr>
+  <td class="r"><code>a*b</code>
+  <td><code>mpy</code>
+  <td><code>rmpy</code>
+<tr>
+  <td class="r"><code>a/b</code>
+  <td><code>div</code>
+  <td><code>rdiv</code>
+<tr>
+  <td class="r"><code>a//b</code>
+  <td><code>idiv</code>
+  <td><code>ridiv</code>
+<tr>
+  <td class="r"><code>a^b</code>
+  <td><code>pow</code>
+  <td><code>rpow</code>
+<tr>
+  <td class="r"><code>a==b</code>
+  <td><code>eq</code>
+  <td><code>req</code>
+<tr>
+  <td class="r"><code>a&lt;b</code>
+  <td><code>lt</code>
+  <td><code>rlt</code>
+<tr>
+  <td class="r"><code>a&gt;b</code>
+  <td><code>gt</code>
+  <td><code>rgt</code>
+<tr>
+  <td class="r"><code>a&lt;=b</code>
+  <td><code>le</code>
+  <td><code>rle</code>
+<tr>
+  <td class="r"><code>a&gt;=b</code>
+  <td><code>ge</code>
+  <td><code>rge</code>
+</table>
+
+<p>Table of unary overloadable operators.
+</p>
+<table class="bt">
+<tr>
+  <th>Op.
+  <th>Method
+<tr>
+  <td class="r"><code>-a</code>
+  <td><code>neg</code>
+<tr>
+  <td class="r"><code>~a</code>
+  <td><code>comp</code>
+</table>
+
+<p>Here is an implementation of complex number arithmetic.
+Complex numbers are covered already by the moss language,
+but this implementation allows also for arithmetic of
+complex integers.
+</p>
+<pre class="moss">
+complex = sub|x,y|
+  return table[complex.type] re=x, im=y end
+end
+
+complex.type = table
+  str = begin
+    return "("+str(self.re)+", "+str(self.im)+")"
+  end,
+  add = sub|b|
+    if type(b) is int.type
+      return complex(self.re+b,self.im)
+    else
+      return complex(self.re+b.re,self.im+b.im)
+    end
+  end,
+  radd = sub|b|
+    return complex(self+b.re,b.im)
+  end,
+  mpy = sub|b|
+    if type(b) is int.type
+      return complex(self.re*b,self.im*b)
+    else
+      return complex(self.re*b.re-self.im*b.im,
+        self.re*b.im+self.im*b.re)
+    end
+  end,
+  rmpy = sub|b|
+    return complex(self*b.re,self*b.im)
+  end,
+  pow = sub|n| a=self
+    return (1..n).prod(|k| a)
+  end
+end of table
+
+
+# Example of use
+
+&gt; i=complex(0,1)
+&gt; 4+2*i
+(4, 2)
+&gt; (4+2*i)*(5+3*i)
+(14, 22)
+&gt; (4+2*i)^60
+(-964275081903216557328422924784146317312,
+  472329409445772258729579365571477110784)
+&gt; (4+2i)^60
+-9.64275e+38+4.72329e+38i
+</pre>
+
+</body>
+</html>
+
+

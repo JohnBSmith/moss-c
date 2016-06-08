@@ -1,0 +1,31 @@
+
+import gx, time
+import math: pi, sin, cos
+
+sub main
+  c = gx.new(720,480,1)
+  c.clear(1,1,1)
+  c.mix(0)
+  c.cset(0,0,0.4)
+
+  x=0; y=0; k=0; h=0.001
+  r = rand(1)
+  while true
+    w = r()*2*pi
+    x2=x+h*cos(w)
+    y2=y+h*sin(w)
+    c.line(x,y,x2,y2)
+    x=x2; y=y2
+    k++
+    if k%1000==0
+      c.flush()
+      if c.key()=="q" then break
+      end
+      time.sleep(0.04)
+    end
+  end
+end
+
+main()
+
+

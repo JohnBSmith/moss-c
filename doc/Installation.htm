@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Installation</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<h2>Installation</h2>
+
+<pre>
+From source:
+1. open a terminal in directory "moss"
+2. sh make.sh
+3. as superuser: sh install.sh
+</pre>
+
+<h3>Dependencies</h3>
+
+<p>Currently the Moss-interpreter depends more or less
+on the following programs.
+</p>
+
+<pre>
+# C99 compiler
+apt-get install gcc
+
+# alternative C99 compiler
+apt-get install clang-3.5
+
+# GNU Readline (optional)
+apt-get install libreadline-dev
+
+# GNU Multiple Precision Arithmetic Library
+# (optional)
+apt-get install libgmp-dev
+
+# Graphics interface (optional)
+apt-get install libsdl2-dev
+
+# Cross compiler, target: MS Windows
+apt-get install mingw32
+</pre>
+
+<h3>Development tools.
+</h3>
+
+<pre>
+# IDE
+apt-get geany
+
+# Static program analysis
+apt-get install splint
+
+# Debugger and memory checker
+apt-get install gdb
+apt-get install valgrind
+
+# Emulator for cross compiler output
+apt-get install wine
+
+# Compare a file and its modification
+apt-get install kompare
+
+# Find all occurrences of a pattern
+egrep -nrwi "regex" ./
+  () | [] . * ?
+  {n} {min,} {,max} {min,max}
+  ^ $ \&lt; \&gt; \w \b
+</pre>
+
+</body>
+</html>
+

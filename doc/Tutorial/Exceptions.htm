@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Exceptions</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Exception handling</h1>
+
+<p>In the following an exception of type <code>Ea</code>
+is thrown an then catched.
+</p>
+<pre class="moss">
+Ea = object()
+
+try
+  raise table[Ea] value="Some message" end
+catch e: Ea
+  print(e.value)
+end
+</pre>
+<p>The catch-part is only reached if the exception is of
+type <code>Ea</code>. There are two kinds of catch.
+</p>
+<pre class="moss">
+# conditional catch:
+catch e: exception_type
+
+# unconditional catch:
+catch e
+</pre>
+<p>The behavior of the conditional catch is described by the
+following algorithm.
+</p>
+<pre class="moss">
+try
+  # ...
+catch e
+  if e is in Ea
+    print(e.value)
+  else
+    raise e
+  end
+end
+</pre>
+
+
+</body>
+</html>
+

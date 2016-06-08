@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Examples</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Example programs</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Fractals">Fractals</a>
+<li><a href="#Turmite">Turmite</a>
+<li><a href="#Sudoku">Sudoku solver</a>
+</ol>
+
+<h2 id="Fractals">Fractals</h2>
+
+<pre class="moss">
+import gx, time
+import cmath: re, im
+
+sub fractal(f,g)
+  w=360; h=240
+  canvas = gx.new(w,h,2)
+  for y in h
+    for x in w
+      c = (4*x/h-3)-(4*y/h-2)*1i
+      z=g(c)
+      for i in 30
+        z=f(z,c)
+        if abs(z)&gt;2
+          canvas.cset(i/30,i/30,i/60)
+          canvas.pset(x,y)
+          break
+        end
+      end
+    end
+    canvas.flush()
+  end
+  while canvas.key()!="q"
+    time.sleep(0.1)
+  end
+end of sub
+
+# Mandelbrot set
+fractal(|z,c| z^2+c, |c| 0)
+
+# Burning ship fractal
+fractal(|z,c| (abs(re(z))-abs(im(z))*1i)^2+c, |c| 0)
+
+# Julia set of f(z)=z^2-1
+fractal(|z,c| z^2-1, |c| c)
+</pre>
+
+<h2 id="Turmite">Turmite
+</h2>
+
+<pre class="moss">
+# Langton's ant
+
+import gx, time
+
+sub main
+  w=120; h=80
+  a = w*h*[0]/w
+  d=0; px=w//2; py=h//2
+  canvas = gx.new(4*w,4*h,2)
+  k=0
+  while true
+    if a[py][px]==0
+      d=(d+1)%4; a[py][px]=1
+      canvas.cset(0.6,0.6,0.4)
+    else
+      d=(d-1)%4; a[py][px]=0
+      canvas.cset(0,0,0)
+    end
+    canvas.fill(4*px,4*py,3,3);
+    if k%10==0
+      canvas.flush()
+      time.sleep(0.1)
+      if canvas.key()=="q" then break
+      end
+    end
+    if d==0 then px=(px+1)%w
+    elif d==1 then py=(py-1)%h
+    elif d==2 then px=(px-1)%w
+    else py=(py+1)%h
+    end
+    k++
+  end of while
+end of sub
+
+main()
+</pre>
+
+<h2 id="Sudoku">Sudoku solver
+</h2>
+
+<pre class="moss">
+# Sudoku solver
+# for simple sudokus
+
+sub str_to_list(s)
+  k=0; a=[]; b=[]
+  for c in s
+    if c.isdigit()
+      k++; a.push(int(c))
+    elif c=='.'
+      k++; a.push(0)
+    end
+    if k==9
+      k=0; b.push(a); a=[]
+    end
+  end
+  return b
+end
+
+sub list_to_str(a)
+  a.map(sub|x|
+    x.chunks(3).map(sub|y|
+      y.map(|d| if d==0 then '.' else str(d) end).join()
+    end).join("|")
+  end).chunks(3).map(sub|y|
+    y.join("\n")
+  end).join("\n---+---+---\n")
+end
+
+sub row_set(a,i)
+  set(a[i].filter(|x| x!=0))
+end
+
+sub col_set(a,j)
+  set(list(0..8).map(|i| a[i][j]).filter(|x| x!=0))
+end
+
+sub box_set(a,i,j)
+  i=(i//3)*3; j=(j//3)*3
+  set(list(0..2).map(sub|x|
+    list(0..2).map(|y| a[i+x][j+y])
+  end).chain().filter(|x| x!=0))
+end
+
+sub step(a)
+  M9 = set(1..9)
+  for i in 0..8
+    for j in 0..8
+      if a[i][j]==0
+        M = M9-(row_set(a,i)|col_set(a,j)|box_set(a,i,j))
+        if size(M)==1
+          a[i][j]=list(M)[0]
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+sub solve(a)
+  t=true
+  while t
+    t=step(a)
+  end
+end
+
+sub main(s)
+  a = str_to_list(s)
+  solve(a)
+  print(list_to_str(a))
+end
+
+s1 = """
+..3|..9|6..
+4..|..2|..3
+862|153|.9.
+---+---+---
+5.7|2.6|.3.
+.3.|5..|...
+6.9|.7.|.51
+---+---+---
+.2.|4.8|..7
+.4.|.3.|.2.
+3..|.25|148
+"""
+
+main(s1)
+
+# Output:
+# 753|849|612
+# 491|762|583
+# 862|153|794
+# ---+---+---
+# 517|286|439
+# 234|591|876
+# 689|374|251
+# ---+---+---
+# 925|418|367
+# 148|637|925
+# 376|925|148
+</pre>
+
+</body>
+</html>
+

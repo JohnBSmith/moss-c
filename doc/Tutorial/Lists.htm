@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lists</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/syntax.js" type="text/javascript">
+  </script>
+</head>
+<body>
+
+<h1>Lists and iterators</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Iterators">Iterators and generators</a>
+</ol>
+
+<h2 id="Iterators">Iterators and generators</h2>
+
+<p>An emitter is simply a function that has no arguments but
+returns a value each call until it is exhausted. There
+are infinite emitters that never exhaust. A function that returns
+an emitter is called generator. The most basic generator is
+<code>iter</code>, a function that obtains an iterator from an
+iterable object. An iterator is an emitter that returns the elements
+of a collection in their order.
+</p>
+
+<pre class="moss">
+&gt; i = iter([3,7,2])
+&gt; i()
+3
+&gt; i()
+7
+&gt; i()
+2
+&gt; i()
+# Exception: empty emitter
+
+# An infinite iterator
+&gt; i = iter(1..)
+&gt; [i(),i(),i(),i()]
+[1, 2, 3, 4]
+
+# Take 4 elements
+&gt; i.list(4)
+[5, 6, 7, 8]
+
+# Iterator from a range
+&gt; i = iter(1..10)
+
+# Iterator from a set
+&gt; i = iter(set([3,7,2]))
+</pre>
+
+
+</body>
+</html>
+

@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Syntax specification</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<h1>Syntax specification</h1>
+
+<b style="color: #800000; font-style: italic;
+font-size: 120%">outdated</b>
+
+<h2>Comments</h2>
+<pre>
+A single line comment starts with the hash character ("#") and
+ends at the end of the line.
+
+A multi line comment starts with the sequence slash asterisk ("/*")
+and ends at the sequence asterisk slash ("*/").
+The sequence "/*" may also occur in a multi line comment, but this is
+meaningless. Multi line comments are not nestable. If the end of the
+file is reached in a multi line comment, this is a compilation error.
+</pre>
+
+<h2>Literals</h2>
+<pre>
+binary-digit = "0" | "1".
+digit = "0" | ... | "9".
+octal-digit = "0" | ... | "7".
+hexadecimal-digit = digit | "A" | ... | "F" | "a" | ... | "f".
+decimal-literal = digit {digit | "_"}.
+binary-literal = "0b" binary-digit {binary-digit | "_"}.
+octal-literal = "0o" octal-digit {octal-digit | "_"}.
+hexadecimal-literal = "0x" hexadecimal-digit
+  {hexadecimal-digit | "_"}.
+integer-literal = decimal-literal | binary-literal | octal-literal
+  | hexadecimal-literal.
+float-suffix = ("E" | "e") ["+" | "-"] digit {digit}.
+float-literal-A = {digit} "." digit {digit} [float-suffix].
+float-literal-B = digit {digit} "." {digit} [float-suffix]
+float-literal-C = digit {digit} float-suffix.
+float-literal = float-literal-A | float-literal-B | float-literal-C.
+bool-literal = "true" | "false".
+null-object-literal = "null".
+
+letter = "A" | ... | "Z" | "a" | ... | "z".
+identifier = (letter | "_") {letter | digit | "_"}.
+NL = new-line.
+</pre>
+
+<h2>Statements</h2>
+<pre>
+condition = expression.
+if-statement =
+"if" condition ("then" | NL)
+  [statements]
+{"elif" condition ("then" | NL)
+  [statements]}
+["else"
+  [statements]]
+"end".
+
+while-statement =
+"while" condition ("do" | NL) [statements]
+"end".
+
+break-statement = "break".
+continue-statement = "continue".
+return-statement = "return" [expression].
+for-in-statement =
+"for" identifier "in" expression ("do" | NL)
+  [statements]
+"end".
+
+statement = 
+  if-statement | while-statement
+| break-statement | continue-statement |
+  for-in-statement | function-statement.
+
+statements = statement [(";" | NL) [statements]].
+</pre>
+
+<h2>Expressions</h2>
+<pre>
+function-call = identifier "(" [expression {"," expression}] ")".
+list = "[" [expression {"," expression}] "]".
+or-expression = and-expression {"or" and-expression}.
+and-expression = not-expression {"and" not-expression}.
+not-expression = "not" not-expression | eq-expression.
+eq-expression = cmp-expression
+  {("==" | "!=" | "is" | "is not" | "in" | "not in")
+  cmp-expression}.
+cmp-expression = pm-expression
+  {("<" | ">" | "<=" | ">=") pm-expression}.
+pm-expression = term {("+" | "-") term}.
+term = factor {("*" | "/" | "//" | "%") factor}.
+factor = ["+" | "-" | "~"] factor | power.
+power = atom ["^" factor].
+atom = literal | identifier | function-call
+  | list | "(" expression ")".
+</pre>
+
+<h2>Function definitions</h2>
+<pre>
+arglist = [identifier {"," identifier}].
+function-statement =
+"sub" identifier ("(" arglist ")" | NL)
+  [statements]
+"end".
+sub-term = "sub" [identifier] "|" arglist "|".
+anonymous-function =
+(sub-term | "begin")
+  {statement}
+"end".
+</pre>
+
+</body>
+</html>
+
