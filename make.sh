@@ -1,4 +1,5 @@
 
+mkdir -p bin
 cd modules
 (cd bs && sh make.sh)
 (cd global && sh make.sh)
