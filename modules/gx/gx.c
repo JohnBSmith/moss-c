@@ -1,10 +1,12 @@
 
 #include <assert.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <moss.h>
 
 mt_string* mf_cstr_to_str(const char* a);
 double mf_float(mt_object* x, int* error);
+mt_list* mf_raw_list(long size);
 
 typedef struct{
   unsigned char r,g,b,a;
@@ -16,8 +18,9 @@ typedef struct{
   void (*del)(void*);
   SDL_Window* screen;
   SDL_Renderer* rdr;
+  TTF_Font* font;
   mt_pixel* buffer;
-  int w,h;
+  int w,h; // TODO: unsigned?
   int size;
   int r,g,b,a;
   int cx,cy;
@@ -68,16 +71,22 @@ mt_canvas* gx_new(int w, int h, int size){
     SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
     w*size, h*size, SDL_WINDOW_SHOWN);
   if(canvas->screen==NULL){
-    free(canvas);
+    mf_free(canvas);
     mf_std_exception("Error: cannot construct canvas screen.");
     return NULL;
   }
   canvas->rdr = SDL_CreateRenderer(canvas->screen,0,SDL_RENDERER_ACCELERATED);
   if(canvas->rdr==NULL){
-    free(canvas);
+    mf_free(canvas);
     mf_std_exception("Error: cannot construct canvas screen.");
     return NULL;
   }
+  SDL_SetRenderDrawBlendMode(canvas->rdr, SDL_BLENDMODE_BLEND);
+  if(TTF_Init()==-1) {
+    printf("TTF_Init: %s\n", TTF_GetError());
+    abort();
+  }
+  canvas->font=NULL;
   canvas->buffer = new_buffer(w,h);
   SDL_SetRenderDrawColor(canvas->rdr,0,0,0,255);
   SDL_RenderClear(canvas->rdr);
@@ -85,7 +94,7 @@ mt_canvas* gx_new(int w, int h, int size){
   canvas->r=0xa0;
   canvas->g=0xa0;
   canvas->b=0xa0;
-  canvas->a=0xa0;
+  canvas->a=255;
   return canvas;
 }
 
@@ -106,12 +115,12 @@ void gx_pset(mt_canvas* canvas, unsigned int x, unsigned int y){
 }
 
 static
-int max(a,b){
+int max(int a, int b){
   return a<b? b: a;
 }
 
 static
-int min(a,b){
+int min(int a, int b){
   return a<b? a: b;
 }
 
@@ -235,7 +244,7 @@ int mf_gx_cset(mt_object* x, int argc, mt_object* v){
     mf_type_error("Type error in c.cset(r,g,b): c is not a canvas.");
     return 1;
   }
-  double r,g,b;
+  double r,g,b,a;
   int error=0;
   if(argc==1){
     if(v[1].type!=mv_list){
@@ -254,6 +263,7 @@ int mf_gx_cset(mt_object* x, int argc, mt_object* v){
       mf_type_error("Type error in c.cset([r,g,b]): r,g,b must be convertible to float.");
       return 1;
     }
+    gx_cset((mt_canvas*)v[0].value.p,255*r,255*g,255*b,255);
   }else if(argc==3){
     r=mf_float(v+1,&error);
     g=mf_float(v+2,&error);
@@ -262,12 +272,22 @@ int mf_gx_cset(mt_object* x, int argc, mt_object* v){
       mf_type_error("Type error in c.cset(r,g,b): r,g,b must be convertible to float.");
       return 1;
     }
+    gx_cset((mt_canvas*)v[0].value.p,255*r,255*g,255*b,255);
+  }else if(argc==4){
+    r=mf_float(v+1,&error);
+    g=mf_float(v+2,&error);
+    b=mf_float(v+3,&error);
+    a=mf_float(v+4,&error);
+    if(error){
+      mf_type_error("Type error in c.cset(r,g,b,a): r,g,b,a must be convertible to float.");
+      return 1;
+    }
+    gx_cset((mt_canvas*)v[0].value.p,255*r,255*g,255*b,255*a);
   }else{
     // TODO
     mf_argc_error(argc,1,3,"cset");
     return 1;
   }
-  gx_cset((mt_canvas*)v[0].value.p,255*r,255*g,255*b,255);
   x->type=mv_null;
   return 0;
 }
@@ -308,7 +328,7 @@ void HSL_to_RGB(double H, double S, double L,
 }
 
 static
-int mf_gx_HSL(mt_object* x, int argc, mt_object* v){
+int canvas_HSL(mt_object* x, int argc, mt_object* v){
   if(argc!=3){
     mf_argc_error(argc,3,3,"cset");
     return 1;
@@ -329,6 +349,32 @@ int mf_gx_HSL(mt_object* x, int argc, mt_object* v){
   HSL_to_RGB(H,S,L,&r,&g,&b);
   gx_cset((mt_canvas*)v[0].value.p,255*r,255*g,255*b,255);
   x->type=mv_null;
+  return 0;
+}
+
+static
+int gx_HSL(mt_object* x, int argc, mt_object* v){
+  if(argc!=3){
+    mf_argc_error(argc,3,3,"cset");
+    return 1;
+  }
+  double H,S,L,r,g,b;
+  int error=0;
+  H=mf_float(v+1,&error);
+  S=mf_float(v+2,&error);
+  L=mf_float(v+3,&error);
+  if(error){
+    mf_type_error("Type error in gx.cset(H,S,L): H,S,L must be convertible to float.");
+    return 1;
+  }
+  HSL_to_RGB(H,S,L,&r,&g,&b);
+  mt_list* list = mf_raw_list(3);
+  mt_object* a=list->a;
+  a[0].type=mv_float; a[0].value.f=r;
+  a[1].type=mv_float; a[1].value.f=g;
+  a[2].type=mv_float; a[2].value.f=b;
+  x->type=mv_list;
+  x->value.p=(mt_basic*)list;
   return 0;
 }
 
@@ -687,13 +733,28 @@ void gx_putchar(mt_canvas* canvas, uint32_t c){
 }
 
 static
-void gx_print(mt_canvas* canvas, int size, uint32_t* a){
+void gx_print(mt_canvas* canvas, long size, uint32_t* a){
   int i;
   canvas->cursor=canvas->cx;
   for(i=0; i<size; i++){
     gx_putchar(canvas,a[i]);
   }
   canvas->cy+=LINE_HEIGHT;
+}
+
+static
+void gx_print_ttf(mt_canvas* canvas, const char* a){
+  SDL_Color color;
+  color.r=canvas->r; color.g=canvas->g; color.b=canvas->b;
+  SDL_Surface* s = TTF_RenderUTF8_Blended(canvas->font,a,color);
+  SDL_Texture* t = SDL_CreateTextureFromSurface(canvas->rdr,s);
+  SDL_Rect rect;
+  rect.x=canvas->cx; rect.y=canvas->cy;
+  rect.w=s->w; rect.h=s->h;
+  canvas->cy+=s->h;
+  SDL_RenderCopy(canvas->rdr, t, NULL, &rect);
+  SDL_FreeSurface(s);
+  SDL_DestroyTexture(t);
 }
 
 int mf_gx_print(mt_object* x, int argc, mt_object* v){
@@ -710,8 +771,41 @@ int mf_gx_print(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   mt_canvas* canvas = (mt_canvas*)v[0].value.p;
+  if(canvas->font==NULL){
+    mf_std_exception("Error in c.print(s): font not specified.");
+    return 1;
+  }
   mt_string* s = (mt_string*)v[1].value.p;
-  gx_print(canvas,s->size,s->a);
+  mt_bstr bs;
+  mf_encode_utf8(&bs,s->a,s->size);
+  gx_print_ttf(canvas,bs.a);
+  // gx_print(canvas,s->size,s->a);
+  x->type=mv_null;
+  return 0;
+}
+
+static
+int canvas_font(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"font");
+    return 1;
+  }
+  if(!isa(v,canvas_type)){
+    mf_type_error("Type error in c.print(s): c is not a canvas.");
+    return 1;
+  }
+  if(v[1].type!=mv_int){
+    mf_type_error1("in canvas.font(n): n (type: %s) is not an integer.",v+1);
+    return 1;
+  }
+  mt_canvas* canvas = (mt_canvas*)v[0].value.p;
+  canvas->font = TTF_OpenFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf", v[1].value.i);
+  if(canvas->font==NULL){
+    char a[400];
+    snprintf(a,400,"Error in TTF_OpenFont: %s.", TTF_GetError());
+    mf_std_exception(a);
+    return 1;
+  }
   x->type=mv_null;
   return 0;
 }
@@ -746,7 +840,7 @@ mt_table* mf_gx_load(){
   mf_insert_function(m,2,2,"pset",mf_gx_pset);
   mf_insert_function(m,0,0,"flush",mf_gx_flush);
   mf_insert_function(m,3,3,"cset",mf_gx_cset);
-  mf_insert_function(m,3,3,"HSL",mf_gx_HSL);
+  mf_insert_function(m,3,3,"HSL",canvas_HSL);
   mf_insert_function(m,3,3,"clear",mf_gx_clear);
   mf_insert_function(m,0,0,"key",mf_gx_key);
   mf_insert_function(m,2,2,"point",mf_gx_point);
@@ -756,10 +850,12 @@ mt_table* mf_gx_load(){
   mf_insert_function(m,1,1,"print",mf_gx_print);
   mf_insert_function(m,2,2,"pos",mf_gx_pos);
   mf_insert_function(m,1,1,"mix",gx_mix);
+  mf_insert_function(m,1,1,"font",canvas_font);
 
   gx->m = mf_empty_map();
   m = gx->m;
   mf_insert_function(m,3,3,"new",mf_gx_new);
+  mf_insert_function(m,3,3,"HSL",gx_HSL);
   m->frozen=1;
   return gx;
 }

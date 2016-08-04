@@ -89,7 +89,7 @@ char* get_utf8(unsigned char* s, int size){
   }
   mt_bstr bs;
   mf_encode_utf8(&bs,a,size);
-  free(a);
+  mf_free(a);
   return (char*)bs.a;
 }
 
@@ -139,6 +139,7 @@ void mf_print_string(long size, uint32_t* a){
   mt_bstr s;
   mf_encode_utf8(&s,a,size);
   printf("%s",s.a);
+  mf_free(s.a);
 }
 #endif
 
@@ -179,6 +180,7 @@ void mf_print_string_lit(long size, uint32_t* s){
   push_char(&buffer,0);
   printf("%s",buffer.a);
   mf_vec_delete(&buffer);
+  mf_free(bs.a);
 }
 
 char* mf_getline(const char* prompt){
@@ -186,17 +188,17 @@ char* mf_getline(const char* prompt){
   char* a = mf_malloc(10000);
   char* p=fgets(a,10000,stdin);
   if(p==0){
-    free(a);
+    mf_free(a);
     return 0;
   }
   int size = strlen(a);
   char* s = mf_malloc(size);
   memcpy(s,a,size-1);
   s[size-1]=0;
-  free(a);
+  mf_free(a);
 #ifdef _WIN32
   a=get_utf8(s,size-1);
-  free(s);
+  mf_free(s);
   return a;
 #endif
   return s;
@@ -209,7 +211,7 @@ char* mf_getline_hist(const char* prompt){
   if(p==0) return 0;
   int size=strlen(p);
   if(size>0 && (last_input==0 || strcmp(p,last_input)!=0)){
-    if(last_input!=0) free(last_input);
+    if(last_input!=0) mf_free(last_input);
     last_input=mf_malloc(size+1);
     strncpy(last_input,p,size+1);
     add_history(p);

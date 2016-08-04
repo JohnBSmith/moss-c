@@ -31,20 +31,20 @@ void bint_clear(bint* x){
 static
 void bint_delete(bint* x){
   if(x->a!=NULL){
-    free(x->a);
+    mf_free(x->a);
     x->a=NULL;
   }
 }
 
 void mf_long_delete(mt_long* x){
   bint_delete(&x->value);
-  free(x);
+  mf_free(x);
 }
 
 void mf_long_dec_refcount(mt_long* x){
   if(x->refcount==1){
     bint_delete(&x->value);
-    free(x);
+    mf_free(x);
   }else{
     x->refcount--;
   }
@@ -61,7 +61,7 @@ void bint_set_value(bint* x, int n){
     x->capacity=4;
     x->a=mf_malloc(4);
   }else if(x->capacity<4){
-    free(x->a);
+    mf_free(x->a);
     x->capacity=4;
     x->a=mf_malloc(4);
   }
@@ -106,7 +106,7 @@ void bint_init_raw(bint* x, int size){
     x->capacity=size;
     x->size=size;
   }else if(size>x->capacity){
-    free(x->a);
+    mf_free(x->a);
     x->a=mf_malloc(size);
     x->capacity=size;
     x->size=size;
@@ -478,7 +478,7 @@ void lshift1(bint* x){
       a[i]=x->a[i];
     }
     if(x->a!=NULL){
-      free(x->a);
+      mf_free(x->a);
     }
     x->a=a;
     x->capacity=x->size*2;
@@ -573,7 +573,7 @@ void resize(bint* x, int size){
       for(i=x->size; i<size; i++){
         a[i]=0;
       }
-      if(x->a!=NULL) free(x->a);
+      if(x->a!=NULL) mf_free(x->a);
       x->a=a;
       x->size=size;
     }else{
@@ -935,7 +935,8 @@ long bint_to_int(bint* x){
   }
 }
 
-static int_to_buffer(mt_vec* v, int x, int fill){
+static
+void int_to_buffer(mt_vec* v, int x, int fill){
   int i=0,byte;
   while(x>0){
     byte = x%10+48;
@@ -1029,13 +1030,13 @@ mt_long* mf_string_to_long(mt_string* s){
     /*
     printf("Implementation error: cannot convert hex-literal to long.\n");
     exit(1);
-    unsigned char* buffer = malloc(s->size-i-2);
+    unsigned char* buffer = mf_malloc(s->size-i-2);
     int j;
     for(j=i+2; j<s->size; j++){
       buffer[j]=s->a[j];
     }
     mt_long* y = hex_to_long(buffer,s->size-i-2);
-    free(buffer);
+    mf_free(buffer);
     return y;
     */
   }
@@ -1221,8 +1222,13 @@ mt_list* mf_long_base(mt_long* x, int b){
   return list;
 }
 
+// todo
 int mf_long_isprime(mt_long* x){
   abort();
 }
 
+// todo
+double mf_long_float(mt_long* x){
+  abort();
+}
 

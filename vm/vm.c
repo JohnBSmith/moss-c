@@ -12,10 +12,18 @@
 #include <objects/map.h>
 #include <objects/long.h>
 #include <objects/set.h>
+#include <objects/function.h>
 #include <modules/global.h>
 
-// TODO: module nt
-// TODO: sparate frame->rescue from ip
+// TODO: unpacking assignment line, col
+// TODO: d.get(key,default_value)
+// TODO: cycle
+// TODO: list.type.sort: second argument
+// TODO: compiler: f()=x
+// TODO: str.type.isrange
+// TODO: iterkeys, itervalues
+// TODO: "end of" interactive
+// TODO: format
 // TODO: variadic index operator
 // TODO: f->data refcount?
 // TODO: type bstr, convert from and to list
@@ -31,6 +39,7 @@ typedef struct{
   mt_function* fp; // self function pointer
   long sp_try; // try-catch stack pointer
   int rescue; // rescue from raise
+  long rescue_ip;
   int ret; // choose between return and jump
   int argcp1; // argument count plus one
   int varcount; // number of local variables
@@ -49,7 +58,6 @@ static mt_object* var_pointer;
 static mt_function* global_function;
 mt_function* function_self;
 static mt_object* vm_stack;
-static mt_list* string_pool;
 mt_map* mv_mvtab;
 mt_map* mv_gvtab;
 static mt_stack_frame* frame;
@@ -65,16 +73,19 @@ static mt_module* exception_module;
 int mf_list_print(mt_list* a);
 void mf_print_string(long size, uint32_t* a);
 void mf_print_string_lit(long size, uint32_t* a);
-int mf_put_repr(mt_object* x);
+
 void mf_init_type_function(mt_table* t);
 void mf_init_type_iterable(mt_table* t);
 mt_function* mf_new_function(unsigned char* address);
 int mf_fiter(mt_object* x, int argc, mt_object* v);
+int mf_fdict(mt_object* x, int argc, mt_object* v);
 int mf_frand(mt_object* x, int argc, mt_object* v);
 int mf_finput(mt_object* x, int argc, mt_object* v);
 int mf_fabs(mt_object* x, int argc, mt_object* v);
 int mf_fsgn(mt_object* x, int argc, mt_object* v);
-int mf_empty();
+int mf_empty(void);
+void mf_table_dec_refcount(mt_table* t);
+void mf_module_dec_refcount(mt_module* m);
 
 mt_table* mv_type_bool;
 mt_table* mv_type_int;
@@ -89,153 +100,6 @@ mt_table* mv_type_dict;
 mt_table* mv_type_iterable;
 mt_table* mv_type_range;
 mt_table* mv_type_set;
-
-static
-void print_float(double x){
-  char buffer[100];
-  snprintf(buffer,100,"%.16g",x);
-  printf("%s",buffer);
-  if(isfinite(x) && strchr(buffer,'.')==NULL && strchr(buffer,'e')==NULL){
-    printf(".0");
-  }
-}
-
-static
-void print_complex(double re, double im){
-  if(re==0){
-    printf("%.16gi",im);
-  }else{
-    if(im<0){
-      printf("%.16g-%.16gi",re,-im);
-    }else{
-      printf("%.16g+%.16gi",re,im);
-    }
-  }
-}
-
-int mf_put(mt_object* x){
-  mt_string* s;
-  mt_range* r;
-  switch(x->type){
-  case mv_null:
-    printf("null");
-    break;
-  case mv_bool:
-    printf(x->value.b? "true": "false");
-    break;
-  case mv_int:
-    printf("%li",x->value.i);
-    break;
-  case mv_float:
-    print_float(x->value.f);
-    break;
-  case mv_complex:
-    print_complex(x->value.c.re,x->value.c.im);
-    break;
-  case mv_long:
-    mf_long_print((mt_long*)x->value.p);
-    break;
-  case mv_list:
-    if(mf_list_print((mt_list*)x->value.p)){
-      mf_traceback("put");
-      return 1;
-    }
-    break;
-  case mv_map:
-    if(mf_map_print((mt_map*)x->value.p)){
-      mf_traceback("put");
-      return 1;
-    }
-    break;
-  case mv_string:
-    s = (mt_string*)x->value.p;
-    mf_print_string(s->size,s->a);
-    break;
-  case mv_function:
-    printf("function");
-    break;
-  case mv_range:
-    r = (mt_range*)x->value.p;
-    if(r->a.type==mv_null || r->b.type==mv_null){
-      printf("(");
-    }
-    if(r->a.type!=mv_null){
-      if(mf_put_repr(&r->a)) goto error;
-    }
-    printf("..");
-    if(r->b.type!=mv_null){
-      if(mf_put_repr(&r->b)) goto error;
-    }
-    if(r->step.type!=mv_int || r->step.value.i!=1){
-      printf(":");
-      if(mf_put_repr(&r->step)) goto error;
-    }
-    if(r->a.type==mv_null || r->b.type==mv_null){
-      printf(")");
-    }
-    break;
-  case mv_set:{
-    s = mf_set_to_string((mt_set*)x->value.p);
-    mf_print_string(s->size,s->a);
-    mf_str_dec_refcount(s);
-  } break;
-  default:
-    s = mf_str(x);
-    if(s){
-      mf_print_string(s->size,s->a);
-      mf_str_dec_refcount(s);
-    }else{
-      return 1;
-    }
-  }
-  return 0;
-  error:
-  printf("\n");
-  return 1;
-}
-
-int mf_put_repr(mt_object* x){
-  if(x->type==mv_string){
-    mt_string* s = (mt_string*)x->value.p;
-    printf("\"");
-    mf_print_string_lit(s->size,s->a);
-    printf("\"");
-    return 0;
-  }else{
-    return mf_put(x);
-  }
-}
-
-int mf_print(mt_object* x){
-  int e=mf_put(x);
-  printf("\n");
-  return e;
-}
-
-int mf_fput(mt_object* x, int argc, mt_object* v){
-  int i;
-  for(i=1; i<=argc; i++){
-    if(mf_put(v+i)){
-      printf("\n");
-      return 1;
-    }
-  }
-  x->type=mv_null;
-  return 0;
-}
-
-int mf_fprint(mt_object* x, int argc, mt_object* v){
-  int i;
-  for(i=1; i<=argc; i++){
-    if(mf_put(v+i)){
-      printf("\n");
-      return 1;
-    }
-  }
-  printf("\n");
-  x->type=mv_null;
-  return 0;
-}
 
 int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
   int e;
@@ -252,6 +116,8 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
     goto iterable_get;
   case mv_float:
     return mf_map_get(x,mv_type_float->m,key);
+  case mv_complex:
+    return mf_map_get(x,mv_type_complex->m,key);
   case mv_string:
     m = mv_type_string->m;
     goto iterable_get;
@@ -306,8 +172,8 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
     return mf_object_get(x,&n->prototype,key);
   }
   default:
-    puts("Error in mf_object_get.");
-    abort();
+    mf_type_error1("in a.m: a (type: %s) cannot be handled by mf_object_get.",a);
+    return 2;
   }
   iterable_get:
   e = mf_map_get(x,m,key);
@@ -327,7 +193,7 @@ mt_object* mf_get_ref(mt_object* a, mt_object* key){
   int type=a->type;
   if(type==mv_list){
     if(key->type!=mv_int){
-      mf_type_error("Type error in a[i]=value: a is a list but i is not an integer.");
+      mf_type_error1("in a[i]=value: a is a list but i (type: %s) is not an integer.",key);
       return NULL;
     }
     long index = key->value.i;
@@ -335,11 +201,11 @@ mt_object* mf_get_ref(mt_object* a, mt_object* key){
     if(index<0){
       index+=list->size;
       if(index<0){
-        mf_index_error("Index error in a[i]=value: i is out of lower bound.");
+        mf_index_error1("in a[i]=value: i (value: %li) is out of lower bound.",key->value.i);
         return NULL;
       }
     }else if(index>=list->size){
-      mf_index_error("Index error in a[i]=value: i is out of upper bound.");
+      mf_index_error1("in a[i]=value: i (value: %li) is out of upper bound.",key->value.i);
       return NULL;
     }
     if(list->frozen){
@@ -362,7 +228,7 @@ mt_object* mf_get_ref(mt_object* a, mt_object* key){
     }
     return mf_map_set_key(m,key);
   }else{
-    mf_type_error("Type error in a[i]=value: a is not a list.");
+    mf_type_error1("in a[i]=value: a (type: %s) is not a list.",a);
     return NULL;
   }
 }
@@ -400,6 +266,82 @@ mt_object* mf_object_get_ref(mt_object* x, mt_object* id){
   return p;
 }
 
+// index is a single index (a[i])
+// or an index list (a[i,j,k]),
+// depending on argc
+static
+int store_index(mt_object* value, mt_object* a, int argc, mt_object* index){
+  switch(a->type){
+  case mv_list:{
+    mt_list* list=(mt_list*)a->value.p;
+    if(argc==1){
+      if(index->type==mv_int){
+        long i = index->value.i;
+        if(i<0){
+          i+=list->size;
+          if(i<0){
+            mf_index_error1("in a[i]=value: i (value: %li) is out of lower bound.",index->value.i);
+            return 1;
+          }
+        }else if(i>=list->size){
+          mf_index_error1("in a[i]=value: i (value: %li) is out of upper bound.",i);
+          return 1;
+        }
+        if(list->frozen){
+          mf_value_error("Value error in a[i]=value: a is frozen.");
+          return 1;
+        }
+        mf_dec_refcount(list->a+i);
+        mf_copy(list->a+i,value);
+        mf_list_dec_refcount(list);
+        return 0;
+      }else if(index->type==mv_range){
+        mt_range* r = (mt_range*)index->value.p;
+        if(r->a.type!=mv_int || r->b.type!=mv_int){
+          mf_type_error("Type error in a[r]=b: r is not an integer range.");
+          return 1;
+        }
+        if(value->type!=mv_list){
+          mf_type_error1("in a[range]=b: b (type: %s) is not a list.",value);
+          return 1;
+        }
+        mt_list* list2 = (mt_list*)value->value.p;
+        long ra=r->a.value.i;
+        long rb=r->b.value.i;
+        long i;
+        for(i=ra; i<=rb; i++){
+          if(i>=0 && i<list->size && i-ra>=0 && i-ra<list2->size){
+            mf_dec_refcount(list->a+i);
+            mf_copy_inc(list->a+i,list2->a+i-ra);
+          }
+        }
+        mf_list_dec_refcount(list);
+        mf_list_dec_refcount(list2);
+        mf_dec_refcount(index);
+        return 0;
+      }else{
+        mf_type_error1("in a[i]=b: i (type: %s) is not an integer and not a range.",index);
+        return 1;
+      }
+    }else{
+      mf_value_error("Value error in a[*i]=b: size(i)!=1.");
+      return 1;
+    }
+  } break;
+  case mv_map:{
+    mt_map* m=(mt_map*)a->value.p;
+    if(m->frozen){
+      mf_value_error("Value error in d[i]=value: d is frozen.");
+      return 1;
+    }
+    return mf_map_set(m,index,value);
+  } break;
+  default:
+    mf_type_error1("in a[i]=b: a (type: %s) is not a list.",a);
+    return 1;
+  }
+}
+
 static
 void mf_insert_table(mt_map* m, const char* id, mt_table* t){
   mt_string* key = mf_str_new(strlen(id),id);
@@ -407,43 +349,62 @@ void mf_insert_table(mt_map* m, const char* id, mt_table* t){
   x.type=mv_table;
   x.value.p=(mt_basic*)t;
   mf_map_set_str(m,key,&x);
+  mf_str_dec_refcount(key);
 }
 
-void mf_vm_init_gvtab(){
+void mf_vm_init_gvtab(void){
   mt_map* m=mv_mvtab;
   mt_function* f;
 
+  f=mf_insert_function(m,1,1,"bool",mf_fbool);
+  f->m=mf_empty_map();
+  mf_insert_table(f->m,"type",mv_type_bool);
+
   f=mf_insert_function(m,1,1,"int",mf_fint);
   f->m=mf_empty_map();
-  mv_type_int->refcount++;
   mf_insert_table(f->m,"type",mv_type_int);
   
   f=mf_insert_function(m,1,1,"float",mf_ffloat);
   f->m=mf_empty_map();
-  mv_type_float->refcount++;
   mf_insert_table(f->m,"type",mv_type_float);
 
   f=mf_insert_function(m,1,1,"long",mf_flong);
   f->m=mf_empty_map();
-  mv_type_long->refcount++;
   mf_insert_table(f->m,"type",mv_type_long);
+
+  f=mf_insert_function(m,2,2,"complex",mf_fcomplex);
+  f->m=mf_empty_map();
+  mf_insert_table(f->m,"type",mv_type_complex);
 
   f=mf_insert_function(m,1,2,"list",mf_flist);
   f->m=mf_empty_map();
-  mv_type_list->refcount++;
   mf_insert_table(f->m,"type",mv_type_list);
 
   f=mf_insert_function(m,1,1,"str",mf_fstr);
   f->m=mf_empty_map();
-  mv_type_string->refcount++;
   mf_insert_table(f->m,"type",mv_type_string);
-  
-  mf_insert_function(m,1,1,"set",mf_fset);
+  mf_insert_function(f->m,2,2,"f",mf_fixed);
+  mf_insert_function(f->m,2,2,"E",mf_exponential);
+
+  f=mf_insert_function(m,1,1,"set",mf_fset);
+  f->m=mf_empty_map();
+  mf_insert_table(f->m,"type",mv_type_set);
 
   mt_table* function = mf_table(NULL);
   function->m=mf_empty_map();
   mf_insert_table(function->m,"type",mv_type_function);
   mf_insert_table(m,"function",function);
+  function->refcount--;
+
+  mt_table* range = mf_table(NULL);
+  range->m=mf_empty_map();
+  mf_insert_table(range->m,"type",mv_type_range);
+  mf_insert_table(m,"range",range);
+  range->refcount--;
+
+  f=mf_insert_function(m,1,1,"dict",mf_fdict);
+  f->m=mf_empty_map();
+  mf_insert_table(f->m,"type",mv_type_dict);
 
   mf_insert_function(m,0,-1,"put",mf_fput);
   mf_insert_function(m,0,-1,"print",mf_fprint);
@@ -471,9 +432,12 @@ void mf_vm_init_gvtab(){
   mf_insert_function(m,1,1,"const",mf_fconst);
   mf_insert_function(m,2,-1,"extend",mf_fextend);
   mf_insert_function(m,2,3,"pow",mf_fpow);
+  mf_insert_function(m,0,-1,"compose",mf_fcompose);
+  
+  mf_insert_table(m,"empty",(mt_table*)mv_empty);
 }
 
-void mf_vm_init(){
+void mf_vm_init(void){
   vm_stack = mf_malloc(STACK_SIZE*sizeof(mt_object));
   eval_stack = mf_malloc(EVAL_STACK_SIZE*sizeof(mt_stack_frame));
   frame = eval_stack;
@@ -482,6 +446,7 @@ void mf_vm_init(){
   global_function = mf_new_function(NULL);
   iter_value.type=mv_null;
   mv_empty=(mt_basic*) mf_table(NULL);
+  ((mt_table*)mv_empty)->name = mf_cstr_to_str("Exception: empty emitter.");
 
   mv_type_iterable = mf_table(NULL);
   mf_init_type_iterable(mv_type_iterable);
@@ -530,12 +495,38 @@ void mf_vm_init(){
   mv_type_set->m = mf_empty_map();
 }
 
+void mf_vm_delete(void){
+  mf_free(vm_stack);
+  mf_free(eval_stack);
+  mf_map_dec_refcount(mv_mvtab);
+  mf_map_dec_refcount(mv_gvtab);
+
+  mf_table_dec_refcount(mv_type_bool);
+  mf_table_dec_refcount(mv_type_int);
+  mf_table_dec_refcount(mv_type_float);
+  mf_table_dec_refcount(mv_type_complex);
+  mf_table_dec_refcount(mv_type_long);
+  mf_table_dec_refcount(mv_type_string);
+  mf_table_dec_refcount(mv_type_list);
+  mf_table_dec_refcount(mv_type_function);
+  mf_table_dec_refcount(mv_type_dict);
+  mf_table_dec_refcount(mv_type_range);
+  mf_table_dec_refcount(mv_type_set);
+
+  mf_table_dec_refcount(mv_type_iterable);
+  mf_table_dec_refcount((mt_table*)mv_empty);
+  mf_function_dec_refcount(global_function);
+  
+  mf_dec_refcount(&mv_exception);
+  mv_exception.type=mv_null;
+}
+
 void mf_argc_error_sub(int argc, mt_function* f){
   char a[100];
   mt_bstr s;
   if(f->name){
     mf_encode_utf8(&s,f->name->a,f->name->size);
-    mf_argc_error(argc,f->argc,f->argc,s.a);
+    mf_argc_error(argc,f->argc,f->argc,(char*)s.a);
     mf_free(s.a);
   }else{
     snprintf(a,100,"function %p",f);
@@ -700,29 +691,43 @@ int mf_call(mt_function* f, mt_object* x, int argc, mt_object* v){
 }
 
 static
-int list_get(mt_object* x, mt_list* a, long i){
-  if(i>=a->size){
-    mf_value_error("Value error in unpacking assignment: out of upper bound.");
+int unpacking_get(mt_object* x, mt_object* a, long i){
+  if(a->type==mv_list){
+    mt_list* list=(mt_list*)a->value.p;
+    if(i>=list->size){
+      mf_value_error("Value error in unpacking assignment: out of upper bound.");
+      return 1;
+    }
+    mf_copy_inc(x,list->a+i);
+    return 0;  
+  }else if(a->type==mv_tuple){
+    mt_tuple* tuple=(mt_tuple*)a->value.p;
+    if(i>=tuple->size){
+      mf_value_error("Value error in unpacking assignment: out of upper bound.");
+      return 1;
+    }
+    mf_copy_inc(x,tuple->a+i);
+    return 0;
+  }else{
+    mf_type_error("Type error in unpacking assignment: right hand side is not a list.");
     return 1;
   }
-  mf_copy_inc(x,a->a+i);
-  return 0;
 }
 
 static
 int iter_next(mt_function* f){
   mt_object argv[1];
   argv[0].type=mv_null;
-  mt_object x;
-  if(mf_call(f,&x,0,argv)){
+  if(mf_call(f,&iter_value,0,argv)){
     if(mf_empty()){
       return 0;
     }else{
       return -1;
     }
   }
-  mf_dec_refcount(&iter_value);
-  mf_copy(&iter_value,&x);
+  // mf_dec_refcount(&iter_value);
+  // mf_copy(&iter_value,&x);
+  // ^TODO: this can be removed
   return 1;
 }
 
@@ -740,7 +745,7 @@ void undefined_variable(mt_object* x){
 
 int mf_vm_eval(unsigned char* a, long ip){
   mt_object* stack = vm_stack;
-  long int sp;
+  long sp;
   int e,i;
   long v1;
   int argc;
@@ -1181,7 +1186,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       // [..., function, self, arg1, arg2, ..., argn, ...]
       // stack[sp]....................................^
       if(p1->type!=mv_function){
-        mf_type_error("Type error: expected function.");
+        mf_type_error1("in f(...): f (type: %S) is not a functoin.",p1);
         goto error;
       }else{
         f = (mt_function*)p1->value.p;
@@ -1208,8 +1213,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       if(f->argc<0){
         int n = -f->argc-1;
         if(n>argc){
-          puts("Error: function takes more arguments.");
-          abort();
+          mf_std_exception("Error: function takes more arguments.");
           goto error;
         }
         mt_list* list = mf_raw_list(argc-n);
@@ -1255,6 +1259,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       }
 
       frame->ret=0;
+      frame->rescue=0;
       a=address;
       ip=0;
 
@@ -1298,13 +1303,15 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=BCp4;
       break;
     case GET:
-      assert(sp>1);
-      sp--;
-      if(mf_get(&x1,stack+sp-1,stack+sp)){
-        sp--; goto error;
+      argc = *(int32_t*)(a+ip+BC);
+      assert(sp>argc);
+      stack_pointer=sp;
+      if(mf_get(&x1,argc,stack+sp-argc-1)){
+        goto error;
       }
-      mf_copy_inc(stack+sp-1,&x1);
-      ip+=BC;
+      sp-=argc;
+      mf_copy(stack+sp-1,&x1);
+      ip+=BCp4;
       break;
     case OBGET:
       assert(sp>1);
@@ -1322,11 +1329,15 @@ int mf_vm_eval(unsigned char* a, long ip){
             mf_std_exception(a);
           }
         }
+        // mf_dec_refcount(stack+sp-2);
+        // mf_dec_refcount(stack+sp-1);
+        // sp-=2;
         goto error;
       }
+      mf_inc_refcount(&x1);
       mf_dec_refcount(stack+sp-2);
       mf_dec_refcount(stack+sp-1);
-      mf_copy_inc(stack+sp-2,&x1);
+      mf_copy(stack+sp-2,&x1);
       sp--;
       ip+=BC;
       break;
@@ -1344,14 +1355,19 @@ int mf_vm_eval(unsigned char* a, long ip){
       sp-=2;
       ip+=BC;
       break;
+    case STORE_INDEX:
+      argc = *(int32_t*)(a+ip+BC);
+      assert(sp>argc);
+      if(store_index(stack+sp-argc-2,stack+sp-argc-1,argc,stack+sp-argc)){
+        goto error;
+      }
+      sp-=(argc+2);
+      ip+=BCp4;
+      break;
     case LIST_POP:
       assert(sp>0);
       v1=*(int32_t*)(a+ip+BC);
-      if(stack[sp-1].type!=mv_list){
-        mf_type_error("Type error in unpacking assignment: right hand side is not a list.");
-        goto error;
-      }
-      if(list_get(stack+sp,(mt_list*)stack[sp-1].value.p,v1)){
+      if(unpacking_get(stack+sp,stack+sp-1,v1)){
         goto error;
       }
       sp++;
@@ -1437,7 +1453,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=BC;
       break;
     case ITER_VALUE:
-      mf_copy_inc(stack+sp,&iter_value);
+      mf_copy(stack+sp,&iter_value);
       sp++;
       ip+=BC;
       break;
@@ -1462,7 +1478,8 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=BC;
       break;
     case TRY:
-      frame->rescue=ip+*(int32_t*)(a+ip+BC);
+      frame->rescue=1;
+      frame->rescue_ip=ip+*(int32_t*)(a+ip+BC);
       frame->sp_try=sp;
       ip+=BCp4;
       break;
@@ -1492,7 +1509,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       mf_dec_refcount(stack+i);
     }
     sp=frame->sp_try;
-    ip=frame->rescue;
+    ip=frame->rescue_ip;
     goto loop;
   }
   if(frame->ret){
@@ -1534,13 +1551,21 @@ void mf_vm_set_program(mt_module* module){
   base_pointer=vm_stack;
   global_function->gtab=mv_gvtab;
   function_self=global_function;
+
   module->refcount++;
   function_self->module=module;
+
   mv_exception.type=mv_null;
   if(module->data){
-    string_pool=mf_load_data(module->data);
-    global_function->data=string_pool->a;
+    module->string_pool=mf_load_data(module->data);
+    global_function->data=module->string_pool->a;
+    // global_function->data is a weak reference
   }
+}
+
+void mf_vm_unset_program(mt_module* module){
+  global_function->module=NULL;
+  mf_module_dec_refcount(module);
 }
 
 static
@@ -1561,12 +1586,16 @@ int mf_vm_eval_global(mt_module* module, long ip){
     error:
     mf_dec_refcounts(stack_pointer,vm_stack);
     print_error:
-    if(mv_traceback_list && mv_traceback_list->size>0){
-      long i;
-      for(i=mv_traceback_list->size-1; i>=0; i--){
-        printf("  in ");
-        mf_print(mv_traceback_list->a+i);
+    if(mv_traceback_list){
+      if(mv_traceback_list->size>0){
+        long i;
+        for(i=mv_traceback_list->size-1; i>=0; i--){
+          printf("  in ");
+          mf_print(mv_traceback_list->a+i);
+        }
       }
+      mf_list_dec_refcount(mv_traceback_list);
+      mv_traceback_list=NULL;
     }
     if(exception_address){
       print_line_col(exception_address,exception_module);
@@ -1614,7 +1643,6 @@ void mf_save_process_context(mt_process_context* context){
   context->stack_pointer = stack_pointer;
   context->base_pointer = base_pointer;
   context->function_pointer = function_self;
-  context->string_pool = string_pool;
 }
 
 static
@@ -1624,7 +1652,6 @@ void mf_restore_process_context(mt_process_context* context){
   stack_pointer = context->stack_pointer;
   base_pointer = context->base_pointer;
   function_self = context->function_pointer;
-  string_pool = context->string_pool;
 }
 
 int mf_eval_fiber(mt_fiber* fiber, mt_module* module, long ip){
@@ -1639,8 +1666,8 @@ int mf_eval_fiber(mt_fiber* fiber, mt_module* module, long ip){
   function_self->gtab=mv_gvtab;
   module->refcount++;
   function_self->module=module;
-  string_pool=mf_load_data(module->data);
-  function_self->data=string_pool->a;
+  module->string_pool=mf_load_data(module->data);
+  function_self->data=module->string_pool->a;
   int e = mf_vm_eval(module->program,ip);
   fiber->stack=vm_stack;
   fiber->stack_pointer=stack_pointer;
@@ -1663,8 +1690,8 @@ mt_table* mf_eval_module(mt_module* module, long ip){
   mv_gvtab = mf_empty_map();
   int e = mf_eval_fiber(&fiber,module,ip);
   // todo: memory leak
-  free(fiber.stack);
-  free(fiber.frame);
+  mf_free(fiber.stack);
+  mf_free(fiber.frame);
   if(e){
     // todo: delete gvtab
     return NULL;
@@ -1690,8 +1717,8 @@ int mf_eval_bytecode(mt_object* x, mt_module* module){
     x->type=mv_null;
   }
   // todo: memory leak
-  free(fiber.stack);
-  free(fiber.frame);
+  mf_free(fiber.stack);
+  mf_free(fiber.frame);
   return e;
 }
 

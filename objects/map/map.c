@@ -81,6 +81,8 @@ uint32_t mf_hash(mt_object* key, int* error){
     return mf_hash_map((mt_map*)key->value.p,error);
   case mv_long:
     return mf_long_hash((mt_long*)key->value.p);
+  case mv_table:
+    return (uint32_t)key->value.p;
   default:
      *error=1;
      return 0;
@@ -101,15 +103,15 @@ void mf_htab_init(mt_htab* t){
 void mf_map_delete(mt_map* m){
   mt_htab* t = &m->htab;
   mt_htab_element* a = t->a;
-  int i,n = t->capacity;
+  long i,n = t->capacity;
   for(i=0; i<n; i++){
     if(a[i].taken){
       mf_dec_refcount(&a[i].key);
       mf_dec_refcount(&a[i].value);
     }
   }
-  free(t->a);
-  free(m);
+  mf_free(t->a);
+  mf_free(m);
 }
 
 void mf_map_dec_refcount(mt_map* m){
@@ -118,6 +120,20 @@ void mf_map_dec_refcount(mt_map* m){
   }else{
     m->refcount--;
   }
+}
+
+void mf_htab_clear(mt_htab* t){
+  long n = t->capacity;
+  long i;
+  mt_htab_element* a = t->a;
+  for(i=0; i<n; i++){
+    if(a[i].taken){
+      mf_dec_refcount(&a[i].key);
+      mf_dec_refcount(&a[i].value);
+      a[i].taken=0;
+    }
+  }
+  t->size=0;
 }
 
 long mf_htab_index(mt_htab* m, mt_object* key, uint32_t hash){
@@ -196,7 +212,7 @@ long mf_htab_insert(mt_htab* m,
         insert(a,n,&ma[i].key,&ma[i].value,ma[i].hash);
       }
     }
-    free(ma);
+    mf_free(ma);
     m->a = a;
   }
   index = insert(m->a,m->capacity,key,value,hash);
@@ -227,7 +243,7 @@ void mf_htab_remove_index(mt_htab* m, int index){
         insert(a,h,&ma[i].key,&ma[i].value,ma[i].hash);
       }
     }
-    free(ma);
+    mf_free(ma);
     m->a=a;
   }
 }
@@ -309,7 +325,7 @@ int mf_map_get_hash(mt_object* x, mt_map* m, mt_object* key, uint32_t hash){
   int e = mf_htab_get(x,&m->htab,key,hash);
   if(e) return 1;
   mf_inc_refcount(x);
-  // ^todo: increment refcount outside of mf_map_get
+  // ^TODO: increment refcount outside of mf_map_get
   return 0;
 }
 
@@ -318,7 +334,7 @@ int mf_map_get(mt_object* x, mt_map* m, mt_object* key){
   int e=0;
   uint32_t hash = mf_hash(key,&e);
   if(e){
-    mf_std_exception("Error in hash function: key is not hashable.");
+    mf_type_error1("in hash function: key (type: %s) is not hashable.",key);
     return 2;
   }
   return mf_htab_get(x,&m->htab,key,hash);
@@ -467,24 +483,6 @@ mt_list* mf_map_to_list(mt_map* m){
   return list;
 }
 
-static
-int map_list(mt_object* x, int argc, mt_object* v){
-  if(argc!=0){
-    mf_argc_error(argc,0,0,"list");
-    return 1;
-  }
-  if(v[0].type!=mv_map){
-    mf_type_error("Type error in d.list(): d is not a dictionary.");
-    return 1;
-  }
-  mt_map* m = (mt_map*)v[0].value.p;
-  mt_list* list = mf_map_to_list(m);
-  if(list==NULL) return 1;
-  x->type=mv_list;
-  x->value.p=(mt_basic*)list;
-  return 0;
-}
-
 void mf_map_extend(mt_map* m, mt_map* m2){
   long i,n;
   mt_htab_element* a = m2->htab.a;
@@ -499,8 +497,7 @@ void mf_map_extend(mt_map* m, mt_map* m2){
   }
 }
 
-static
-void mf_update_map(mt_map* m, mt_map* m2){
+void mf_map_update(mt_map* m, mt_map* m2){
   long i,n;
   mt_htab_element* a = m2->htab.a;
   n = m2->htab.capacity;
@@ -525,7 +522,42 @@ int map_update(mt_object* x, int argc, mt_object* v){
     mf_type_error("Type error in d.update(d2): d2 is not a dictionary.");
     return 1;
   }
-  mf_update_map((mt_map*)v[0].value.p,(mt_map*)v[1].value.p);
+  mf_map_update((mt_map*)v[0].value.p,(mt_map*)v[1].value.p);
+  x->type=mv_null;
+  return 0;
+}
+
+static
+int map_extend(mt_object* x, int argc, mt_object* v){
+  if(v[0].type!=mv_map){
+    mf_type_error("Type error in d.extend(d2): d is not a dictionary.");
+    return 1;
+  }
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"extend");
+    return 1;
+  }
+  if(v[1].type!=mv_map){
+    mf_type_error("Type error in d.extend(d2): d2 is not a dictionary.");
+    return 1;
+  }
+  mf_map_extend((mt_map*)v[0].value.p,(mt_map*)v[1].value.p);
+  x->type=mv_null;
+  return 0;
+}
+
+static
+int map_clear(mt_object* x, int argc, mt_object* v){
+  if(v[0].type!=mv_map){
+    mf_type_error("Type error in d.clear(): d is not a dictionary.");
+    return 1;
+  }
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"clear");
+    return 1;
+  }
+  mt_map* m = (mt_map*)v[0].value.p;
+  mf_htab_clear(&m->htab);
   x->type=mv_null;
   return 0;
 }
@@ -536,6 +568,7 @@ void mf_init_type_dict(mt_table* type){
   mt_map* m=type->m;
   mf_insert_function(m,0,0,"keys",map_keys);
   mf_insert_function(m,0,0,"values",map_values);
-  mf_insert_function(m,0,0,"list",map_list);
   mf_insert_function(m,1,1,"update",map_update);
+  mf_insert_function(m,1,1,"extend",map_extend);
+  mf_insert_function(m,0,0,"clear",map_clear);
 }

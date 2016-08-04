@@ -72,7 +72,7 @@ int os_ls(mt_object* x, int argc, mt_object* v){
       }
     }
     closedir(dir);
-    free(id.a);
+    mf_free(id.a);
     x->type=mv_list;
     x->value.p=(mt_basic*)list;
     return 0;
@@ -80,7 +80,7 @@ int os_ls(mt_object* x, int argc, mt_object* v){
     char buffer[200];
     snprintf(buffer,200,"Exception: file or directory '%s' not found.",id.a);
     raise_not_found(buffer);
-    free(id.a);
+    mf_free(id.a);
     return 1;
   }
 }
@@ -113,7 +113,7 @@ int os_cd(mt_object* x, int argc, mt_object* v){
   mt_bstr id;
   mf_encode_utf8(&id,s->a,s->size);
   chdir((char*)id.a);
-  free(id.a);
+  mf_free(id.a);
   x->type=mv_null;
   return 0;
 }
@@ -137,7 +137,7 @@ int os_rm(mt_object* x, int argc, mt_object* v){
   mt_bstr id;
   mf_encode_utf8(&id,s->a,s->size);
   int error = remove((char*)id.a);
-  free(id.a);
+  mf_free(id.a);
   if(error){
     mf_std_exception("Error in rm(id): could not remove id.");
     return 1;
@@ -164,7 +164,7 @@ int os_system(mt_object* x, int argc, mt_object* v){
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr bs;
   mf_encode_utf8(&bs,s->a,s->size);
-  int e = system(bs.a);
+  int e = system((char*)bs.a);
   mf_free(bs.a);
   x->type=mv_int;
   x->value.i=e;
@@ -186,7 +186,7 @@ int os_isdir(mt_object* x, int argc, mt_object* v){
   mf_encode_utf8(&id,s->a,s->size);
   struct stat m;
   int e = stat((char*)id.a,&m);
-  free(id.a);
+  mf_free(id.a);
   if(e){
     x->type=mv_bool;
     x->value.b=0;
@@ -213,7 +213,7 @@ int os_isfile(mt_object* x, int argc, mt_object* v){
   mf_encode_utf8(&id,s->a,s->size);
   struct stat m;
   int e = stat((char*)id.a,&m);
-  free(id.a);
+  mf_free(id.a);
   if(e){
     x->type=mv_bool;
     x->value.b=0;

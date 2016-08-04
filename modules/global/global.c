@@ -27,6 +27,7 @@ extern mt_table* mv_type_bstring;
 extern mt_table* mv_type_list;
 extern mt_table* mv_type_function;
 extern mt_table* mv_type_dict;
+extern mt_table* mv_type_set;
 extern mt_table* mv_type_long;
 
 extern mt_list* mv_traceback_list;
@@ -57,16 +58,20 @@ double floor_fmod(double x, double m){
 }
 
 double mf_float(mt_object* x, int* error){
-  if(x->type==mv_int){
+  switch(x->type){
+  case mv_int:
     return x->value.i;
-  }else if(x->type==mv_float){
+  case mv_float:
     return x->value.f;
-  }else{
+  case mv_long:
+    return mf_long_float((mt_long*)x->value.p);
+  default:
     *error=1;
     return NAN;
   }
 }
 
+#ifndef MV_MALLOC_MONITOR
 void* mf_malloc(size_t size){
   void* p = malloc(size);
   if(p==NULL){
@@ -75,18 +80,7 @@ void* mf_malloc(size_t size){
   }
   return p;
 }
-
-void* mf_malloc_analyze(size_t size,
-  const char* file, unsigned int line
-){
-  // todo
-  return NULL;
-}
-
-void mf_free_analyze(void* p){
-  // todo
-  free(p);
-}
+#endif
 
 mt_tuple* mf_tuple_noinc(int argc, mt_object* v){
   mt_tuple* t = mf_malloc(sizeof(mt_tuple)+argc*sizeof(mt_object));
@@ -104,6 +98,48 @@ void mf_tuple_dec_refcount(mt_tuple* t){
     long i;
     for(i=0; i<t->size; i++){
       mf_dec_refcount(t->a+i);
+    }
+    mf_free(t);
+  }else{
+    t->refcount--;
+  }
+}
+
+mt_tuple* mf_tuple_raw(long n){
+  mt_tuple* t = mf_malloc(sizeof(mt_tuple)+n*sizeof(mt_object));
+  t->refcount=1;
+  t->size=n;
+  return t;
+}
+
+mt_range* mf_range(mt_object* a, mt_object* b, mt_object* step){
+  mt_range* r = mf_malloc(sizeof(mt_range));
+  r->refcount=1;
+  mf_copy(&r->a,a);
+  mf_copy(&r->b,b);
+  mf_copy(&r->step,step);
+  return r;
+}
+
+void mf_range_dec_refcount(mt_range* r){
+  if(r->refcount==1){
+    mf_dec_refcount(&r->a);
+    mf_dec_refcount(&r->b);
+    mf_dec_refcount(&r->step);
+    mf_free(r);
+  }else{
+    r->refcount--;
+  }
+}
+
+void mf_table_dec_refcount(mt_table* t){
+  if(t->refcount==1){
+    mf_dec_refcount(&t->prototype);
+    if(t->m){
+      mf_map_dec_refcount(t->m);
+    }
+    if(t->name){
+      mf_str_dec_refcount(t->name);
     }
     mf_free(t);
   }else{
@@ -188,6 +224,9 @@ void mf_dec_refcount(mt_object* x){
       mf_dec_refcount(&t->prototype);
       if(t->m){
         mf_map_dec_refcount(t->m);
+      }
+      if(t->name){
+        mf_str_dec_refcount(t->name);
       }
       mf_free(t);
     }else{
@@ -371,6 +410,8 @@ int mf_fcopy(mt_object* x, int argc, mt_object* v){
 
 const char* mf_type_to_str(mt_object* a){
   switch(a->type){
+  case mv_null:
+    return "null";
   case mv_bool:
     return "bool";
   case mv_int:
@@ -383,31 +424,27 @@ const char* mf_type_to_str(mt_object* a){
     return "long";
   case mv_list:
     return "list";
+  case mv_tuple:
+    return "tuple";
   case mv_string:
     return "str";
   case mv_bstring:
     return "bstr";
-  case mv_table:
-    return "table";
+  case mv_set:
+    return "set";
+  case mv_map:
+    return "map";
   case mv_range:
     return "range";
+  case mv_function:
+    return "function";
+  case mv_table:
+    return "table";
+  case mv_native:
+    return "native";
   default:
     return "object";
   }
-}
-
-static
-void unary_op_type_error(const char* s, mt_object* a){
-  char buffer[200];
-  snprintf(buffer,200,s,mf_type_to_str(a));
-  mf_type_error(buffer);
-}
-
-static
-void binary_op_type_error(const char* s, mt_object* a, mt_object* b){
-  char buffer[200];
-  snprintf(buffer,200,s,mf_type_to_str(a),mf_type_to_str(b));
-  mf_type_error(buffer);
 }
 
 #ifdef USE_BUILTIN_OVERFLOW
@@ -537,6 +574,33 @@ int binary_op_method(mt_object* x, mt_object* a, mt_object* b,
   mf_dec_refcount(b);
   mf_copy(x,&y);
   return 0;
+}
+
+static
+int variadic_op_method(mt_object* x,
+  int argc, mt_object* v, long size, const char* id
+){
+  mt_object f;
+  if(mf_object_get_memory(&f,&v[0],size,id)){
+    op_method_error=0;
+    goto error;
+  }
+  char buffer[200];
+  if(f.type!=mv_function){
+    snprintf(buffer,200,"in a.%s(*argv): %s (type: %%s) is not a function.",id,id);
+    mf_type_error1(buffer,&f);
+    op_method_error=1;
+    goto error;
+  }
+  mt_object y;
+  if(mf_call((mt_function*)f.value.p,&y,argc,v)){
+    op_method_error=1;
+    goto error;
+  }
+  mf_copy(x,&y);
+  return 0;
+  error:
+  return 1;
 }
 
 int mf_add_dec(mt_object* x, mt_object* a, mt_object* b){
@@ -683,20 +747,20 @@ int mf_add_dec(mt_object* x, mt_object* a, mt_object* b){
     goto add;
   }
   add:
-  if(binary_op_method(x,a,b,a,3,"add")){
+  if(binary_op_method(x,a,b,a,3,"ADD")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   radd:
-  if(binary_op_method(x,a,b,b,4,"radd")){
+  if(binary_op_method(x,a,b,b,4,"RADD")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a+b: '+' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a+b: '+' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -837,20 +901,20 @@ int mf_sub_dec(mt_object* x, mt_object* a, mt_object* b){
     goto sub;
   }
   sub:
-  if(binary_op_method(x,a,b,a,3,"sbt")){
+  if(binary_op_method(x,a,b,a,3,"SUB")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rsub:
-  if(binary_op_method(x,a,b,b,4,"rsbt")){
+  if(binary_op_method(x,a,b,b,4,"RSUB")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a-b: '-' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a-b: '-' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1008,6 +1072,15 @@ int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b){
       x->type=mv_list;
       x->value.p = (mt_basic*)list;
       return 0;
+    case mv_list:{
+      mt_list* list1 = (mt_list*)a->value.p;
+      mt_list* list2 = (mt_list*)b->value.p;
+      x->type=mv_list;
+      x->value.p=(mt_basic*)mf_list_cart(list1,list2);
+      mf_list_dec_refcount(list1);
+      mf_list_dec_refcount(list2);
+      return 0;
+    }
     default:
       goto rmpy;
     }
@@ -1015,20 +1088,20 @@ int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b){
     goto mpy;
   }
   mpy:
-  if(binary_op_method(x,a,b,a,3,"mpy")){
+  if(binary_op_method(x,a,b,a,3,"MPY")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rmpy:
-  if(binary_op_method(x,a,b,b,4,"rmpy")){
+  if(binary_op_method(x,a,b,b,4,"RMPY")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a*b: '*' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a*b: '*' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1050,10 +1123,10 @@ int mf_div_dec(mt_object* x, mt_object* a, mt_object* b){
       x->value.f=a->value.i/b->value.f;
       return 0;
     case mv_complex:
-      x->type=mv_complex;
-      r = b->value.c.re+b->value.c.re+b->value.c.im*b->value.c.im;
+      r = b->value.c.re*b->value.c.re+b->value.c.im*b->value.c.im;
       re = a->value.i*b->value.c.re;
       im = -a->value.i*b->value.c.im;
+      x->type=mv_complex;
       x->value.c.re=re/r;
       x->value.c.im=im/r;
       return 0;
@@ -1071,10 +1144,10 @@ int mf_div_dec(mt_object* x, mt_object* a, mt_object* b){
       x->value.f=a->value.f/b->value.f;
       return 0;
     case mv_complex:
-      x->type=mv_complex;
       r = b->value.c.re*b->value.c.re+b->value.c.im*b->value.c.im;
       re = a->value.f*b->value.c.re;
       im = -a->value.f*b->value.c.im;
+      x->type=mv_complex;
       x->value.c.re=re/r;
       x->value.c.im=im/r;
       return 0;
@@ -1108,20 +1181,20 @@ int mf_div_dec(mt_object* x, mt_object* a, mt_object* b){
     goto div;
   }
   div:
-  if(binary_op_method(x,a,b,a,3,"div")){
+  if(binary_op_method(x,a,b,a,3,"DIV")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rdiv:
-  if(binary_op_method(x,a,b,b,4,"rdiv")){
+  if(binary_op_method(x,a,b,b,4,"RDIV")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a/b: '/' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a/b: '/' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1184,20 +1257,20 @@ int mf_idiv_dec(mt_object* x, mt_object* a, mt_object* b){
     goto idiv;
   }
   idiv:
-  if(binary_op_method(x,a,b,a,3,"idiv")){
+  if(binary_op_method(x,a,b,a,3,"IDIV")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   ridiv:
-  if(binary_op_method(x,a,b,b,4,"ridiv")){
+  if(binary_op_method(x,a,b,b,4,"RIDIV")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a//b: '//' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a//b: '//' is not defined for\n"
+    "a (type: %s) and b (type: %s).", a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1273,20 +1346,20 @@ int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b){
     goto mod;
   }
   mod:
-  if(binary_op_method(x,a,b,a,3,"mod")){
+  if(binary_op_method(x,a,b,a,3,"MOD")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rmod:
-  if(binary_op_method(x,a,b,b,4,"rmod")){
+  if(binary_op_method(x,a,b,b,4,"RMOD")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a%%b: '%%' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a%%b: '%%' is not defined for\n"
+    "a (type: %s) and b (type: %s).", a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1317,13 +1390,13 @@ int mf_neg_dec(mt_object* x, mt_object* a){
     goto neg;
   }
   neg:
-  if(unary_op_method(x,a,3,"neg")){
+  if(unary_op_method(x,a,3,"NEG")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  unary_op_type_error(
-    "Type error in -a: '-' is not defined for a of type '%s'.",a
+  mf_type_error1(
+    "in -a: '-' is not defined for a (type: %s).",a
   );
   mf_dec_refcount(a);
   x->type=mv_null;
@@ -1344,13 +1417,13 @@ int mf_tilde_dec(mt_object* x, mt_object* a){
     goto tilde;
   }
   tilde:
-  if(unary_op_method(x,a,5,"tilde")){
+  if(unary_op_method(x,a,5,"TILDE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  unary_op_type_error(
-    "Type error in ~a: '~' is not defined for a of type '%s'.",a
+  mf_type_error1(
+    "in ~a: '~' is not defined for a (type: %s).",a
   );
   mf_dec_refcount(a);
   x->type=mv_null;
@@ -1363,8 +1436,8 @@ int mf_not_dec(mt_object* x, mt_object* a){
     x->value.b=!a->value.b;
     return 0;
   }else{
-    unary_op_type_error(
-      "Type error in not a: 'not' is not defined for a of type '%s'.",a
+    mf_type_error1(
+      "in not a: 'not' is not defined for a (type: %s).",a
     );
     mf_dec_refcount(a);
     x->type=mv_null;
@@ -1502,20 +1575,20 @@ int mf_pow_dec(mt_object* x, mt_object* a, mt_object* b){
     goto pow;  
   }
   pow:
-  if(binary_op_method(x,a,b,a,3,"pow")){
+  if(binary_op_method(x,a,b,a,3,"POW")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rpow:
-  if(binary_op_method(x,a,b,b,4,"rpow")){
+  if(binary_op_method(x,a,b,b,4,"RPOW")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a^b: '^' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a^b: '^' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1597,20 +1670,20 @@ int mf_lt_dec(mt_object* x, mt_object* a, mt_object* b){
     goto lt;
   }
   lt:
-  if(binary_op_method(x,a,b,a,3,"lt")){
+  if(binary_op_method(x,a,b,a,3,"LT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rlt:
-  if(binary_op_method(x,a,b,b,4,"rlt")){
+  if(binary_op_method(x,a,b,b,4,"RLT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a<b: '<' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a<b: '<' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1693,20 +1766,20 @@ int mf_gt_dec(mt_object* x, mt_object* a, mt_object* b){
     goto gt;
   }
   gt:
-  if(binary_op_method(x,a,b,a,3,"gt")){
+  if(binary_op_method(x,a,b,a,3,"GT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rgt:
-  if(binary_op_method(x,a,b,b,4,"rgt")){
+  if(binary_op_method(x,a,b,b,4,"RGT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a>b: '>' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a>b: '>' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1789,20 +1862,20 @@ int mf_le_dec(mt_object* x, mt_object* a, mt_object* b){
     goto le;
   }
   le:
-  if(binary_op_method(x,a,b,a,3,"le")){
+  if(binary_op_method(x,a,b,a,3,"LE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rle:
-  if(binary_op_method(x,a,b,b,4,"rle")){
+  if(binary_op_method(x,a,b,b,4,"RLE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a<=b: '<=' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a<=b: '<=' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -1885,20 +1958,20 @@ int mf_ge_dec(mt_object* x, mt_object* a, mt_object* b){
     goto ge;
   }
   ge:
-  if(binary_op_method(x,a,b,a,3,"ge")){
+  if(binary_op_method(x,a,b,a,3,"GE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rge:
-  if(binary_op_method(x,a,b,b,4,"rge")){
+  if(binary_op_method(x,a,b,b,4,"RGE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a>=b: '>=' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a>=b: '>=' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -2133,13 +2206,13 @@ int mf_eq_dec(mt_object* x, mt_object* a, mt_object* b){
     }
   }
   eq:
-  if(binary_op_method(x,a,b,a,3,"eq")){
+  if(binary_op_method(x,a,b,a,3,"EQ")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   req:
-  if(binary_op_method(x,a,b,b,4,"req")){
+  if(binary_op_method(x,a,b,b,4,"REQ")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2167,6 +2240,36 @@ int mf_ne_dec(mt_object* x, mt_object* a, mt_object* b){
     x->value.b=!x->value.b;
   }
   return 0;
+}
+
+int mf_add(mt_object* x, mt_object* a, mt_object* b){
+  mf_inc_refcount(a);
+  mf_inc_refcount(b);
+  return mf_add_dec(x,a,b);
+}
+
+int mf_sub(mt_object* x, mt_object* a, mt_object* b){
+  mf_inc_refcount(a);
+  mf_inc_refcount(b);
+  return mf_sub_dec(x,a,b);
+}
+
+int mf_mpy(mt_object* x, mt_object* a, mt_object* b){
+  mf_inc_refcount(a);
+  mf_inc_refcount(b);
+  return mf_mpy_dec(x,a,b);
+}
+
+int mf_idiv(mt_object* x, mt_object* a, mt_object* b){
+  mf_inc_refcount(a);
+  mf_inc_refcount(b);
+  return mf_idiv_dec(x,a,b);
+}
+
+int mf_mod(mt_object* x, mt_object* a, mt_object* b){
+  mf_inc_refcount(a);
+  mf_inc_refcount(b);
+  return mf_mod_dec(x,a,b);
 }
 
 int mf_eq(mt_object* x, mt_object* a, mt_object* b){
@@ -2261,7 +2364,7 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
     return e;
   case mv_int:{
     if(a->type!=mv_int){
-      mf_type_error("Type error in 'a in b': a is not an integer.");
+      mf_type_error1("in 'a in b': a (type: %s) is not an integer.",a);
       mf_dec_refcount(a);
       return 1;
     }
@@ -2304,7 +2407,7 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
   }
   case mv_string:{
     if(a->type!=mv_string){
-      mf_type_error("Type error in 'a in b': b is a string but a is not a string.");
+      mf_type_error1("in 'a in b': a (type: %s) is not a string.",a);
       return 1;
     }
     mt_string* bs = (mt_string*)b->value.p;
@@ -2319,11 +2422,11 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
     mt_range* r = (mt_range*)b->value.p;
     if(r->a.type==mv_int){
       if(r->b.type!=mv_int){
-        mf_type_error("Type error in 'x in a..b: b is not an integer.");
+        mf_type_error1("in 'x in a..b': b (type: %s) is not an integer.",&r->b);
         return 1;
       }
       if(a->type!=mv_int){
-        mf_type_error("Type error in 'x in a..b: x is not an integer.");
+        mf_type_error1("in 'x in a..b': x (type: %s) is not an integer.",a);
         return 1;
       }
       long n = a->value.i;
@@ -2334,11 +2437,11 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
       return 0;
     }else if(r->a.type==mv_string){
       if(r->b.type!=mv_string){
-        mf_type_error("Type error in 's in a..b': b is not a string.");
+        mf_type_error1("in 's in a..b': b (type: %s) is not a string.",&r->b);
         return 1;
       }
       if(a->type!=mv_string){
-        mf_type_error("Type error in 's in a..b': s is not a string.");
+        mf_type_error1("in 's in a..b': s (type: %s) is not a string.",a);
         return 1;
       }
       mt_string* s = (mt_string*)a->value.p;
@@ -2356,19 +2459,19 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
     goto in;
   }
   in:
-  if(binary_op_method(x,a,b,a,3,"in")){
+  if(binary_op_method(x,a,b,a,3,"IN")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  if(binary_op_method(x,a,b,b,4,"rin")){
+  if(binary_op_method(x,a,b,b,4,"RIN")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a in b: 'in' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in 'a in b': 'in' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -2507,20 +2610,20 @@ int mf_bit_and_dec(mt_object* x, mt_object* a, mt_object* b){
     goto bit_and;
   }
   bit_and:
-  if(binary_op_method(x,a,b,a,3,"band")){
+  if(binary_op_method(x,a,b,a,3,"BAND")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rbit_and:
-  if(binary_op_method(x,a,b,b,4,"rband")){
+  if(binary_op_method(x,a,b,b,4,"RBAND")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a&b: '&' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a&b: '&' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -2561,20 +2664,20 @@ int mf_bit_or_dec(mt_object* x, mt_object* a, mt_object* b){
     goto bit_or;
   }
   bit_or:
-  if(binary_op_method(x,a,b,a,3,"bor")){
+  if(binary_op_method(x,a,b,a,3,"BOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rbit_or:
-  if(binary_op_method(x,a,b,b,4,"rbor")){
+  if(binary_op_method(x,a,b,b,4,"RBOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a|b: '|' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a|b: '|' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
@@ -2615,58 +2718,71 @@ int mf_bit_xor_dec(mt_object* x, mt_object* a, mt_object* b){
     goto bit_xor;
   }
   bit_xor:
-  if(binary_op_method(x,a,b,a,3,"bxor")){
+  if(binary_op_method(x,a,b,a,3,"BXOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rbit_xor:
-  if(binary_op_method(x,a,b,b,4,"rbxor")){
+  if(binary_op_method(x,a,b,b,4,"RBXOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  binary_op_type_error(
-    "Type error in a$b: '$' is not defined for\n"
-    "a of type '%s' and b of type '%s'.", a,b
+  mf_type_error2(
+    "in a$b: '$' is not defined for\n"
+    "a (type: %s) and b (type: %s).",a,b
   );
   mf_dec_refcount(a);
   mf_dec_refcount(b);
   return  1;
 }
 
-int mf_get(mt_object* x, mt_object* a, mt_object* key){
-  int type=a->type;
-  if(type==mv_list){
-    mt_list* list = (mt_list*)a->value.p;
-    if(key->type==mv_range){
-      mt_range* r=(mt_range*)key->value.p;
+int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a);
+
+// This is not a normal method, because dec_refcounts(argc+1,v)
+// is applied to mt_object v[argc+1].
+int mf_get(mt_object* x, int argc, mt_object* v){
+  switch(v[0].type){
+  case mv_list:{
+    if(argc!=1){
+      mf_std_exception("Error in a[...]: expected single index.");
+      return 1;
+    }
+    mt_list* list = (mt_list*)v[0].value.p;
+    if(v[1].type==mv_range){
+      mt_range* r=(mt_range*)v[1].value.p;
       int e=mf_list_slice(x,list,r);
       if(e) return 1;
       mf_list_dec_refcount(list);
-      mf_dec_refcount(key);
+      mf_dec_refcount(v+1);
       return 0;
-    }else if(key->type!=mv_int){
-      mf_type_error("Type error in a[i]: a is a list but i is not an integer.");
+    }else if(v[1].type!=mv_int){
+      mf_type_error1("in a[i]: a is a list but i (type: %s) is not an integer.",v+1);
       return 1;
     }
-    long index = key->value.i;
+    long index = v[1].value.i;
     if(index<0){
       index+=list->size;
       if(index<0){
-        mf_index_error("Index error in a[i]: i is out of lower bound.");
+        mf_index_error1("in a[i]: i (value: %li) is out of lower bound.",v[1].value.i);
         return 1;
       }
     }else if(index>=list->size){
-      mf_index_error("Index error in a[i]: i is out of upper bound.");
+      mf_index_error1("in a[i]: i (value: %li) is out of upper bound.",index);
       return 1;
     }
     mf_copy_inc(x,list->a+index);
     mf_list_dec_refcount(list);
     return 0;
-  }else if(type==mv_map){
-    mt_map* m = (mt_map*)a->value.p;
-    int e = mf_map_get(x,m,key);
+  }break;
+  case mv_map:{
+    if(argc!=1){
+      mf_std_exception("Error in d[...]: expected single key.");
+      return 1;
+    }
+    mt_map* m = (mt_map*)v[0].value.p;
+    int e = mf_map_get(x,m,v+1);
     if(e){
       if(e==1){
         mf_index_error("Index error in d[key]: key is not in d.");
@@ -2678,17 +2794,67 @@ int mf_get(mt_object* x, mt_object* a, mt_object* key){
     }
     mf_inc_refcount(x);
     return 0;
-  }else if(type==mv_string){
-    mt_string* s = (mt_string*)a->value.p;
-    return mf_str_get(x,s,key);
-  }
-  if(binary_op_method(x,a,key,a,3,"get")){
-    if(op_method_error) return 1;
-  }else{
+  } break;
+  case mv_string:{
+    if(argc!=1){
+      mf_std_exception("Error in s[...]: expected single index.");
+      return 1;
+    }
+    mt_string* s = (mt_string*)v[0].value.p;
+    if(mf_str_get(x,s,v+1)) return 1;
+    mf_str_dec_refcount(s);
+    mf_dec_refcount(v+1);
     return 0;
+  } break;
+  case mv_function:{
+    mt_function* f = (mt_function*)v[0].value.p;
+    if(argc==1){
+      if(mf_apply(f,x,NULL,v+1)) return 1;
+      mf_dec_refcounts(2,v);
+      return 0;
+    }else if(argc==2){
+      if(mf_apply(f,x,v+1,v+2)) return 1;
+      mf_dec_refcounts(3,v);
+      return 0;
+    }else{
+      mf_argc_error(argc,1,2,"f[]");
+      return 1;
+    }
+  } break;
+  case mv_range:{
+    mt_range* r = (mt_range*)v[0].value.p;
+    if(argc!=1){
+      mf_std_exception("Error in r[...]: expected single index.");
+      return 1;
+    }
+    if(v[1].type!=mv_int){
+      mf_type_error1("in r[i]: i (type: %s) is not an integer.",v+1);
+      return 1;
+    }
+    long i=v[1].value.i;
+    if(i==0){
+      mf_copy_inc(x,&r->a);
+    }else if(i==1){
+      mf_copy_inc(x,&r->b);
+    }else if(i==2){
+      mf_copy_inc(x,&r->step);
+    }else{
+      mf_index_error("in r[i]: i is out of bounds.");
+      return 1;
+    }
+    mf_range_dec_refcount(r);
+    return 0;
+  } break;
+  default:
+    if(variadic_op_method(x,argc,v,3,"GET")){
+      if(op_method_error) return 1;
+    }else{
+      mf_dec_refcounts(argc+1,v);
+      return 0;
+    }
+    mf_type_error("Type error in a[i]: a is not a list and not a dictionary.");
+    return 1;
   }
-  mf_type_error("Type error in a[i]: a is not a list and not a dictionary.");
-  return 1;
 }
 
 
@@ -2725,7 +2891,7 @@ int mf_fsize(mt_object* x, int argc, mt_object* v){
     return 0;
   } break;
   default:
-    mf_type_error("Type error in size(a): cannot determine the size of a.");
+    mf_type_error1("in size(a): cannot determine the size of a (type: %s).",a);
     return 1;
   }
 }
@@ -2736,7 +2902,7 @@ int mf_frecord(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_table){
-    mf_type_error("Type error: expected a table object.");
+    mf_type_error1("in record(x): x (type: %s) is not a table object.",v+1);
     return 1;
   }
   mt_table* t = (mt_table*)v[1].value.p;
@@ -2794,7 +2960,7 @@ int mf_fobject(mt_object* x, int argc, mt_object* v){
     return 0;
   }else if(argc==2){
     if(v[2].type!=mv_map){
-      mf_type_error("Type error in object(type,d): d is not a dictionary.");
+      mf_type_error1("in object(type,d): d (type: %s) is not a dictionary.",v+2);
       return 1;
     }
     mt_map* m=(mt_map*)v[2].value.p;
@@ -2857,6 +3023,11 @@ void mf_type(mt_object* x, mt_object* a){
     x->type=mv_table;
     x->value.p=(mt_basic*)mv_type_dict;
     break;
+  case mv_set:
+    mv_type_set->refcount++;
+    x->type=mv_table;
+    x->value.p=(mt_basic*)mv_type_set;
+    break;
   case mv_table:{
     mt_table* t=(mt_table*)a->value.p;
     mf_copy_inc(x,&t->prototype);
@@ -2896,25 +3067,9 @@ int mf_fint(mt_object* x, int argc, mt_object* v){
   case mv_string:
     return mf_str_to_int(x,(mt_string*)v[1].value.p);
   default:
-    mf_type_error("Type error in int(x): cannot convert x into an integer.");
+    mf_type_error1("in int(x): cannot convert x (type: %s) into an integer.",v+1);
     return 1;
   }
-}
-
-mt_range* mf_range(mt_object* a, mt_object* b, mt_object* step){
-  mt_range* r = mf_malloc(sizeof(mt_range));
-  r->refcount=1;
-  mf_copy(&r->a,a);
-  mf_copy(&r->b,b);
-  mf_copy(&r->step,step);
-  return r;
-}
-
-mt_tuple* mf_tuple_raw(long n){
-  mt_tuple* t = mf_malloc(sizeof(mt_tuple)+n*sizeof(mt_object));
-  t->refcount=1;
-  t->size=n;
-  return t;
 }
 
 mt_function* mf_insert_function(mt_map* m, int min, int max,
@@ -2934,12 +3089,17 @@ mt_function* mf_insert_function(mt_map* m, int min, int max,
   x.type=mv_function;
   x.value.p=(mt_basic*)f;
   mf_map_set_str(m,key,&x);
+  mf_str_dec_refcount(key);
+  f->refcount--;
+  // ^map_set_str increments refcount
   return f;
+  // ^return weak ref
 }
 
 void mf_insert_object(mt_map* m, const char* id, mt_object* x){
   mt_string* key = mf_cstr_to_str(id);
   mf_map_set_str(m,key,x);
+  mf_str_dec_refcount(key);
 }
 
 void mf_cstr_exception(const char* s){
@@ -2966,7 +3126,7 @@ void mf_argc_error(int argc, int min, int max, const char* s){
 }
 
 static
-void mf_new_traceback_list(){
+void mf_new_traceback_list(void){
   if(mv_traceback_list){
     mf_list_dec_refcount(mv_traceback_list);
   }
@@ -2978,6 +3138,25 @@ void mf_type_error(const char* s){
   mf_cstr_exception(s);
 }
 
+void mf_type_error1(const char* s, mt_object* x){
+  const char* st = mf_type_to_str(x);
+  char a[200];
+  snprintf(a,200,s,st);
+  char b[200];
+  snprintf(b,200,"Type error %s",a);
+  mf_type_error(b);
+}
+
+void mf_type_error2(const char* s, mt_object* x1, mt_object* x2){
+  const char* t1 = mf_type_to_str(x1);
+  const char* t2 = mf_type_to_str(x2);
+  char a[300];
+  snprintf(a,300,s,t1,t2);
+  char b[300];
+  snprintf(b,300,"Type error %s",a);
+  mf_type_error(b);
+}
+
 void mf_value_error(const char* s){
   mf_new_traceback_list();
   mf_cstr_exception(s);
@@ -2986,6 +3165,15 @@ void mf_value_error(const char* s){
 void mf_index_error(const char* s){
   mf_new_traceback_list();
   mf_cstr_exception(s);
+}
+
+void mf_index_error1(const char* s, long index){
+  char a[200];
+  snprintf(a,200,s,index);
+  char b[200];
+  snprintf(b,200,"Index error %s",a);
+  mf_index_error(b);
+  
 }
 
 void mf_std_exception(const char* s){
@@ -3002,28 +3190,30 @@ void mf_traceback(const char* s){
   }
 }
 
-mt_table* mf_math_load();
-mt_table* mf_cmath_load();
-mt_table* mf_ma_load();
+mt_table* mf_math_load(void);
+mt_table* mf_cmath_load(void);
+mt_table* mf_na_load(void);
+mt_table* mf_sf_load(void);
+mt_table* mf_nt_load(void);
 #ifdef __linux__
-mt_table* mf_sys_load();
-mt_table* mf_time_load();
-mt_table* mf_os_load();
-mt_table* mf_gx_load();
+mt_table* mf_sys_load(void);
+mt_table* mf_time_load(void);
+mt_table* mf_os_load(void);
+mt_table* mf_gx_load(void);
 #else
-mt_table* mf_sys_load(){
+mt_table* mf_sys_load(void){
   mf_std_exception("Error: module 'sys' is not implemented.");
   return NULL;
 }
-mt_table* mf_time_load(){
+mt_table* mf_time_load(void){
   mf_std_exception("Error: module 'time' is not implemented.");
   return NULL;
 }
-mt_table* mf_os_load(){
+mt_table* mf_os_load(void){
   mf_std_exception("Error: module 'os' is not implemented.");
   return NULL;
 }
-mt_table* mf_gx_load(){
+mt_table* mf_gx_load(void){
   mf_std_exception("Error: module 'gx' is not implemented.");
   return NULL;
 }
@@ -3041,9 +3231,11 @@ static
 mt_load_tab_element load_tab[] = {
   {5, "cmath", mf_cmath_load, NULL},
   {2, "gx", mf_gx_load, NULL},
-  {2, "ma", mf_ma_load, NULL},
+  {2, "na", mf_na_load, NULL},
+  {2, "nt", mf_nt_load, NULL},
   {4, "math", mf_math_load, NULL},
   {2, "os", mf_os_load, NULL},
+  {2, "sf", mf_sf_load, NULL},
   {3, "sys", mf_sys_load, NULL},
   {4, "time", mf_time_load, NULL}
 };
@@ -3063,7 +3255,7 @@ mt_load_tab_element* load_tab_find(int size, const char* a){
 static
 mt_table* mf_load(mt_object* x){
   if(x->type!=mv_string){
-    mf_type_error("Type error in load(id): id is not a string.");
+    mf_type_error1("in load(id): id (type: %s) is not a string.",x);
     return NULL;
   }
   mt_string* s = (mt_string*)x->value.p;
@@ -3071,7 +3263,7 @@ mt_table* mf_load(mt_object* x){
   mf_encode_utf8(&id,s->a,s->size);
   mt_table* t;
   mt_load_tab_element* p;
-  p=load_tab_find(id.size,id.a);
+  p=load_tab_find(id.size,(char*)id.a);
   if(p){
     if(p->t){
       t=p->t;
@@ -3080,13 +3272,11 @@ mt_table* mf_load(mt_object* x){
       p->t=p->load();
       t=p->t;
     }
-    mf_free(id.a);
-    return t;
   }else{
-    t=mf_load_module(id.a);
-    mf_free(id.a);
-    return t;
+    t=mf_load_module((char*)id.a);
   }
+  mf_free(id.a);
+  return t;
 }
 
 int mf_fload(mt_object* x, int argc, mt_object* v){
@@ -3105,6 +3295,25 @@ int mf_fload(mt_object* x, int argc, mt_object* v){
 }
 
 static
+int mf_use_all(mt_map* m){
+  mf_map_update(mv_gvtab,m);
+}
+
+static
+int mf_map_has_memory(mt_map* m, long size, const char* a){
+  mt_string* s = mf_str_new(size,a);
+  mt_object x;
+  x.type=mv_null;
+  mt_object key;
+  key.type=mv_string;
+  key.value.p=(mt_basic*)s;
+  int e = mf_map_get(&x,m,&key);
+  mf_str_dec_refcount(s);
+  mf_dec_refcount(&x);
+  return e==0;
+}
+
+static
 int mf_use(mt_table* t, mt_map* d){
   mt_htab_element* a = d->htab.a;
   int n = d->htab.capacity;
@@ -3113,6 +3322,10 @@ int mf_use(mt_table* t, mt_map* d){
   if(m==NULL){
     puts("Error in mf_use.");
     abort();
+  }
+  if(mf_map_has_memory(d,1,"*")){
+    mf_map_update(mv_gvtab,m);
+    return 0;
   }
   mt_object key;
   mt_object value;
@@ -3135,7 +3348,7 @@ int mf_use(mt_table* t, mt_map* d){
         mt_bstr bs;
         mf_encode_utf8(&bs,s->a,s->size);
         snprintf(buffer,200,"Error in import: '%s' was not found.",bs.a);
-        free(bs.a);
+        mf_free(bs.a);
         mf_std_exception(buffer);
         return 1;
       }
@@ -3180,6 +3393,7 @@ int mf_fimport(mt_object* x, int argc, mt_object* v){
       t.type=mv_table;
       t.value.p=(mt_basic*)module;
       mf_map_set_hash(mv_gvtab,&a[i].key,&t,a[i].hash);
+      module->refcount--;
     }
   }
   if(argc==2 && module){
@@ -3198,8 +3412,8 @@ int mf_feval(mt_object* x, int argc, mt_object* v){
     return 0;
   }
   if(v[1].type!=mv_string){
-    mf_type_error("Type error in eval(s): s is not a string.");
-    return 0;
+    mf_type_error1("in eval(s): s (type: %s) is not a string.",v+1);
+    return 1;
   }
   mt_string* s = (mt_string*)v[1].value.p;
   return mf_eval_string(x,s);
@@ -3234,7 +3448,7 @@ int mf_fmin(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(y.type!=mv_bool){
-    mf_type_error("Type error in min(a,b): return value of a<b is not a boolean.");
+    mf_type_error1("in min(a,b): return value (type: %s) of a<b is not a boolean.",&y);
     return 1;
   }
   if(y.value.b){
@@ -3256,7 +3470,7 @@ int mf_fmax(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(y.type!=mv_bool){
-    mf_type_error("Type error in max(a,b): return value of a<b is not a boolean.");
+    mf_type_error1("in max(a,b): return value (type: %s) of a<b is not a boolean.",&y);
     return 1;
   }
   if(y.value.b){
@@ -3272,16 +3486,21 @@ int mf_ffloat(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,1,1,"float");
     return 1;
   }
-  int type=v[1].type;
   double t;
-  if(type==mv_float){
-    t=v[1].value.f;
-  }else if(type==mv_int){
-    t=v[1].value.i;
-  }else if(type==mv_bool){
+  switch(v[1].type){
+  case mv_bool:
     t=v[1].value.b;
-  }else{
-    mf_type_error("Type error in float(x): cannot convert x to float.");
+  case mv_int:
+    t=v[1].value.i;
+    break;
+  case mv_float:
+    t=v[1].value.f;
+    break;
+  case mv_long:
+    t=mf_long_float((mt_long*)v[1].value.p);
+    break;
+  default:
+    mf_type_error1("in float(x): cannot convert x (type: %s) to float.",v+1);
     return 1;
   }
   x->type=mv_float;
@@ -3295,7 +3514,7 @@ int mf_ford(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_string){
-    mf_type_error("Type error in ord(c): c is not a string.");
+    mf_type_error1("in ord(c): c (type: %s) is not a string.",v+1);
     return 1;
   }
   mt_string* s = (mt_string*)v[1].value.p;
@@ -3314,7 +3533,7 @@ int mf_fchr(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_int){
-    mf_type_error("Type error in chr(n): n is not an integer.");
+    mf_type_error1("in chr(n): n (type: %s) is not an integer.",v+1);
     return 1;
   }
   mt_string* s = mf_raw_string(1);
@@ -3324,7 +3543,7 @@ int mf_fchr(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-int mf_const(mt_object* x){
+int mf_const(long n, mt_object* x){
   switch(x->type){
   case mv_null:
   case mv_bool:
@@ -3337,10 +3556,11 @@ int mf_const(mt_object* x){
   case mv_list:{
     mt_list* list = (mt_list*)x->value.p;
     list->frozen=1;
+    if(n==1) return 0;
     long size=list->size;
     long i;
     for(i=0; i<size; i++){
-      if(mf_const(list->a+i)){
+      if(mf_const(n-1,list->a+i)){
         mf_traceback("const(x: list)");
         return 1;
       }
@@ -3350,12 +3570,13 @@ int mf_const(mt_object* x){
   case mv_map:{
     mt_map* m = (mt_map*)x->value.p;
     m->frozen=1;
+    if(n==1) return 0;
     mt_htab_element* a = m->htab.a;
-    long n = m->htab.capacity;
+    long capacity = m->htab.capacity;
     long i;
-    for(i=0; i<n; i++){
+    for(i=0; i<capacity; i++){
       if(a[i].taken){
-        if(mf_const(&a[i].value)){
+        if(mf_const(n-1,&a[i].value)){
           mf_traceback("const(x: dict)");
           return 1;
         }
@@ -3369,21 +3590,37 @@ int mf_const(mt_object* x){
     return 0;
   }
   default:
-    mf_type_error("Type error in const(x): cannot freeze x.");
+    mf_type_error1("in const(x): cannot freeze x (type: %s).",x);
     return 1;
   }
 }
 
 int mf_fconst(mt_object* x, int argc, mt_object* v){
-  if(argc!=1){
-    mf_argc_error(argc,1,1,"const");
+  if(argc==1){
+    if(mf_const(1,v+1)){
+      return 1;
+    }
+    mf_copy_inc(x,v+1);
+    return 0;
+  }else if(argc==2){
+    if(v[1].type==mv_null){
+      if(mf_const(0,v+2)){
+        return 1;
+      }
+    }else if(v[1].type==mv_int){
+      if(mf_const(v[1].value.i,v+2)){
+        return 1;
+      }
+    }else{
+      mf_type_error1("in const(n,x): n (type: %s) is not null and not an integer.",v+1);
+      return 1;
+    }
+    mf_copy_inc(x,v+2);
+    return 0;
+  }else{
+    mf_argc_error(argc,1,2,"const");
     return 1;
   }
-  if(mf_const(v+1)){
-    return 1;
-  }
-  mf_copy_inc(x,v+1);
-  return 0;
 }
 
 int mf_fextend(mt_object* x, int argc, mt_object* v){
@@ -3393,7 +3630,7 @@ int mf_fextend(mt_object* x, int argc, mt_object* v){
   }
   int i;
   if(v[1].type!=mv_table && v[1].type!=mv_function){
-    mf_type_error("Type error in extend(a,b): a is not a table and not a function.");
+    mf_type_error1("in extend(a,b): a (type: %s) is not a table and not a function.",v+1);
     return 1;
   }
   mt_table* t = (mt_table*)v[1].value.p;
@@ -3430,18 +3667,18 @@ int mf_fpow(mt_object* x, int argc, mt_object* v){
     mt_long *a,*n,*m,*y;
     a = long_int(v+1);
     if(a==NULL){
-      mf_type_error("Type error in pow(a,n,m): cannot convert a to long.");
+      mf_type_error1("in pow(a,n,m): cannot convert a (type: %s) to long.",v+1);
       return 1;
     }
     n = long_int(v+2);
     if(n==NULL){
-      mf_type_error("Type error in pow(a,n,m): cannot convert n to long.");
+      mf_type_error1("in pow(a,n,m): cannot convert n (type: %s) to long.",v+2);
       mf_long_dec_refcount(a);
       return 1;
     }
     m = long_int(v+3);
     if(m==NULL){
-      mf_type_error("Type error in pow(a,n,m): cannot convert m to long.");
+      mf_type_error1("in pow(a,n,m): cannot convert m (type: %s) to long.",v+3);
       mf_long_dec_refcount(a);
       mf_long_dec_refcount(n);
       return 1;
@@ -3493,7 +3730,7 @@ int mf_fabs(mt_object* x, int argc, mt_object* v){
     return 0;
   }
   default:
-    mf_type_error("Type error in abs(x): x must be of type int, float or complex.");
+    mf_type_error1("in abs(x): x (type: %s) does not have an absolute value.",v+1);
     return 1;
   }
 }
@@ -3538,8 +3775,272 @@ int mf_fsgn(mt_object* x, int argc, mt_object* v){
     return 0;
   }
   default:
-    mf_type_error("Type error in math.sgn(x): cannot convert x to float.");
+    mf_type_error1("in sgn(x): x (type: %s) does not have a sign.",v+1);
     return 1;
   }
+}
+
+int mf_fbool(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"bool");
+    return 1;
+  }
+  switch(v[1].type){
+  case mv_bool:
+    x->type=mv_bool;
+    x->value.b=v[1].value.b;
+    return 0;
+  case mv_int:
+    x->type=mv_bool;
+    x->value.b=v[1].value.i!=0;
+    return 0;
+  default:
+    mf_type_error1("in bool(x): cannot convert x (type: %s) to bool.",v+1);
+    return 1;
+  }
+}
+
+int mf_fcomplex(mt_object* x, int argc, mt_object* v){
+  if(argc!=2){
+    mf_argc_error(argc,2,2,"complex");
+    return 1;
+  }
+  int e=0;
+  double a = mf_float(v+1,&e);
+  if(e){
+    mf_type_error1("in complex(a,b): cannot convert a (type: %s) to float.",v+1);
+    return 1;
+  }
+  double b = mf_float(v+2,&e);
+  if(e){
+    mf_type_error1("in complex(a,b): cannot convert b (type: %s) to float.",v+2);
+    return 1;
+  }
+  x->type=mv_complex;
+  x->value.c.re=a;
+  x->value.c.im=b;
+  return 0;
+}
+
+int mf_put_repr(mt_object* x);
+int mf_buffer_print(long size, mt_object* a);
+void mf_print_string(long size, uint32_t* a);
+void mf_print_string_lit(long size, uint32_t* a);
+
+static
+void print_float(double x){
+  char buffer[100];
+  snprintf(buffer,100,"%.16g",x);
+  printf("%s",buffer);
+  if(isfinite(x) && strchr(buffer,'.')==NULL && strchr(buffer,'e')==NULL){
+    printf(".0");
+  }
+}
+
+static
+void print_complex(double re, double im){
+  if(re==0){
+    printf("%.16gi",im);
+  }else{
+    if(im<0){
+      printf("%.16g-%.16gi",re,-im);
+    }else{
+      printf("%.16g+%.16gi",re,im);
+    }
+  }
+}
+
+int mf_put(mt_object* x){
+  mt_string* s;
+  mt_range* r;
+  switch(x->type){
+  case mv_null:
+    printf("null");
+    break;
+  case mv_bool:
+    printf(x->value.b? "true": "false");
+    break;
+  case mv_int:
+    printf("%li",x->value.i);
+    break;
+  case mv_float:
+    print_float(x->value.f);
+    break;
+  case mv_complex:
+    print_complex(x->value.c.re,x->value.c.im);
+    break;
+  case mv_long:
+    mf_long_print((mt_long*)x->value.p);
+    break;
+  case mv_list:{
+    mt_list* list = (mt_list*)x->value.p;
+    printf("[");
+    if(mf_buffer_print(list->size,list->a)){
+      mf_traceback("put");
+      return 1;
+    }
+    printf("]");
+  } break;
+  case mv_tuple:{
+    mt_tuple* tuple = (mt_tuple*)x->value.p;
+    printf("(");
+    if(mf_buffer_print(tuple->size,tuple->a)){
+      mf_traceback("put");
+      return 1;
+    }
+    printf(")");
+  } break;
+  case mv_map:
+    if(mf_map_print((mt_map*)x->value.p)){
+      mf_traceback("put");
+      return 1;
+    }
+    break;
+  case mv_string:
+    s = (mt_string*)x->value.p;
+    mf_print_string(s->size,s->a);
+    break;
+  case mv_function:
+    printf("function");
+    break;
+  case mv_range:
+    r = (mt_range*)x->value.p;
+    if(r->a.type==mv_null || r->b.type==mv_null){
+      printf("(");
+    }
+    if(r->a.type!=mv_null){
+      if(mf_put_repr(&r->a)) goto error;
+    }
+    printf("..");
+    if(r->b.type!=mv_null){
+      if(mf_put_repr(&r->b)) goto error;
+    }
+    if(r->step.type!=mv_int || r->step.value.i!=1){
+      printf(":");
+      if(mf_put_repr(&r->step)) goto error;
+    }
+    if(r->a.type==mv_null || r->b.type==mv_null){
+      printf(")");
+    }
+    break;
+  case mv_set:{
+    s = mf_set_to_string((mt_set*)x->value.p);
+    mf_print_string(s->size,s->a);
+    mf_str_dec_refcount(s);
+  } break;
+  default:
+    s = mf_str(x);
+    if(s){
+      mf_print_string(s->size,s->a);
+      mf_str_dec_refcount(s);
+    }else{
+      return 1;
+    }
+  }
+  return 0;
+  error:
+  printf("\n");
+  return 1;
+}
+
+int mf_put_repr(mt_object* x){
+  if(x->type==mv_string){
+    mt_string* s = (mt_string*)x->value.p;
+    printf("\"");
+    mf_print_string_lit(s->size,s->a);
+    printf("\"");
+    return 0;
+  }else{
+    return mf_put(x);
+  }
+}
+
+int mf_print(mt_object* x){
+  int e=mf_put(x);
+  printf("\n");
+  return e;
+}
+
+int mf_fput(mt_object* x, int argc, mt_object* v){
+  int i;
+  for(i=1; i<=argc; i++){
+    if(mf_put(v+i)){
+      printf("\n");
+      return 1;
+    }
+  }
+  x->type=mv_null;
+  return 0;
+}
+
+int mf_fprint(mt_object* x, int argc, mt_object* v){
+  int i;
+  for(i=1; i<=argc; i++){
+    if(mf_put(v+i)){
+      printf("\n");
+      return 1;
+    }
+  }
+  printf("\n");
+  x->type=mv_null;
+  return 0;
+}
+
+int mf_fixed(mt_object* x, int argc, mt_object* v){
+  if(argc!=2){
+    mf_argc_error(argc,2,2,"fixed");
+    return 1;
+  }
+  int e=0;
+  double t=mf_float(v+1,&e);
+  if(e){
+    mf_type_error1("in fixed(x,n): cannot convert x (type: %s) to float.",v+1);
+    return 1;
+  }
+  if(v[2].type!=mv_int){
+    mf_type_error1("in fixed(x,n): n (type: %s) is not an integer.",v+2);
+    return 1;
+  }
+  long n = v[2].value.i;
+  if(n>30){
+    mf_value_error("Value error in fixed(x,n): n>30.");
+    return 1;
+  }
+  if(n<0) n=0;
+  char a[100];
+  snprintf(a,100,"%.*f",(int)n,t);
+  mt_string* s = mf_cstr_to_str(a);
+  x->type=mv_string;
+  x->value.p=(mt_basic*)s;
+  return 0;
+}
+
+int mf_exponential(mt_object* x, int argc, mt_object* v){
+  if(argc!=2){
+    mf_argc_error(argc,2,2,"exponential");
+    return 1;
+  }
+  int e=0;
+  double t=mf_float(v+1,&e);
+  if(e){
+    mf_type_error1("in exponential(x,n): cannot convert x (type: %s) to float.",v+1);
+    return 1;
+  }
+  if(v[2].type!=mv_int){
+    mf_type_error1("in exponential(x,n): n (type: %s) is not an integer.",v+2);
+    return 1;
+  }
+  long n = v[2].value.i;
+  if(n>30){
+    mf_value_error("Value error in exponential(x,n): n>30.");
+    return 1;
+  }
+  if(n<0) n=0;
+  char a[100];
+  snprintf(a,100,"%.*E",(int)n,t);
+  mt_string* s = mf_cstr_to_str(a);
+  x->type=mv_string;
+  x->value.p=(mt_basic*)s;
+  return 0;
 }
 

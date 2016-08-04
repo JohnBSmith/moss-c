@@ -15,6 +15,7 @@
 <ol>
 <li><a href="#Regression">Linear regression</a>
 <li><a href="#FRNG">Random numbers</a>
+<li><a href="#plot">Function grapher</a>
 </ol>
 
 <h2 id="Regression">Linear regression</h2>
@@ -24,7 +25,7 @@ is taken.
 </p>
 
 <pre class="moss">
-import math
+use math: sqrt
 
 sub mean(a)
   a.sum()/size(a)
@@ -45,7 +46,7 @@ sub linear_regression(a)
   sx = square_sum(x,mx)
   sy = square_sum(y,my)
   sxy = product_sum(x,y,mx,my)
-  rxy = sxy/math.sqrt(sx*sy)
+  rxy = sxy/sqrt(sx*sy)
   return table
     mx=mx, my=my, r=rxy, c=[mx,my],
     ax=sxy/sx, bx=my-sxy/sx*mx,
@@ -78,8 +79,8 @@ according to a certain distribution function.
 </p>
 
 <pre class="moss">
-import math: erf, sqrt
-import ma: inv
+use math: erf, sqrt
+use na: inv
 
 # F: a cumulative distribution function
 random = sub|F| r=rand()
@@ -96,6 +97,91 @@ cdf = |a| |x| a.count(|X| X&lt;=x)/size(a)
 # Example
 a = random(norm).list(100)
 F = cdf(a)
+</pre>
+
+<h2 id="plot">
+Function grapher</h2>
+
+<p>Simple plots.
+</p>
+<pre class="moss">
+use plotlib: plot
+plot(|x| x^2)
+</pre>
+
+<p>Parametric curves.
+</p>
+<pre class="moss">
+use plotlib: system
+use math: sin, cos
+
+s = system()
+s.plot(|x| x^2)
+s.vplot(|t| [cos(t),sin(t)])
+s.idle()
+</pre>
+
+<p>Advanced.</p>
+<pre class="moss">
+use plotlib: system
+use math: pi, sin, cos, tan
+
+s = system({wx=5,wy=5})
+s.plot(tan,{
+  n=10000,
+  color=[0.4,0,0.4]
+})
+
+v = |t| [cos(t), sin(t)]
+s.vplot(v,{
+  t1=0, t2=pi
+})
+
+s.scatter([
+  [1,1], [-1,1], [-1,-1], [1,-1]
+],{
+  color=[0,0,0.4]
+})
+
+s.idle()
+</pre>
+<p>Complex functions.</p>
+<pre class="moss">
+use plotlib: plot, cplot
+use cmath: re, im, exp
+
+cplot(|z| exp(z))
+
+a = [|x| re(exp(x*1i)), |x| im(exp(x*1i))]
+plot(a)
+</pre>
+
+<p>Complex fractals.</p>
+<pre class="moss">
+use plotlib: fractal
+use cmath: re, im
+
+# Mandelbrot set
+fractal(|z,c| z^2+c, |c| 0)
+
+# Burning ship fractal
+fractal(|z,c| (abs(re(z))-abs(im(z))*1i)^2+c, |c| 0)
+
+# Julia set of f(z)=z^2-1
+fractal(|z,c| z^2-1, |c| c)
+</pre>
+
+<p>Interlacing and random interlacing.</p>
+<pre class="moss">
+use plotlib: system
+
+# Bifurcation diagramm
+w = rand()
+f = |r| (sub|x| r*x*(1-x) end^200)(w())
+
+s = system({px=3, wx=1.25, wy=2})
+# s.interlace(f)
+s.random(f)
 </pre>
 
 </body>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Todo</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<h1>FAQ</h1>
+<p>Answers to questions that may be asked frequently in the future.
+</p>
+
+<h2>Core language</h2>
+<dl>
+<dt>What about <code>x=a++</code>?</dt>
+<dd>Does not exist. That <code>a++</code> is just syntatic sugar
+for <code>a+=1</code>.</dd>
+
+<dt>Is <code>f(x)=value</code> possible?</dt>
+<dd>At the moment (June 2016) not, but it is easy to let this
+be equivalent to <code>f_set(x,value)</code>.
+I'm not so much interested in this, because it does not increase
+the languages semantic expressiveness.</dd>
+
+<dt>Is there a switch statement?</dt>
+<dd>No, but there should be one. It is a little bit complicated
+to implement. For the time being, it is recomended to use
+nested if statements to approximate binary search. There is a
+goto statement, if one wants to jump to a default case.
+</dd>
+
+<dt>Why <code>[0.9,1.0,1.1].map(int)==[1,1,1]</code>?</dt>
+<dd>The purpose of <code>int(x)</code> is to obtain the integer
+number which best corresponds to <code>x</code>. If a floor
+behavior is needed, simply write <code>int(math.floor(x))</code>.
+</dd>
+
+<dt>Why <code>list(0..3:2)==[0,2]</code>
+but <code>list(0..3:2.0)==[0.0,2.0,4.0]</code>?</dt>
+</dd>
+<dd>The size of the second range is calculated by the same
+approach but a detail is different.
+<pre>
+Integer range:
+size(a..b:step) == 1+(b-a)//step == 1+floor((b-a)/step)
+
+Float range:
+size(a..b:step) == 1+int((b-a)/step) == 1+round((b-a)/step)
+</pre>
+Now let us obtain the size of <code>1..2:0.2</code>.
+That is <code>6</code>. But <code>floor(x)</code> has discontinuities
+at integer values <code>x</code>. Thus the floor variant
+would calculate <code>5</code> instead <code>6</code>
+if <code>(b-a)/step==4.9999...998</code>, that means instable
+behavior. The reason for <code>round</code>
+instead of <code>floor</code> is
+to have a stable determination of
+<code>size(1..2:0.2)</code> and
+<code>size(1..10:0.1)</code> and so on.
+Now, conversely, <code>size(0..3:2.0)</code> is unstable.
+But that is not a mistake. One could use a more
+complicated algorithm for <code>size(a..b:step)</code>,
+but no one would understand its precise
+behavior. Elegance suffers from intricacy.
+</dd>
+
+</dl>
+
+</body>
+</html>
+

@@ -10,6 +10,7 @@ void mf_list_push(mt_list* a, mt_object* x);
 mt_list* mf_list_add(mt_list* a, mt_list* b);
 mt_list* mf_list_mpy(mt_list* a, long n);
 mt_list* mf_list_pow(mt_list* a, long n);
+mt_list* mf_list_cart(mt_list* a, mt_list* b);
 int mf_list_eq(mt_list* La, mt_list* Lb);
 
 mt_list* mf_list(mt_object* a);

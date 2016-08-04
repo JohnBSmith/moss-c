@@ -6,10 +6,8 @@
 #include <errno.h>
 #include <moss.h>
 #include <vm.h>
-#include <modules/bs.h>
 #include <modules/system.h>
-#include <modules/str.h>
-#include <modules/tk.h>
+#include <compiler.h>
 
 // TODO:
 // operators <<, >>
@@ -28,21 +26,6 @@
 #define CATCH_ID_EXP 1
 #define POP_VALUE 0
 #define RETURN_VALUE 1
-
-typedef struct{
-  char mode_cmd;
-  const char* file_name;
-} mt_compiler_context;
-
-typedef struct{
-  int line;
-  int col;
-  char type;
-  char value;
-  char info;
-  char* s;
-  long size;
-} mt_token;
 
 typedef struct{
   char* s;
@@ -66,7 +49,7 @@ typedef struct{
 } mt_keyword;
 
 typedef struct{
-  unsigned char* a;
+  const char* a;
   int size;
   long index;
 } mt_label;
@@ -92,6 +75,7 @@ typedef struct{
 
 static ast_node* expression(token_iterator* i);
 static ast_node* comma_expression(token_iterator* i);
+static int comma_found;
 static ast_node* factor(token_iterator* i);
 static ast_node* argument_list(token_iterator* i);
 static ast_node* function_literal(token_iterator* i);
@@ -108,10 +92,10 @@ enum{
   Top_add, Top_sub, Top_mpy, Top_div, Top_idiv, Top_neg, Top_mod,
   Top_in, Top_notin, Top_is, Top_and, Top_or, Top_not, Top_pow,
   Top_range, Top_list, Top_map, Top_lt, Top_gt, Top_le, Top_ge,
-  Top_eq, Top_ne, Top_aop, Top_dot, Top_index, Top_if,
+  Top_eq, Top_ne, Top_assignment, Top_dot, Top_index, Top_if,
   Top_aadd, Top_asub, Top_ampy, Top_adiv, Top_amod, Top_aidiv,
   Top_inc, Top_dec, Top_step, Top_band, Top_bor, Top_bxor, Top_isin,
-  Top_qm, Top_tilde
+  Top_qm, Top_tilde, Top_tuple
 };
 
 enum{
@@ -120,18 +104,13 @@ enum{
   Tsub, Ttable, Tthen, Ttry, Twhile, Tyield, Timport
 };
 
-static
 mt_compiler_context compiler_context={
   0, "stdin"
 };
-static int option_i;
-extern int mode_unsafe;
-extern int mode_network;
-extern int gv_argc;
-extern char** gv_argv;
+
 static mt_vec data;
 static mt_vec bv_deposit;
-static mt_vec stab;
+static mt_vec stab; // string table
 #define JMP_STACK_SIZE 100
 static uint32_t jmp_stack[JMP_STACK_SIZE];
 static mt_vec out_stack[JMP_STACK_SIZE];
@@ -141,7 +120,7 @@ static mt_var_tab* context;
 static int nesting_level;
 static int scope;
 static int for_level;
-static int input_nesting;
+int input_nesting;
 static char bstack[200];
 static int bstack_sp;
 static mt_vec* label_tab;
@@ -161,7 +140,7 @@ void push_token(mt_vec* v, int line, int col, char type, char value){
 
 static
 void push_token_string(mt_vec* v, int line, int col, char type,
-  char* a, long size
+  long size, const char* a
 ){
   mt_token t;
   t.line=line;
@@ -174,13 +153,12 @@ void push_token_string(mt_vec* v, int line, int col, char type,
   mf_vec_push(v,&t);
 }
 
-static
-void vtoken_delete(mt_vec* v){
+void mf_vtoken_delete(mt_vec* v){
   int i;
   int n=v->size;
   for(i=0; i<n; i++){
     mt_token* t = mf_vec_get(v,i);
-    free(t->s);
+    mf_free(t->s);
   }
   mf_vec_delete(v);
 }
@@ -228,13 +206,14 @@ void print_operator(char value){
   case Top_range: printf(".."); break;
   case Top_list: printf("list"); break;
   case Top_map: printf("map"); break;
+  case Top_tuple: printf("tuple"); break;
   case Top_lt: printf("<"); break;
   case Top_gt: printf(">"); break;
   case Top_le: printf("<="); break;
   case Top_ge: printf(">="); break;
   case Top_eq: printf("=="); break;
   case Top_ne: printf("!="); break;
-  case Top_aop: printf("="); break;
+  case Top_assignment: printf("="); break;
   case Top_dot: printf("."); break;
   case Top_index: printf("index"); break;
   case Top_if: printf("if"); break;
@@ -275,7 +254,7 @@ void print_keyword(char value){
     case Tfor: kw_print("for"); break;
     case Tglobal: kw_print("global"); break;
     case Tgoto: kw_print("goto"); break;
-    case Timport: kw_print("import"); break;
+    case Timport: kw_print("use"); break;
     case Tif: kw_print("if"); break;
     case Tlabel: kw_print("label"); break;
     case Tof: kw_print("of"); break;
@@ -374,7 +353,6 @@ mt_keyword keywords[]={
   {6, "global",Tkeyword, Tglobal},
   {4, "goto", Tkeyword, Tgoto},
   {2, "if", Tkeyword, Tif},
-  {6, "import", Tkeyword, Timport},
   {2, "in", Top, Top_in},
   {2, "is", Top, Top_is},
   {5, "label", Tkeyword, Tlabel},
@@ -389,6 +367,7 @@ mt_keyword keywords[]={
   {4, "then", Tkeyword, Tthen},
   {4, "true", Tbool, 1},
   {3, "try", Tkeyword, Ttry},
+  {3, "use", Tkeyword, Timport},
   {5, "while", Tkeyword, Twhile},
   {5, "yield", Tkeyword, Tyield}
 };
@@ -421,9 +400,9 @@ int keyword_compare(mt_bstr* key, mt_keyword *element){
 }
 
 static
-mt_keyword* find_keyword_bsearch(int size, char* a){
+mt_keyword* find_keyword_bsearch(int size, const char* a){
   int n=sizeof(keywords)/sizeof(mt_keyword);
-  mt_bstr s; s.size=size; s.a=a;
+  mt_bstr s; s.size=size; s.a=(unsigned char*)a;
   typedef int (*T)(const void*, const void*);
   return bsearch(&s,keywords,n,sizeof(mt_keyword),
     (T)keyword_compare
@@ -456,6 +435,10 @@ void unexpected_character(int line, int col, char c){
 // section
 // lexical analysis
 
+void mf_push_newline(mt_vec* v, int line, int col){
+  push_token(v,line,col,Tsep,'n');
+}
+
 static
 int is_before(mt_vec* v, int type, int value){
   if(v->size==0) return 0;
@@ -475,15 +458,15 @@ int sub_syntax(mt_vec* v){
   char* id=t1->s;
   long size=t1->size;
   mf_vec_pop(v,2);
-  push_token_string(v,line,col,Tid,id,size);
-  push_token(v,line,col,Top,Top_aop);
+  push_token_string(v,line,col,Tid,size,id);
+  push_token(v,line,col,Top,Top_assignment);
   push_token(v,line,col,Tkeyword,Tsub);
-  push_token_string(v,line,col,Tid,id,size);
-  free(id);
+  push_token_string(v,line,col,Tid,size,id);
+  mf_free(id);
   return 1;
 }
 
-int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
+int mf_scan(mt_vec* v, unsigned char* s, long n, int line){
   int col=0;
   unsigned c;
   int j,i=0;
@@ -508,7 +491,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
             i++; col++;
           }
         }
-        push_token_string(v,line,hcol,Tbstring,s+j,i-j);
+        push_token_string(v,line,hcol,Tbstring,i-j,(char*)s+j);
         i++; col++;
         continue;
       }
@@ -516,7 +499,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
       while(i<n && (isalpha(s[i]) || isdigit(s[i]) || s[i]=='_')){
         i++; col++;
       }
-      mt_keyword* keyword = find_keyword_bsearch(i-j,s+j);
+      mt_keyword* keyword = find_keyword_bsearch(i-j,(char*)s+j);
       if(keyword){
         int type = keyword->type;
         int value = keyword->value;
@@ -551,10 +534,10 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
         }else if(type==Tnull){
           push_token(v,line,hcol,Tnull,0);
         }else{
-          push_token_string(v,line,hcol,type,s+j,i-j);
+          push_token_string(v,line,hcol,type,i-j,(char*)s+j);
         }
       }else{
-        push_token_string(v,line,hcol,Tid,s+j,i-j);
+        push_token_string(v,line,hcol,Tid,i-j,(char*)s+j);
       }
     }else{
       switch(c){
@@ -609,12 +592,12 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
           }
         }
         if(imag){
-          push_token_string(v,line,hcol,Timag,s+j,i-j);
+          push_token_string(v,line,hcol,Timag,i-j,(char*)s+j);
           i++; col++;
         }else if(floatsep){
-          push_token_string(v,line,hcol,Tfloat,s+j,i-j);
+          push_token_string(v,line,hcol,Tfloat,i-j,(char*)s+j);
         }else{
-          push_token_string(v,line,hcol,Tint,s+j,i-j);
+          push_token_string(v,line,hcol,Tint,i-j,(char*)s+j);
         }
         break;
       case '+':
@@ -623,7 +606,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
           i+=2; col+=2;
         }else if(i+1<n && s[i+1]=='+'){
           push_token(v,line,col,Top,Top_aadd);
-          push_token_string(v,line,col,Tint,"1",1);
+          push_token_string(v,line,col,Tint,1,"1");
           i+=2; col+=2;
         }else{
           push_token(v,line,col,Top,Top_add);
@@ -636,7 +619,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
           i+=2; col+=2;
         }else if(i+1<n && s[i+1]=='-'){
           push_token(v,line,col,Top,Top_asub);
-          push_token_string(v,line,col,Tint,"1",1);
+          push_token_string(v,line,col,Tint,1,"1");
           i+=2; col+=2;
         }else{
           push_token(v,line,col,Top,Top_sub);
@@ -795,7 +778,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
             }
             i++; col++;
           }
-          push_token_string(v,line,hcol,Tstring,s+j,i-j);
+          push_token_string(v,line,hcol,Tstring,i-j,(char*)s+j);
           i+=3; col+=3;
         }else{
           i++; col++; j=i;
@@ -808,7 +791,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
             }
             i++; col++;
           }
-          push_token_string(v,line,hcol,Tstring,s+j,i-j);
+          push_token_string(v,line,hcol,Tstring,i-j,(char*)s+j);
           i++; col++;
         }
         break;
@@ -824,7 +807,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
           }
           i++; col++;
         }
-        push_token_string(v,line,hcol,Tstring,s+j,i-j);
+        push_token_string(v,line,hcol,Tstring,i-j,(char*)s+j);
         i++; col++;
         break;
       case '=':
@@ -832,7 +815,7 @@ int mf_scan(mt_vec* v, unsigned char* s, int n, int line){
           push_token(v,line,col,Top,Top_eq);
           i+=2; col+=2;
         }else{
-          push_token(v,line,col,Top,Top_aop);
+          push_token(v,line,col,Top,Top_assignment);
           i++; col++;
         }
         break;
@@ -886,7 +869,7 @@ void ast_delete(ast_node* t){
   for(i=0; i<t->n; i++){
     ast_delete(t->a[i]);
   }
-  free(t);
+  mf_free(t);
 }
 
 static
@@ -901,7 +884,7 @@ void ast_buffer_delete(mt_vec* v){
 }
 
 static
-ast_node* ast_new(int n, int line, int col){
+ast_node* ast_new(long n, int line, int col){
   ast_node* y;
   y = mf_malloc(sizeof(ast_node)+n*sizeof(ast_node*));
   y->n=n;
@@ -910,10 +893,20 @@ ast_node* ast_new(int n, int line, int col){
   return y;
 }
 
-ast_node* ast_construct_list(ast_node** a, int size, int line, int col){
+ast_node* ast_buffer_to_node(long size, ast_node** a, int line, int col){
+  ast_node* y = ast_new(size,line,col);
+  ast_node** b=y->a;
+  long k;
+  for(k=0; k<size; k++){
+    b[k]=a[k];
+  }
+  return y;
+}
+
+ast_node* ast_construct_list(long size, ast_node** a, int line, int col){
   ast_node* y = ast_new(size,line,col);
   y->type=Top; y->value=Top_list;
-  int k;
+  long k;
   for(k=0; k<size; k++){
     y->a[k]=a[k];
   }
@@ -1071,20 +1064,14 @@ ast_node* list_literal(token_iterator* i){
       i->index++;
       break;
     }else{
-      syntax_error(t1->line,t1->col,"expected ']'.");
+      syntax_error(t->line,t->col,"expected ']'.");
       goto error;
     }
   }
   ast_node* y;
   end_of_loop:
-  y = ast_new(v.size,t1->line,t1->col);
-  y->type=Top;
-  y->value=Top_list;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
+  y->type=Top; y->value=Top_list;
   mf_vec_delete(&v);
   return y;
   error:
@@ -1112,7 +1099,7 @@ ast_node* map_literal(token_iterator* i){
     mf_vec_push(&v,&p1);
     t = get_token(i);
     if(t->type!=Tsep || t->value!=':'){
-      if(t->type==Top && t->value==Top_aop){
+      if(t->type==Top && t->value==Top_assignment){
         if(p1->type==Tid){
           p1->type=Tstring;
         }else{
@@ -1152,14 +1139,8 @@ ast_node* map_literal(token_iterator* i){
 
   ast_node* y;
   end_of_loop:
-  y = ast_new(v.size,t1->line,t1->col);
-  y->type=Top;
-  y->value=Top_map;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
+  y->type=Top; y->value=Top_map;
   mf_vec_delete(&v);
   return y;
 
@@ -1204,7 +1185,7 @@ ast_node* object_literal(token_iterator* i){
     t = get_token(i);
     if(t==NULL) goto error;
     if(t->type!=Tsep || t->value!=':'){
-      if(t->type==Top && t->value==Top_aop){
+      if(t->type==Top && t->value==Top_assignment){
         if(p1->type==Tid){
           p1->type=Tstring;
         }else{
@@ -1238,15 +1219,10 @@ ast_node* object_literal(token_iterator* i){
     }
   }
   ast_node* y;
-  y = ast_new(v.size,t1->line,t1->col);
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tkeyword;
   y->value=Ttable;
   y->info=prototype;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
 
@@ -1290,11 +1266,8 @@ ast_node* function_application(ast_node* p1, token_iterator* i){
     p = expression(i);
     if(p==NULL) goto error;
     mf_vec_push(&v,&p);
-    if(i->index>=i->size){
-      syntax_error(t1->line,t1->col,"expected ')'.");
-      goto error;
-    }
-    mt_token* t = i->a+i->index;
+    mt_token* t = get_token(i);
+    if(t==NULL) goto error;
     if(t->type==Tsep && t->value==','){
       i->index++;
     }else if(t->type==Tbright && t->value==')'){
@@ -1307,16 +1280,12 @@ ast_node* function_application(ast_node* p1, token_iterator* i){
   }
   ast_node* y;
   end_of_loop:
-  y = ast_new(v.size,t1->line,t1->col);
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tapp;
   y->value=0;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -1371,17 +1340,13 @@ ast_node* if_expression(token_iterator* i){
     goto error;
   }
   ast_node* y;
-  y = ast_new(v.size,t1->line,t1->col);
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Top;
   y->value=Top_if;
   y->info=HAS_ELSE_CASE;
-  int k;
-  ast_node** a = (ast_node**)v.a;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -1449,10 +1414,13 @@ ast_node* atom(token_iterator* i){
     i->index++;
     bstack[bstack_sp]='b';
     bstack_sp++;
-    p = expression(i);
+    p = comma_expression(i);
     if(p==NULL){
       bstack_sp--;
       return NULL;
+    }
+    if(comma_found){
+      p->value=Top_tuple;
     }
     mt_token* t2 = get_token(i);
     bstack_sp--;
@@ -1496,6 +1464,39 @@ ast_node* atom(token_iterator* i){
 }
 
 static
+ast_node* index_list(mt_token* bleft, ast_node* p1, token_iterator* i){
+  mt_vec v;
+  mf_vec_init(&v,sizeof(ast_node*));
+  mf_vec_push(&v,&p1);
+  while(1){
+    ast_node* p = expression(i);
+    if(p==NULL) goto error;
+    mf_vec_push(&v,&p);
+    mt_token* t = get_token(i);
+    if(t==NULL) goto error;
+    if(t->type==Tbright && t->value==']'){
+      i->index++;
+      break;
+    }else if(t->type==Tsep && t->value==','){
+      i->index++;
+      continue;
+    }else{
+      syntax_error(t->line,t->col,"expected ',' or ']'.");
+      goto error;
+    }
+  }
+  ast_node* op;
+  op = ast_buffer_to_node(v.size,(ast_node**)v.a,bleft->line,bleft->col);
+  op->type=Top; op->value=Top_index;
+  mf_vec_delete(&v);
+  return op;
+
+  error:
+  ast_buffer_delete(&v);
+  return NULL;
+}
+
+static
 ast_node* atomic_expression(token_iterator* i){
   ast_node* p1 = atom(i);
   if(p1==NULL) return NULL;
@@ -1507,27 +1508,20 @@ ast_node* atomic_expression(token_iterator* i){
       bstack_sp++;
       p1=function_application(p1,i);
       bstack_sp--;
+      if(p1==NULL) return NULL;
     }else if(t->type==Tbleft && t->value=='['){
       i->index++;
-      ast_node* p2 = expression(i);
-      if(p2==NULL) goto error;
-      if(i->index>=i->size || i->a[i->index].type!=Tbright ||
-        i->a[i->index].value!=']'
-      ){
-        syntax_error(t->line,t->col,"square bracket mismatch.");
-        goto error;
-      }
-      i->index++;
-      mt_token op;
-      op.line=t->line; op.col=t->col;
-      op.type=Top; op.value=Top_index;
-      op.s=NULL; op.size=0;
-      p1=binary_operator(&op,p1,p2);
+      bstack[bstack_sp]='b';
+      bstack_sp++;
+      p1=index_list(t,p1,i);
+      bstack_sp--;
+      if(p1==NULL) return NULL;
     }else if(t->type==Top && t->value==Top_dot){
       i->index++;
       ast_node* p2 = atom(i);
       if(p2==NULL) goto error;
       p1=binary_operator(t,p1,p2);
+      if(p1==NULL) return NULL;
     }else{
       break;
     }
@@ -1861,7 +1855,7 @@ ast_node* expression(token_iterator* i){
   if(p==NULL) return NULL;
   if(i->index<i->size){
     mt_token* t = i->a+i->index;
-    if(t->type==Top && t->value==Top_aop){
+    if(t->type==Top && t->value==Top_assignment){
       return p;
     }
     if(t->type!=Tbright && t->type!=Tsep && t->type!=Tkeyword){
@@ -1891,7 +1885,7 @@ ast_node* comma_list(ast_node* p1, token_iterator* i){
         continue;
       }else if(type==Tbright || type==Tsep){
         break;
-      }else if(type==Top && value==Top_aop){
+      }else if(type==Top && value==Top_assignment){
         break;
       }else if(type==Tkeyword &&
         (value==Tend || value==Telse || value==Telif || value==Tdo)
@@ -1906,16 +1900,13 @@ ast_node* comma_list(ast_node* p1, token_iterator* i){
     }
   }
   // todo
-  ast_node* y = ast_new(v.size,-1,-1);
-  y->type=Top;
+  ast_node* y;
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,-1,-1);
+    y->type=Top;
   y->value=Top_list;
-  int k;
-  ast_node** a = (ast_node**)v.a;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -1931,9 +1922,11 @@ ast_node* comma_expression(token_iterator* i){
       i->index++;
       ast_node* p2 = comma_list(p1,i);
       if(p2==NULL) return NULL;
+      comma_found=1;
       return p2;
     }
   }
+  comma_found=0;
   return p1;
 }
 
@@ -1945,7 +1938,7 @@ ast_node* assignment(token_iterator* i){
     mt_token* t = i->a+i->index;
     int value=t->value;
     if(t->type==Top &&
-      (value==Top_aop || value==Top_aadd || value==Top_asub ||
+      (value==Top_assignment || value==Top_aadd || value==Top_asub ||
       value==Top_ampy || value==Top_adiv || value==Top_amod ||
       value==Top_aidiv)
     ){
@@ -2079,9 +2072,10 @@ ast_node* for_statement(token_iterator* i){
   ast_node* y;
   y = ast_new(3,t1->line,t1->col);
   y->type=Tkeyword; y->value=Tfor;
-  y->a[0] = ast_construct_list((ast_node**)v.a,v.size,t1->line,t1->col);
+  y->a[0] = ast_construct_list(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->a[1] = p;
   y->a[2] = b;
+  mf_vec_delete(&v);
   return y;
   error3:
   ast_delete(b);
@@ -2154,16 +2148,14 @@ ast_node* if_statement(token_iterator* i){
       goto error;
     }
   }
-  ast_node* y = ast_new(v.size,t1->line,t1->col);
+  ast_node* y;
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tkeyword;
   y->value=Tif;
   y->info=has_else_case;
-  int k;
-  ast_node** a = (ast_node**)v.a;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
+  mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -2223,10 +2215,12 @@ ast_node* try_statement(token_iterator* i){
     ast_node* tuple[3];
     if(catch_type==CATCH_ID_EXP){
       tuple[0]=p; tuple[1]=p1; tuple[2]=p2;
-      p = ast_construct_list(tuple,3,id->line,id->col);
+      p = ast_buffer_to_node(3,tuple,id->line,id->col);
+      p->type=Top; p->value=Top_list;
     }else{
       tuple[0]=p; tuple[1]=p2;
-      p = ast_construct_list(tuple,2,id->line,id->col);
+      p = ast_buffer_to_node(2,tuple,id->line,id->col);
+      p->type=Top; p->value=Top_list;
     }
     p->info=catch_type;
     mf_vec_push(&v,&p);
@@ -2244,15 +2238,11 @@ ast_node* try_statement(token_iterator* i){
     }
   }
   ast_node* y;
-  y = ast_new(v.size,t1->line,t1->col);
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tkeyword; y->value=Ttry;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -2359,15 +2349,12 @@ ast_node* global_statement(token_iterator* i){
       break;
     }
   }
-  ast_node* y = ast_new(v.size,t1->line,t1->col);
+  ast_node* y;
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tkeyword; y->value=Tglobal;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -2423,12 +2410,17 @@ ast_node* import_list(mt_token* t1, token_iterator* i){
   while(1){
     mt_token* t = get_token(i);
     if(t==NULL) goto error;
-    if(t->type!=Tid){
+    ast_node* id;
+    if(t->type==Top && t->value==Top_mpy){
+      id = ast_new(0,t->line,t->col);
+      id->type=Tstring; id->s="*"; id->size=1;
+    }else if(t->type==Tid){
+      id = ast_new(0,t->line,t->col);
+      id->type=Tstring; id->s=t->s; id->size=t->size;
+    }else{
       syntax_error(t->line,t->col,"expected identifier.");
       goto error;
     }
-    ast_node* id = ast_new(0,t->line,t->col);
-    id->type=Tstring; id->s=t->s; id->size=t->size;
     mf_vec_push(&v,&id);
     i->index++;
     mt_token* ta = lookup_token(i);
@@ -2437,7 +2429,7 @@ ast_node* import_list(mt_token* t1, token_iterator* i){
       mf_vec_push(&v,&p);
       break;
     }
-    if(ta->type==Top && ta->value==Top_aop){
+    if(ta->type==Top && ta->value==Top_assignment){
       i->index++;
       t = get_token(i);
       if(t==NULL) goto error;
@@ -2469,15 +2461,12 @@ ast_node* import_list(mt_token* t1, token_iterator* i){
     i->index++;
   }
 
-  ast_node* y = ast_new(v.size,t1->line,t1->col);
+  ast_node* y;
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Top; y->value=Top_map;
-  ast_node** a = (ast_node**)v.a;
-  int k;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -2570,15 +2559,11 @@ ast_node* statement_list(token_iterator* i){
     return y;
   }
   // todo
-  y = ast_new(v.size,-1,-1);
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,-1,-1);
   y->type=Tblock;
-  int k;
-  ast_node** a = (ast_node**)v.a;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -2641,7 +2626,8 @@ ast_node* argument_list(token_iterator* i){
       goto error;
     }
   }
-  y = ast_new(v.size,-1,-1);
+  // todo
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,-1,-1);
   y->type=Top;
   y->value=Top_list;
   if(argc==0){
@@ -2649,13 +2635,9 @@ ast_node* argument_list(token_iterator* i){
   }else{
     y->info=argc;
   }
-  int k;
-  ast_node** a = (ast_node**)v.a;
-  for(k=0; k<v.size; k++){
-    y->a[k]=a[k];
-  }
   mf_vec_delete(&v);
   return y;
+
   error:
   ast_buffer_delete(&v);
   return NULL;
@@ -3108,7 +3090,7 @@ uint32_t mf_htoi(uint32_t* a, int size){
   return x;
 }
 
-int mf_bhtoi(char* a, int size){
+int mf_bhtoi(int size, const unsigned char* a){
   int x=0;
   int i,d;
   for(i=0; i<size; i++){
@@ -3123,10 +3105,10 @@ int mf_bhtoi(char* a, int size){
 }
 
 static
-void compile_string_literal(mt_vec* data, unsigned char* s, int size){
+void compile_string_literal(mt_vec* data, long size, const char* s){
   int i,n;
   mt_str buffer;
-  mf_decode_utf8(&buffer,s,size);
+  mf_decode_utf8(&buffer,(unsigned char*)s,size);
   push_u8(data,MT_STRING);
   int index = data->size;
   push_u32(data,0); // placeholder
@@ -3192,11 +3174,11 @@ void compile_string_literal(mt_vec* data, unsigned char* s, int size){
     }
   }
   *(uint32_t*)(data->a+index)=n;
-  free(buffer.a);  
+  mf_free(buffer.a);  
 }
 
 static
-void compile_bstring_literal(mt_vec* data, unsigned char* a, int size){
+void compile_bstring_literal(mt_vec* data, long size, const unsigned char* a){
   int i,n;
   push_u8(data,MT_BSTRING);
   int index = data->size;
@@ -3204,7 +3186,7 @@ void compile_bstring_literal(mt_vec* data, unsigned char* a, int size){
   i=0; n=0;
   while(i<size){
     if(i+1<size && isxdigit(a[i]) && isxdigit(a[i+1])){
-      push_u8(data,mf_bhtoi(a+i,2));
+      push_u8(data,mf_bhtoi(2,a+i));
       i+=2; n++;
     }else if(isspace(a[i]) || a[i]==','){
       i++;
@@ -3228,13 +3210,13 @@ void stab_delete(mt_vec* v){
   mt_stab_element* a=(mt_stab_element*)v->a;
   int i;
   for(i=0; i<size; i++){
-    free(a[i].a);
+    mf_free(a[i].a);
   }
   mf_vec_delete(v);
 }
 
 static
-int stab_find(mt_vec* v, int type, unsigned char* s, long size){
+int stab_find(mt_vec* v, int type, const char* s, long size){
   int n=v->size;
   mt_stab_element* a = (mt_stab_element*)v->a;
   mt_stab_element* e;
@@ -3267,13 +3249,13 @@ void dump_program(unsigned char* bv, int n);
 
 static
 void push_string(mt_vec* bv, mt_vec* stab,
-  unsigned char* a, int size, int line
+  int line, long size, const char* a
 ){
   int index = stab_find(stab,MT_STRING,a,size);
   if(index>=0){
     push_u32(bv,index);
   }else{
-    compile_string_literal(&data,a,size);
+    compile_string_literal(&data,size,a);
     push_u32(bv,stab->size);
     mt_stab_element e;
     e.type=MT_STRING;
@@ -3287,13 +3269,13 @@ void push_string(mt_vec* bv, mt_vec* stab,
 
 static
 void push_bstring(mt_vec* bv, mt_vec* stab,
-  unsigned char* a, int size, int line
+  int line, long size, const char* a
 ){
   int index = stab_find(stab,MT_STRING,a,size);
   if(index>=0){
     push_u32(bv,index);
   }else{
-    compile_bstring_literal(&data,a,size);
+    compile_bstring_literal(&data,size,(unsigned char*)a);
     push_u32(bv,stab->size);
     mt_stab_element e;
     e.type=MT_BSTRING;
@@ -3307,13 +3289,13 @@ void push_bstring(mt_vec* bv, mt_vec* stab,
 static
 void compile_string(mt_vec* bv, ast_node* t){
   push_bc(bv,CONST_STR,t);
-  push_string(bv,&stab,t->s,t->size,t->line);
+  push_string(bv,&stab,t->line,t->size,t->s);
 }
 
 static
 void compile_bstring(mt_vec* bv, ast_node* t){
   push_bc(bv,CONST_STR,t);
-  push_bstring(bv,&stab,t->s,t->size,t->line);
+  push_bstring(bv,&stab,t->line,t->size,t->s);
 }
 
 static void ast_compile(mt_vec* bv, ast_node* t);
@@ -3391,7 +3373,7 @@ void compile_variable(mt_vec* bv, ast_node* t){
   }else if(type==MV_GLOBAL){
     global:
     push_bc(bv,LOAD,t);
-    push_string(bv,&stab,t->s,t->size,t->line);
+    push_string(bv,&stab,t->line,t->size,t->s);
   }else{
     puts("Compiler error in compile_variable.");
     exit(1);
@@ -3429,7 +3411,7 @@ void ast_load_ref(mt_vec* bv, ast_node* t){
     }else{
       global:
       push_bc(bv,LOAD_REF,t);
-      push_string(bv,&stab,t->s,t->size,t->line);
+      push_string(bv,&stab,t->line,t->size,t->s);
     }
   }else if(t->type==Top && t->value==Top_index){
     compile_index(bv,t);
@@ -3472,13 +3454,25 @@ void closure(mt_vec* bv, mt_var_tab* vtab){
 }
 
 static
+void compile_index_assignment(mt_vec* bv, ast_node* t){
+  ast_compile(bv,t->a[0]);
+  ast_compile(bv,t->a[1]);
+  push_bc(bv,STORE_INDEX,t);
+  push_u32(bv,1);
+}
+
+static
 void compile_unpacking(mt_vec* bv, ast_node* t){
   int i;
   for(i=0; i<t->n; i++){
     push_bc(bv,LIST_POP,t);
     push_u32(bv,i);
-    ast_load_ref(bv,t->a[i]);
-    push_bc(bv,STORE,t);
+    if(t->a[i]->type==Top && t->a[i]->value==Top_index){
+      compile_index_assignment(bv,t->a[i]);
+    }else{
+      ast_load_ref(bv,t->a[i]);
+      push_bc(bv,STORE,t);
+    }
   }
   push_bc(bv,POP,t);
 }
@@ -3616,9 +3610,9 @@ void ast_compile_while(mt_vec* bv, ast_node* t){
 }
 
 static
-void load_global(mt_vec* bv, unsigned char* a, int size, ast_node* t){
+void load_global(mt_vec* bv, const char* a, long size, ast_node* t){
   push_bc(bv,LOAD,t);
-  push_string(bv,&stab,a,size,-1);
+  push_string(bv,&stab,-1,size,a);
 }
 
 static
@@ -3737,23 +3731,24 @@ static
 mt_vec* label_tab_new(){
   mt_vec* v = mf_malloc(sizeof(mt_vec));
   mf_vec_init(v,sizeof(mt_label));
+  return v;
 }
 
 static
 void label_tab_delete(mt_vec* tab){
   mf_vec_delete(tab);
-  free(tab);
+  mf_free(tab);
 }
 
 static
-void label_tab_push(mt_vec* tab, unsigned char* a, int size, int index){
+void label_tab_push(mt_vec* tab, long size, const char* a, int index){
   mt_label t;
   t.a=a; t.size=size; t.index=index;
   mf_vec_push(tab,&t);
 }
 
 static
-mt_label* label_tab_find(mt_vec* tab, unsigned char* a, int size){
+mt_label* label_tab_find(mt_vec* tab, const char* a, int size){
   int i;
   for(i=0; i<tab->size; i++){
     mt_label* p = mf_vec_get(tab,i);
@@ -3795,7 +3790,7 @@ int ast_compile_function(mt_vec* bv, ast_node* t){
   int e=ast_argument_list(&vtab,t->a[0]);
   if(e) return 1;
   int argc=t->a[0]->info;
-  vtab.fn_name=t->s;
+  vtab.fn_name=(unsigned char*)t->s;
   vtab.fn_name_size=t->size;
   mt_vec indices;
   mf_vec_init(&indices,sizeof(int));
@@ -3824,6 +3819,7 @@ int ast_compile_function(mt_vec* bv, ast_node* t){
 
 
   const_fn_indices=tindices;
+  mf_vec_delete(&indices);
   push_bc(&bv2,CONST_NULL,t);
   push_bc(&bv2,RET,t);
 
@@ -3839,9 +3835,9 @@ int ast_compile_function(mt_vec* bv, ast_node* t){
   }else{
     push_bc(bv,CONST_STR,t);
     char a[200];
-    snprintf(a,200,"function (file '%s', line %i)",
-      compiler_context.file_name,t->line+1);
-    push_string(bv,&stab,a,strlen(a),t->line);
+    snprintf(a,200,"function (%s:%i:%i)",
+      compiler_context.file_name,t->line+1,t->col+1);
+    push_string(bv,&stab,t->line,strlen(a),a);
   }
   push_bc(bv,CONST_FN,t);
   int index = bv->size;
@@ -4057,33 +4053,46 @@ void ast_compile(mt_vec* bv, ast_node* t){
       }
       push_bc(bv,RANGE,t);
     }else if(value==Top_index){
-      ast_compile(bv,t->a[0]);
-      ast_compile(bv,t->a[1]);
+      int i;
+      for(i=0; i<t->n; i++){
+        ast_compile(bv,t->a[i]);
+      }
       push_bc(bv,GET,t);
+      push_u32(bv,t->n-1);
     }else if(value==Top_dot){
       ast_compile(bv,t->a[0]);
       compile_string(bv,t->a[1]);
       push_bc(bv,OBGET,t);
     }else if(value==Top_list){
-      int i;
+      long i;
       for(i=0; i<t->n; i++){
         ast_compile(bv,t->a[i]);
       }
       push_bc(bv,LIST,t);
       push_u32(bv,t->n);
     }else if(value==Top_map){
-      int i;
+      long i;
       for(i=0; i<t->n; i++){
         ast_compile(bv,t->a[i]);
       }
       push_bc(bv,MAP,t);
       push_u32(bv,t->n);
-    }else if(value==Top_aop){
+    }else if(value==Top_tuple){
+      long i;
+      for(i=0; i<t->n; i++){
+        ast_compile(bv,t->a[i]);
+      }
+      push_bc(bv,TUPLE,t);
+      push_u32(bv,t->n);
+    }else if(value==Top_assignment){
       ast_compile(bv,t->a[1]);
-      if(t->a[0]->type==Top && t->a[0]->value==Top_list){
-        compile_unpacking(bv,t->a[0]);
+      ast_node* x=t->a[0];
+      if(x->type==Top && x->value==Top_list){
+        compile_unpacking(bv,x);
+      }else if(x->type==Top && x->value==Top_index){
+        compile_index_assignment(bv,x);
       }else{
-        ast_load_ref(bv,t->a[0]);
+        ast_load_ref(bv,x);
         push_bc(bv,STORE,t);
       }
     }else if(value==Top_aadd || value==Top_asub ||
@@ -4167,11 +4176,11 @@ void ast_compile(mt_vec* bv, ast_node* t){
       ast_compile_try(bv,t);
     }else if(value==Tlabel){
       ast_node* id=t->a[0];
-      label_tab_push(label_tab,id->s,id->size,bv->size);
+      label_tab_push(label_tab,id->size,id->s,bv->size);
     }else if(value==Tgoto){
       ast_node* id=t->a[0];
       push_bc(bv,JMP,t);
-      label_tab_push(goto_tab,id->s,id->size,bv->size);
+      label_tab_push(goto_tab,id->size,id->s,bv->size);
       push_u32(bv,0xcafe);
     }else{
       printf("Compiler in ast_compile: unknown keyword value: %i.\n",t->value);
@@ -4391,6 +4400,10 @@ void dump_program(unsigned char* bv, int n){
       printf("STN %i\n",*(int*)(bv+i+BC));
       i+=BC+4;
       break;
+    case STORE_INDEX:
+      printf("STORE_INDEX %i\n",*(int32_t*)(bv+i+BC));
+      i+=BC+4;
+      break;
     case LOAD:
       printf("LOAD %i\n",*(int*)(bv+i+BC));
       i+=BC+4;
@@ -4400,7 +4413,8 @@ void dump_program(unsigned char* bv, int n){
       i+=BC+4;
       break;
     case GET:
-      i+=BC; printf("GET\n");
+      printf("GET %i\n",*(int32_t*)(bv+i+BC));
+      i+=BC+4;
       break;
     case GETREF:
       i+=BC; printf("GETREF\n");
@@ -4503,53 +4517,14 @@ void dump_program(unsigned char* bv, int n){
   }
 }
 
-static
-void compiler_context_save(mt_compiler_context* context){
+void mf_compiler_context_save(mt_compiler_context* context){
   context->mode_cmd = compiler_context.mode_cmd;
   context->file_name = compiler_context.file_name;
 }
 
-static
-void compiler_context_restore(mt_compiler_context* context){
+void mf_compiler_context_restore(mt_compiler_context* context){
   compiler_context.mode_cmd = context->mode_cmd;
   compiler_context.file_name = context->file_name;
-}
-
-static
-char* mf_strdup(const char* s){
-  long size = strlen(s);
-  char* s2 = mf_malloc(size+1);
-  strcpy(s2,s);
-  return s2;
-}
-
-static
-void module_delete(mt_module* m){
-  mf_free(m->id);
-  mf_free(m->path);
-  mf_free(m->program);
-  mf_free(m->data);
-  mf_free(m);
-}
-
-mt_module* mf_new_module(){
-  mt_module* m = mf_malloc(sizeof(mt_module));
-  m->refcount=1;
-  m->prototype.type=mv_null;
-  m->del = (void(*)(void*))module_delete;
-  m->id=NULL;
-  m->path=NULL;
-  m->program=NULL;
-  m->data=NULL;
-  return m;
-}
-
-void mf_module_dec_refcount(mt_module* m){
-  if(m->refcount==1){
-    m->del(m);
-  }else{
-    m->refcount--;
-  }
 }
 
 int mf_compile(mt_vec* v, mt_module* module){
@@ -4563,7 +4538,7 @@ int mf_compile(mt_vec* v, mt_module* module){
   print_vtoken(v);
   #endif
   ast_node* t = ast(v);
-  if(t==NULL) return 1;
+  if(t==NULL) goto error;
   #ifdef MV_PRINT
   ast_print(t,2);
   #endif
@@ -4582,226 +4557,10 @@ int mf_compile(mt_vec* v, mt_module* module){
   data.capacity=0;
   data.size=0;
   stab_delete(&stab);
-  return 0;
-}
-
-void mf_get_complete_id(mt_bs* bid, const char* id, int size){
-  if(size>0 && id[0]=='/'){
-    mf_bs_push_cstr(bid,"/usr/local/lib/moss");
-    mf_bs_push(bid,id,size);
-  }else{
-    mf_bs_push(bid,id,size);
-  }
-  mf_bs_push(bid,"\0",1);
-}
-
-int mf_read_file(mt_bstr* data, const char* id){
-  FILE* fp;
-  char id2[300];
-  if(id[0]=='/'){
-    snprintf(id2,300,"/usr/local/lib/moss%s",id);
-    fp = fopen(id2,"rb");
-    if(fp==NULL) return 1;
-  }
-  fp = fopen(id,"rb");
-  if(fp==NULL){
-    char id2[300];
-    snprintf(id2,300,"/usr/local/lib/moss/%s",id);
-    fp = fopen(id2,"rb");
-    if(fp==NULL) return 1;
-  }
-  mf_file_read(fp,data);
-  fclose(fp);
-  return 0;
-}
-
-mt_table* mf_eval_module(mt_module* module, long ip);
-mt_table* mf_load_module(const char* id){
-  mt_vec v;
-  mf_vec_init(&v,sizeof(mt_token));
-  mt_bstr input;
-  int e;
-  e=mf_read_file(&input,id);
-  if(e){
-    char buffer[200];
-    snprintf(buffer,200,"Error: could not read file '%s'.",id);
-    mf_std_exception(buffer);
-    return NULL;
-  }
-  mt_compiler_context context;
-  compiler_context_save(&context);
-  compiler_context.mode_cmd=0;
-  compiler_context.file_name=id;
-
-  e = mf_scan(&v,input.a,input.size,0);
-  if(e) goto error;
-  mt_module* module = mf_new_module();
-  module->id = mf_strdup(id);
-  e = mf_compile(&v,module);
-  if(e){
-    char buffer[200];
-    snprintf(buffer,200,"Error: could not compile '%s'.",id);
-    mf_std_exception(buffer);
-    goto error;
-  }
-  mt_table* t;
-  t = mf_eval_module(module,0);
-  mf_vec_delete(&v);
-  compiler_context_restore(&context);
-  mf_module_dec_refcount(module);
-  return t;
-  error:
-  compiler_context_restore(&context);
-  mf_vec_delete(&v);
-  mf_module_dec_refcount(module);
-  return NULL;
-}
-
-int mf_eval_bytecode(mt_object* x, mt_module* module);
-int mf_eval_string(mt_object* x, mt_string* s){
-  mt_compiler_context context;
-  compiler_context_save(&context);
-  compiler_context.mode_cmd=1;
-  mt_bstr bs;
-  mf_encode_utf8(&bs,s->a,s->size);
-  int e;
-  mt_vec v;
-  mf_vec_init(&v,sizeof(mt_token));
-  e = mf_scan(&v,bs.a,bs.size,0);
-  if(e) goto error;
-  mt_module* module = mf_new_module();
-  e = mf_compile(&v,module);
-  if(e){
-    mf_module_dec_refcount(module);
-    mf_std_exception("Error: could not compile string.");
-    goto error;
-  }
-  vtoken_delete(&v);
-  mt_object y;
-  e = mf_eval_bytecode(&y,module);
-  compiler_context_restore(&context);
-  mf_module_dec_refcount(module);
-  if(e) return 1;
-  mf_copy(x,&y);
+  ast_delete(t);
   return 0;
   error:
-  vtoken_delete(&v);
-  compiler_context_restore(&context);
+  mf_vec_delete(&data);
+  stab_delete(&stab);
   return 1;
-}
-
-static
-int eval_file(char* id){
-  mt_vec v;
-  mf_vec_init(&v,sizeof(mt_token));
-  mt_bstr input;
-  mf_file_load(id,&input);
-  int e = mf_scan(&v,input.a,input.size,0);
-  if(e) goto error;
-  mt_module* module;
-  if(v.size>0){
-    module = mf_new_module();
-    module->id = mf_strdup(id);
-    e = mf_compile(&v,module);
-    if(e) goto error;
-    mf_vm_set_program(module);
-    e = mf_vm_eval_global(module,0);
-    mf_module_dec_refcount(module);
-  }
-  vtoken_delete(&v);
-  free(input.a);
-  return 0;
-  error:
-  mf_module_dec_refcount(module);
-  vtoken_delete(&v);
-  free(input.a);
-  return 1;
-}
-
-static
-void eval_cmd(){
-  char* input;
-  mt_vec v;
-  mf_vec_init(&v,sizeof(mt_token));
-  int e;
-  mt_module* module;
-  while(1){
-    input_nesting=0;
-    input = mf_getline_hist("> ");
-    e = mf_scan(&v,input,strlen(input),0);
-    int line_counter=0;
-    while(e==0 && input_nesting>0){
-      push_token(&v,line_counter,-1,Tsep,'n');
-      input = mf_getline_hist("| ");
-      e = mf_scan(&v,input,strlen(input),line_counter);
-      line_counter++;
-    }
-    if(e==0 && v.size>0){
-      module = mf_new_module();
-      module->id = mf_strdup("command-line");
-      e = mf_compile(&v,module);
-      if(e==0){
-        mf_vm_set_program(module);
-        mf_vm_eval_global(module,0);
-      }
-      mf_module_dec_refcount(module);
-    }
-    vtoken_delete(&v);
-  }
-}
-
-static
-int is_option(char* s, int size){
-  return size>0 && s[0]=='-';
-}
-
-int main(int argc, char** argv){
-  gv_argv=argv+1;
-  gv_argc=argc-1;
-  int i;
-  char* s;
-  int size;
-
-  mf_vm_init();
-  mf_vm_init_gvtab();
-
-  mt_bs file_id;
-  mf_bs_init(&file_id);
-  for(i=1; i<argc; i++){
-    s = argv[i];
-    size=strlen(s);
-    if(is_option(s,size)){
-      if(strcmp(s,"-i")==0){
-        option_i=1;
-      }else if(strcmp(s,"-net")==0){
-        mode_network=1;
-      }else if(strcmp(s,"-unsafe")==0){
-        mode_unsafe=1;
-        mode_network=1;
-      }else{
-        printf("Error: unknown option %s.\n",s);
-        return 1;
-      }
-      gv_argv++;
-      gv_argc--;
-    }else{
-      compiler_context.file_name=s;
-      mf_get_complete_id(&file_id,s,size);
-      break;
-    }
-  }
-
-  if(option_i && file_id.size>0){
-    int e=eval_file(file_id.a);
-    if(e==0){
-      compiler_context.mode_cmd=1;
-      eval_cmd();
-    }
-  }else if(file_id.size>0){
-    return eval_file(file_id.a);
-  }else{
-    compiler_context.mode_cmd=1;
-    eval_cmd();
-  }
-  return 0;
 }

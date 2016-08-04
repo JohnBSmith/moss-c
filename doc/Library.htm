@@ -25,8 +25,10 @@
 <li><a href="#os">Module os</a> &mdash; operating system interface
 <li><a href="#math">Module math</a> &mdash; mathematical functions
 <li><a href="#cmath">Module cmath</a> &mdash; complex functions
-<li><a href="#analysis">Module ma</a> &mdash; mathematical analysis
+<li><a href="#sf">Module sf</a> &mdash; special mathematical functions
+<li><a href="#na">Module na</a> &mdash; numerical analysis
 <li><a href="#nt">Module nt</a> &mdash; number theory
+<li><a href="#cf">Module cf</a> &mdash; combinatorical functions
 <li><a href="#gx">Module gx</a> &mdash; graphics
 </ol>
 
@@ -45,44 +47,54 @@ called with no argument, it only prints a line break.</dd>
 </dd>
 
 <dt>input(), input(prompt)</dt>
-<dd>Reads a line of input from the command-line interface and returns
+<dd>Read a line of input from the command-line interface and return
 the input as a string. The line break at the end of the input line is
 not contained in the string.
 </dd>
 
 <dt>str(x)</dt>
-<dd>Converts the object <code>x</code> into a string.
+<dd>Convert the object <code>x</code> into a string.
 </dd>
 
 <dt>int(x)</dt>
-<dd>Converts the object <code>x</code> into an integer if possible.
+<dd>Convert the object <code>x</code> into an integer if possible.
 </dd>
 
 <dt>float(x)</dt>
-<dd>Converts the object <code>x</code> into a floating point number
+<dd>Convert the object <code>x</code> into a floating point number
   if possible.
 </dd>
 
 <dt>ord(s)</dt>
-<dd>Takes a string of length one and returns the code point of the
+<dd>Take a string of length one and return the code point of the
   Unicode character.
 </dd>
 
 <dt>chr(x)</dt>
-<dd>Takes an integer value <code>x</code> and returns the Unicode
+<dd>Take an integer value <code>x</code> and return the Unicode
   character at code point&nbsp;<code>x</code>.
 </dd>
 
 <dt>list(x)</dt>
-<dd>Converts the iterable object <code>x</code> into a list.
+<dd>Convert the iterable object <code>x</code> into a list.
 <pre class="moss">
 &gt; list(1..4)
 [1, 2, 3, 4]
 </pre>
 </dd>
 
+<dt>dict(x)</dt>
+<dd>Convert the iterable object <code>x</code> of
+<code>[key,value]</code> pairs into a dictionary.
+<pre class="moss">
+&gt; {"a": 1, "b": 2} == dict([["a",1],["b",2]])
+true
+</pre>
+</dd>
+
+
 <dt>iter(x)</dt>
-<dd>Takes an iterable object and returns an iterator.
+<dd>Take an iterable object and return an iterator.
 <pre class="moss">
 &gt; i = iter(1..)
 &gt; [i(),i(),i(),i()]
@@ -96,7 +108,7 @@ should be a data structure that has this property.
 </dd>
 
 <dt>rand(a..b), rand(a..b,seed)</dt>
-<dd>Returns a random number generator that returns random integers
+<dd>Return a random number generator that returns random integers
 from <code>a</code> inclusive to <code>b</code> inclusive.
 <pre class="moss">
 &gt; r = rand(1..4)
@@ -108,25 +120,25 @@ from <code>a</code> inclusive to <code>b</code> inclusive.
 </dd>
 
 <dt>rand(a), rand(a,seed)</dt>
-<dd>Returns a random number generator that chooses an element of
+<dd>Return a random number generator that chooses an element of
 the list <code>a</code> randomly.
 </dd>
 
 <dt>rand(), rand(seed)</dt>
-<dd>Returns a random number generator that returns floats
+<dd>Return a random number generator that returns floats
 between zero and one.
 </dd>
 
 <dt>read(id), read(id,mode)</dt>
-<dd>Reads the text file with filename <code>id</code> and encoding
-<code>UTF-8</code>. Returns the contents as an
+<dd>Read the text file with filename <code>id</code> and encoding
+<code>UTF-8</code>. Return the contents as an
 <code>UTF32</code>-string. If <code>mode=='b'</code>,
 the file is read as a binary file.
 </dd>
 
 <dt>load(id)</dt>
-<dd>Loads the module with filename <code>id</code> and
-  returns the module object. The function <code>load</code>
+<dd>Load the module with filename <code>id</code> and
+  return the module object. The function <code>load</code>
   can be used in a more general way than the import statement.
 <pre class="moss">
 &gt; math = load("math")
@@ -136,55 +148,64 @@ the file is read as a binary file.
 </dd>
 
 <dt>abs(x)</dt>
-<dd>The absolute value of <code>x</code>. Returns an integer if
+<dd>Absolute value of <code>x</code>. Returns an integer if
 <code>x</code> is an integer. Takes also complex numbers.</dd>
 
 <dt>sgn(x)</dt>
-<dd>The sign of <code>x</code>. Returns an integer if
+<dd>Sign of <code>x</code>. Returns an integer if
 <code>x</code> is an integer. Takes also complex numbers.</dd>
 
 <dt>max(a,b)</dt>
-<dd>Returns the maximum of <code>a</code> and <code>b</code>.
+<dd>Return the maximum of <code>a</code> and <code>b</code>.
 </dd>
 
 <dt>min(a,b)</dt>
-<dd>Returns the minimum of <code>a</code> and <code>b</code>.
+<dd>Return the minimum of <code>a</code> and <code>b</code>.
 </dd>
 
 <dt>pow(a,n,m)</dt>
-<dd>Modular exponentiation: calculates <code>(a^n)%m</code> fast.
+<dd>Modular exponentiation: calculate <code>(a^n)%m</code> fast.
+</dd>
+
+<dt>const(x), const(n,x)</dt>
+<dd>Shallow freeze a mutable object <code>x</code> and return it.
+If <code>n</code> is given, deep freeze <code>x</code> by
+depth <code>n</code>.
+If <code>n</code> is <code>null</code>, freeze the complete
+tree. Note that <code>const(x)</code> is equivalent to
+<code>const(1,x)</code>.
 </dd>
 
 <dt>copy(x)</dt>
-<dd>Constructs a shallow copy of the object <code>x</code>.
+<dd>Construct a shallow copy of the object <code>x</code>.
 </dd>
 
 <dt>object(), object(p), object(p,d)</dt>
-<dd>Constructs a new object with the object <code>p</code> as its
-prototype and the dictionary <code>d</code> as its slot table.
+<dd>Construct a new object with <code>p</code> as its
+prototype and dictionary <code>d</code> as its slot table.
 </dd>
 
 <dt>type(x)</dt>
-<dd>Prototype of the object <code>x</code>.
+<dd>Prototype of <code>x</code>.
 </dd>
 
 <dt>record(x)</dt>
-<dd>The slot table of the object <code>x</code>.
+<dd>Slot table of <code>x</code>.
 </dd>
 
 <dt>extend(a,b)</dt>
-<dd>Inserts all slots of the object <code>b</code> into the slot
-table of the object <code>a</code>. Already existent slots
-in <code>a</code> will not be overwritten.
+<dd>Insert all slots of <code>b</code> into the slot
+table of <code>a</code>. Already existent slots
+of <code>a</code> will not be overwritten.
 </dd>
 
 <dt>map(a1,...,an,f)</dt>
-<dd>Takes the lists <code>a1,...,an</code> and returns
+<dd>Take the lists <code>a1,...,an</code> and return
 a list with the elements <code>f(a1[i],...,an[i])</code>.
 </dd>
 
 <dt>zip(a1,...,an)</dt>
-<dd>Takes the lists <code>a1,...,an</code> and returns the list of
+<dd>Take the lists <code>a1,...,an</code> and return the list of
 lists <code>[a1[i],...,an[i]]</code>.
 
 <dt>unzip(a)</dt>
@@ -201,6 +222,9 @@ lists <code>[a1[i],...,an[i]]</code>.
 &gt; x=12
 &gt; eval("2*x")
 24
+&gt; eval("a=[1,2]")
+&gt; a
+[1, 2]
 </pre>
 </dd>
 </dl>
@@ -210,33 +234,33 @@ lists <code>[a1[i],...,an[i]]</code>.
 
 <dl class="code">
 <dt>a.push(x)</dt>
-<dd>Appends <code>x</code> to the list <code>a</code>.
+<dd>Append <code>x</code> to <code>a</code>.
 </dd>
 
 <dt>a.pop()</dt>
-<dd>Removes the last element of the list <code>a</code> and
-returns it.
+<dd>Remove the last element of <code>a</code> and
+return it.
 </dd>
 
 <dt>a.pop(i)</dt>
-<dd>Removes the element with index <code>i</code> from <code>a</code>
-and returns it. Thus, <code>a.pop(0)</code> removes the first element.
+<dd>Remove the element at index <code>i</code> from <code>a</code>
+and return it. Thus, <code>a.pop(0)</code> removes the first element.
 </dd>
 
 <dt>a.insert(i,x)</dt>
-<dd>Inserts the object <code>x</code> to index <code>i</code>.
-Beforehand all elements from index <code>i</code> inclusive onwards are shiftet
-one position to the right.
+<dd>Insert the object <code>x</code> at index <code>i</code>.
+Beforehand all elements from index <code>i</code> inclusive onwards
+are shiftet one position to the right.
 </dd>
 
 <dt>a.extend(b)</dt>
-<dd>Appends all elements from the list <code>b</code> to the list
-<code>a</code>.
+<dd>Append all elements from <code>b</code> to <code>a</code>.
 </dd>
 
 <dt>a.map(f)</dt>
-<dd>Creates a shallow copy of the list <code>a</code>, applies the
-function <code>f</code> to every element of the copy and returns it.
+<dd>Create a shallow copy of <code>a</code>, apply the
+function <code>f</code> to every element of this copy and return
+the result.
 <pre class="moss">
 &gt; [1,2,3,4].map(|x| 2*x)
 [2, 4, 6, 8]
@@ -244,7 +268,7 @@ function <code>f</code> to every element of the copy and returns it.
 </dd>
 
 <dt>a.filter(p)</dt>
-<dd>Filters all elements from <code>a</code> for which the
+<dd>Filter all elements from <code>a</code> for which the
 predicate <code>p</code> is true.
 <pre class="moss">
 &gt; [1,2,3,4].filter(|x| x%2==0)
@@ -253,8 +277,9 @@ predicate <code>p</code> is true.
 </dd>
 
 <dt>a.rev()</dt>
-<dd>Reverses the list <code>a</code> and returns it.
-Does not construct a shallow copy, <code>a</code> itself is modified.
+<dd>Reverse <code>a</code> and return it.
+Does not construct a shallow copy, <code>a</code> itself will be
+modified.
 <pre class="moss">
 &gt; list(1..4).rev()
 [4, 3, 2, 1]
@@ -262,8 +287,9 @@ Does not construct a shallow copy, <code>a</code> itself is modified.
 </dd>
 
 <dt>a.shuffle()</dt>
-<dd>Shuffles <code>a</code> randomly and returns it.
-Does not construct a shallow copy, <code>a</code> itself is modified.
+<dd>Shuffle <code>a</code> randomly and return it.
+Does not construct a shallow copy, <code>a</code> itself will be
+modified.
 <pre class="moss">
 &gt; list(1..10).shuffle()
 [10, 9, 5, 3, 1, 7, 6, 2, 8, 4]
@@ -271,16 +297,18 @@ Does not construct a shallow copy, <code>a</code> itself is modified.
 </dd>
 
 <dt>a.chain()</dt>
-<dd>Constructs a new list with the same elements, but if elements
-of <code>a</code> are itself lists, these will be unpacked.
+<dd>Construct a new list with the same elements, but if elements
+of <code>a</code> are lists or ranges, these will be unpacked.
 <pre class="moss">
 &gt; [[1,2],[3,4]].chain()
 [1, 2, 3, 4]
+&gt; [[1,2],11..14,3,4].chain()
+[1, 2, 11, 12, 13, 14, 3, 4]
 </pre>
 </dd>
 
 <dt>a.chunks(n)</dt>
-<dd>Constructs a new list with the same elements, but the elements
+<dd>Construct a new list with the same elements, but the elements
 are grouped to chunks of size <code>n</code>.
 <pre class="moss">
 &gt; [1,2,3,4,5,6].chunks(2)
@@ -289,7 +317,7 @@ are grouped to chunks of size <code>n</code>.
 </dd>
 
 <dt>a.chunks(R)</dt>
-<dd>Constructs a new list with the same elements, but the elements
+<dd>Construct a new list with the same elements, but the elements
 are grouped by equivalence relation <code>R</code> to equivalence
 classes.
 <pre class="moss">
@@ -299,18 +327,19 @@ classes.
 </dd>
 
 <dt>a.dict(f)</dt>
-<dd>Constructs a dictionary with <code>f(x)[0]</code> as key and
+<dd>Construct a dictionary with <code>f(x)[0]</code> as key and
 <code>f(x)[1]</code> as value for each <code>x</code> in <code>a</code>.
 <pre class="moss">
 &gt; [1,2,3,4].dict(|x| [x,x^2])
 {1: 1, 2: 4, 3: 9, 4: 16}
 </pre>
 
-<dt>a.sort(), a.sort(p)</dt>
-<dd>Sorts the list a and returns it. Does not construct a shallow
+<dt>a.sort(), a.sort(p), a.sort(p,cmp)</dt>
+<dd>Sort the list and return it. Does not construct a shallow
 copy, <code>a</code> itself will be modified. The function
-<code>p</code> is a projection on which the sorting is based. The
-sorting algorithm is not required to be stable.
+<code>p</code> is a projection on which the sorting is based.
+The function <code>cmp</code> is an alternative binary comparison
+function. The sorting algorithm is not required to be stable.
 <pre class="moss">
 &gt; a = ["oak", "Elm", "willow", "birch"]
 &gt; a.sort()
@@ -319,6 +348,8 @@ sorting algorithm is not required to be stable.
 ["birch", "Elm", "oak", "willow"]
 &gt; a.sort(size)
 ["oak", "Elm", "birch", "willow"]
+&gt; a.sort(null,|x,y| x&gt;y)
+["willow", "oak", "birch", "Elm"]
 </pre>
 </dd>
 </dl>
@@ -326,16 +357,8 @@ sorting algorithm is not required to be stable.
 <h2 id="string">Type string (<a href="#iterable">iterable</a>)</h2>
 
 <dl class="code">
-<dt>s.list()</dt>
-<dd>Transforms the string <code>s</code> into a list.
-<pre class="moss">
-&gt; "abc".list()
-["a", "b", "c"]
-</pre>
-</dd>
-
 <dt>s.lower()</dt>
-<dd>Returns the string <code>s</code> projected to lower case.
+<dd>Return the string <code>s</code> projected to lower case.
 <pre class="moss">
 &gt; "Bee".lower()
 "bee"
@@ -343,7 +366,7 @@ sorting algorithm is not required to be stable.
 </dd>
 
 <dt>s.upper()</dt>
-<dd>Returns the string <code>s</code> projected to upper case.
+<dd>Return the string <code>s</code> projected to upper case.
 <pre class="moss">
 &gt; "Bee".upper()
 "BEE"
@@ -351,27 +374,27 @@ sorting algorithm is not required to be stable.
 </dd>
 
 <dt>s.islower()</dt>
-<dd>Returns only true if the string <code>s</code> is empty or all
+<dd>Return only true if the string <code>s</code> is empty or all
 letters are in lower case.</dd>
 
 <dt>s.isupper()</dt>
-<dd>Returns only true if the string <code>s</code> is empty or all
+<dd>Return only true if the string <code>s</code> is empty or all
 letters are in upper case.</dd>
 
 <dt>s.isalpha()</dt>
-<dd>Returns only true if the string <code>s</code> is empty or consists only
+<dd>Return only true if the string <code>s</code> is empty or consists only
 of letters.</dd>
 
 <dt>s.isdigit()</dt>
-<dd>Returns only true if the string <code>s</code> is empty or consists only
+<dd>Return only true if the string <code>s</code> is empty or consists only
 of digits.</dd>
 
 <dt>s.isalnum()</dt>
-<dd>Returns only true if the string <code>s</code> is empty or each character
+<dd>Return only true if the string <code>s</code> is empty or each character
 is a letter or a digit.</dd>
 
 <dt>s.isrange(a,b)</dt>
-<dd>Returns only true if the string <code>s</code> is empty or consists only
+<dd>Return only true if the string <code>s</code> is empty or consists only
 of characters from Unicode code point <code>a</code> inclusive
 to <code>b</code> inclusive. You may also write
 <code>s.isrange(c,d)</code> instead of
@@ -398,38 +421,43 @@ until a character is found, that is not contained in
 
 <dl class="code">
 <dt>d.keys()</dt>
-<dd>Returns the list of keys.</dd>
+<dd>Return the list of keys.</dd>
 
 <dt>d.values()</dt>
-<dd>Returns the list of values.</dd>
-
-<dt>d.list()</dt>
-<dd>Returns the list of key-value-pairs.</dd>
+<dd>Return the list of values.</dd>
 
 <dt>d.update(d2)</dt>
-<dd>Inserts all entrys of <code>d2</code> into
+<dd>Insert all entrys of <code>d2</code> into
 <code>d</code>. Already in <code>d</code> contained entrys
 are overwritten.</dd>
 
+<dt>d.extend(d2)</dt>
+<dd>Insert all entrys of <code>d2</code> into
+<code>d</code>, but do not overwrite already in <code>d</code>
+contained entrys.</dd>
+
+<dt>d.clear()</dt>
+<dd>Remove all entrys of <code>d</code>.
+</dd>
 </dl>
 
 <h2 id="function">Type function (<a href="#iterable">iterable</a>)</h2>
 
 <dl class="code">
 <dt>f.call(self,x1,...,xn)</dt>
-<dd>Applies the function <code>f</code> to the
+<dd>Apply the function <code>f</code> to the
 arguments <code>x1,...,xn</code> and self argument
 <code>self</code>.
 </dd>
 
 <dt>f.apply(self,a)</dt>
-<dd>Applies the function <code>f</code> to the arguments
+<dd>Apply the function <code>f</code> to the arguments
 <code>a[0],...,a[-1]</code>. If there is no self-argument,
 the application shall be written <code>f.apply(null,a)</code>.
 </dd>
 
 <dt>f.orbit(x)</dt>
-<dd>Returns an iterator that produces
+<dd>Return an iterator that produces
 <code>[x,f(x),f(f(x)),...]</code>.
 <pre class="moss">
 &gt; (|x|2*x).orbit(2).list(10)
@@ -438,7 +466,7 @@ the application shall be written <code>f.apply(null,a)</code>.
 </dd>
 
 <dt>i.list(), i.list(n)</dt>
-<dd>Takes the iterator <code>i</code> and returns its elements
+<dd>Take the iterator <code>i</code> and return its elements
 as a list. If <code>n</code> is given, a maximum number of
 <code>n</code> elements will be taken.
 <pre class="moss">
@@ -448,8 +476,8 @@ as a list. If <code>n</code> is given, a maximum number of
 </dd>
 
 <dt>i.until(p)</dt>
-<dd>Takes elements from the iterator&nbsp;<code>i</code>
-as long as the predicate&nbsp;<code>p</code> is false and returns
+<dd>Take elements from the iterator&nbsp;<code>i</code>
+as long as the predicate&nbsp;<code>p</code> is false and return
 a new iterator.
 </dd>
 </dl>
@@ -457,7 +485,7 @@ a new iterator.
 <h2 id="iterable">Type iterable</h2>
 <dl class="code">
 <dt>a.all(p), a.all()</dt>
-<dd>Universal quantifier. Returns only true if the
+<dd>Universal quantifier: Return only true if the
 predicate <code>p</code> is true for all elements of <code>a</code>.
 <pre class="moss">
 &gt; [1,2,3,4].all(|x| x%2==0)
@@ -466,7 +494,7 @@ false
 </dd>
 
 <dt>a.any(p), a.any()</dt>
-<dd>Existential quantifier. Returns true if the
+<dd>Existential quantifier: Return true if the
 predicate <code>p</code> is true for at least one element
 of <code>a</code>.
 <pre class="moss">
@@ -475,10 +503,10 @@ true
 </pre>
 </dd>
 
-<dt>a.count(p)</dt>
-<dd>Applies the predicate <code>p</code>
+<dt>a.count(p), a.count()</dt>
+<dd>Apply predicate <code>p</code>
 to every element of <code>a</code> and
-counts how often it is true. If no predicate is given, the
+count how often it is true. If no predicate is given, the
 total number of elements will be returned.
 <pre class="moss">
 &gt; [1,2,3,4].count(|x| x%2==0)
@@ -487,17 +515,17 @@ total number of elements will be returned.
 </dd>
 
 <dt>a.sum(f), a.sum()</dt>
-<dd>Calculates the sum of all <code>f(x)</code> for <code>x</code>
+<dd>Calculate the sum of all <code>f(x)</code> for <code>x</code>
 in <code>a</code>.
 </dd>
 
 <dt>a.prod(f), a.prod()</dt>
-<dd>Calculates the product of all <code>f(x)</code> for <code>x</code>
+<dd>Calculate the product of all <code>f(x)</code> for <code>x</code>
 in <code>a</code>.
 </dd>
 
 <dt>a.reduce(f), a.reduce(e,f)</dt>
-<dd>Reduces the iterable <code>a</code> from left to right by the
+<dd>Reduce the iterable <code>a</code> from left to right by the
 binary function <code>f</code>. That means, if <code>f</code> is
 regarded as a left associative binary operator, this operator is
 inserted between all elements of <code>a</code>.
@@ -517,8 +545,8 @@ If <code>e</code> is given, it is used as initial element.
 </dd>
 
 <dt>a.map(f)</dt>
-<dd>Applies the function <code>f</code> to every element of
-<code>a</code> and returns a new iterator.
+<dd>Apply the function <code>f</code> to every element of
+<code>a</code> and return a new iterator.
 <pre class="moss">
 &gt; (1..).map(|x| x^2).list(10)
 [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
@@ -526,9 +554,9 @@ If <code>e</code> is given, it is used as initial element.
 </dd>
 
 <dt>a.filter(p)</dt>
-<dd>Filters all elements from <code>a</code>
+<dd>Filter all elements from <code>a</code>
 for which the predicate&nbsp;<code>p</code> is true and
-returns a new iterator.
+return a new iterator.
 <pre class="moss">
 &gt; isprime = |n| (1..n).count(|k| n%k==0)==2
 &gt; (1..).filter(isprime).list(10)
@@ -536,8 +564,27 @@ returns a new iterator.
 </pre>
 </dd>
 
+<dt>a.max(), a.max(p)</dt>
+<dd>Return the maximum of a. Return the maximum based on a
+projection <code>p</code>.
+</dd>
+
+<dt>a.min(), a.min(p)</dt>
+<dd>Return the minimum of a. Return the minimum based on a
+projection <code>p</code>.
+<pre class="moss">
+&gt; a = [[1,"dca"],[2,"b"],[3,"ab"]]
+&gt; a.min(|t| t[0])
+[1, "dca"]
+&gt; a.min(|t| t[1])
+[3, "ab"]
+&gt; a.min(|t| size(t[1]))
+[2, "b"]
+</pre>
+</dd>
+
 <dt>a.join()</dt>
-<dd>Applies <code>str</code> to each element and joins the strings
+<dd>Apply <code>str</code> to each element and join the strings
 together.
 <pre class="moss">
 &gt; ["a","b","c"].join()
@@ -546,12 +593,16 @@ together.
 </dd>
 
 <dt>a.join(sep)</dt>
-<dd>Applies <code>str</code> to each element and joins the strings
+<dd>Apply <code>str</code> to each element and join the strings
 together with <code>sep</code> inserted between.
 <pre class="moss">
 &gt; ["a","b","c"].join("#*")
 "a#*b#*c"
 </pre>
+</dd>
+
+<dt>a.dict(f)</dt>
+<dd>Equivalent to <code>dict(a.map(f))</code>.
 </dd>
 
 </dl>
@@ -600,11 +651,11 @@ argument, the nodes in the working directory are listed.
 </dd>
 
 <dt>isdir(id)</dt>
-<dd>Returns true if the node <code>id</code> is a directory.
+<dd>Return true if the node <code>id</code> is a directory.
 </dd>
 
 <dt>isfile(id)</dt>
-<dd>Returns true if the node <code>id</code> is a file.
+<dd>Return true if the node <code>id</code> is a file.
 </dd>
 
 <dt>not_found</dt>
@@ -639,10 +690,10 @@ end
 <dd>Infinity.</dd>
 
 <dt>floor(x)</dt>
-<dd>Rounds down. The type of the result is float.</dd>
+<dd>Round down. Returns floating point numbers.</dd>
 
 <dt>ceil(x)</dt>
-<dd>Rounds up. The type of the result is float.</dd>
+<dd>Round up. Returns floating point numbers.</dd>
 
 <dt>sqrt(x)</dt>
 <dd>Square root of <code>x</code>.</dd>
@@ -677,47 +728,50 @@ end
 </dd>
 
 <dt>fac(x)</dt>
-<dd>Factorial function. The type of the result is float.</dd>
+<dd>Factorial function. Returns floating point numbers.</dd>
 
 <dt>gamma(x)</dt>
 <dd>Gamma function.</dd>
 
 <dt>lgamma(x)</dt>
-<dd>Returns <code>ln(gamma(abs(x)))</code>.</dt>
+<dd>Return <code>ln(abs(gamma(x)))</code>.</dt>
+
+<dt>sgngamma(x)</dt>
+<dd>Return <code>sgn(gamma(x))</code>.</dt>
 
 <dt>hypot(x1,...,xn)</dt>
-<dd>Returns <code>sqrt(x1^2+...+xn^2)</code>.</dd>
+<dd>Return <code>sqrt(x1^2+...+xn^2)</code>.</dd>
 
 <dt>atan2(y,x)</dt>
-<dd>Returns the phase angle of the coordinate vector
+<dd>Return the phase angle of the coordinate vector
 <code>[x,y]</code>.
 </dd>
 
 <dt>expm1(x)</dt>
-<dd>Returns <code>exp(x)-1</code>.</dd>
+<dd>Return <code>exp(x)-1</code>.</dd>
 
 <dt>ln1p(x)</dt>
-<dd>Returns <code>ln(1+x)</code>.</dd>
+<dd>Return <code>ln(1+x)</code>.</dd>
 
 <dt>isfinite(x)</dt>
-<dd>Returns true if <code>x</code> is not infinite and not a NaN.
+<dd>Return true if <code>x</code> is not infinite and not a NaN.
 </dd>
 
 <dt>isnan(x)</dt>
-<dd>Returns true if <code>x</code> is a NaN.
+<dd>Return true if <code>x</code> is a NaN.
 </dd>
 
 <dt>isinf(x)</dt>
-<dd>Returns true if <code>x</code> is infinite.
+<dd>Return true if <code>x</code> is infinite.
 </dd>
 
 <dt>frexp(x)</dt>
-<dd>Takes <code>x==m*2^n</code> and returns <code>[m,n]</code>.
+<dd>Take <code>x==m*2^n</code> and return <code>[m,n]</code>.
 The type of <code>m</code> is float, the type of <code>n</code> is int.
 </dd>
 
 <dt>ldexp(m,n)</dt>
-<dd>Returns <code>m*2^n</code>.</dd>
+<dd>Return <code>m*2^n</code>.</dd>
 </dl>
 
 
@@ -734,6 +788,12 @@ The type of <code>m</code> is float, the type of <code>n</code> is int.
 <dd>Imaginary part of <code>z</code>.
 </dd>
 
+<dt>conj(z)</dt>
+<dd>Complex conjugate.</dd>
+
+<dt>sqrt(z)</dt>
+<dd>Square root.</dd>
+
 <dt>exp(z)</dt>
 <dd>Exponential function.</dd>
 
@@ -742,11 +802,107 @@ The type of <code>m</code> is float, the type of <code>n</code> is int.
 
 <dt>sin(z), cos(z), tan(z)</dt>
 <dd>Sine, cosine and tangent.</dt>
+
+<dt>sinh(z), cosh(z), tanh(z)</dt>
+<dd>Hyperbolic sine, hyperbolic cosine and hyperbolic tangent.
+</dd>
+
+<dt>asinh(z), acosh(z), atanh(z)</dt>
+<dd>Inverse functions of the hyperbolic functions.
+</dd>
+
+<dt>gamma(z)</dt>
+<dd>Gamma function.</dd>
+</dl>
+
+<h2 id="sf">Module sf</h2>
+
+<p>Special mathematical functions.
+</p>
+
+<h3>Basic functions</h3>
+<p>The combinatorical functions stated here are implemented
+for numercial purposes. For that reason, approximated floats are
+returned instead of exact long integers.
+</p>
+
+<dl class="code">
+<dt>bc(n,k)</dt>
+<dd>Binomial coefficient.</dd>
+
+<dt>B(n)</dt>
+<dd>Bernoulli number, <code>B(1)=+1/2</code>.
+</dd>
+</dl>
+
+<h3>Gamma and related functions</h3>
+<dl class="code">
+<dt>Beta(x,y)</dt>
+<dd>Beta function.</dd>
+
+<dt>Gamma(s,z)</dt>
+<dd>Upper incomplete gamma function.</dd>
+
+<dt>gamma(s,z)</dt>
+<dd>Lower incomplete gamma function.</dd>
+
+<dt>digamma(z)</dt>
+<dd>Digamma function.</dd>
+
+<dt>polygamma(n,z)</dt>
+<dd>Polygamma function.</dd>
+</dl>
+
+<h3>Antiderivatives</h3>
+<dl class="code">
+<dt>erf(z)</dt>
+<dd>Error function.</dd>
+</dl>
+
+<h3>Zeta and related functions</h3>
+<dl class="code">
+<dt>zeta(s)</dt>
+<dd>Zeta function.</dd>
+
+<dt>zeta(s,q)</dt>
+<dd>Hurwitz zeta function.</dd>
+</dl>
+
+<h3>Polynomial functions</h3>
+<dl class="code">
+<dt>PP(n,x), P(n,m,x)</dt>
+<dd>Legendre polynomial.</dd>
+
+<dt>PH(n,x), PH(n,m,x)</dt>
+<dd>Hermite polynomial and derivative of order <code>m</code>.</dd>
+
+<dt>PT(n,x), PU(n,x)</dt>
+<dd>Chebyshev polynomial of the first and second kind.
+</dd>
+
+<dt>PL(n,x), P(n,m,x)</dt>
+<dd>Laguerre Polynomial and generalized Laguerre polynomial.
+</dd>
+</dl>
+
+<h3>Elliptic integrals and related functions</h3>
+<dl class="code">
+<dt>eiK(m), m=k^2</dt>
+<dd>Complete elliptic integral of the first kind.
+</dd>
+
+<dt>eiE(m), m=k^2</dt>
+<dd>Complete elliptic integral of the second kind.
+</dd>
+
+<dt>agm(x,y)</dt>
+<dd>Arithmetic geometric mean of <code>x</code> and <code>y</code>.
+</dd>
 </dl>
 
 
-<h2 id="analysis">Module ma</h2>
-<p>Mathematical analysis.
+<h2 id="na">Module na</h2>
+<p>Numerical analysis.
 </p>
 
 <dl class="code">
@@ -755,10 +911,21 @@ The type of <code>m</code> is float, the type of <code>n</code> is int.
 The <code>n</code>-th derivative of <code>f</code> at <code>x</code>.
 </dd>
 
-<dt>int(a,b,f)</dt>
+<dt>integral(a,b,f), integral(a,b,f,N)</dt>
 <dd>Definite integral.
 <pre class="moss">
-ln = |x| int(1,x,|t| 1/t)
+ln = |x| integral(1,x,|t| 1/t)
+</pre>
+</dd>
+
+<dt>vint(c,f), vint(c,f,N)</dt>
+<dd>Contour integral of a complex function <code>f</code>
+by vertex path <code>c</code>. Integral of a complex valued
+function <code>f</code> by <code>c=[a,b]</code>.
+<pre class="moss">
+ln = |z| vint([1,im(z)&lt;0?-1i:1i,z],|s| 1/s)
+
+cint = |gamma,f| vint([0,1],|t| f(gamma(t))*diff(gamma,t))
 </pre>
 </dd>
 
@@ -769,11 +936,10 @@ The bisection method is used.
 </dd>
 
 <dt>interpolate(a)</dt>
-<dd>Linear piecewise interpolation. Takes an ordered (by <code>x</code>)
-list of pairs <code>[x,y]</code> and returns a function.
+<dd>Linear piecewise interpolation: Take an ordered (by <code>x</code>)
+list of pairs <code>[x,y]</code> and return a function.
 </dd>
 </dl>
-
 
 <h2 id="nt">Module nt</h2>
 
@@ -782,7 +948,7 @@ list of pairs <code>[x,y]</code> and returns a function.
 
 <dl class="code">
 <dt>base(n,b)</dt>
-<dd>Transforms the number <code>n</code> into positional notation
+<dd>Transform the number <code>n</code> into positional notation
 with base <code>b</code>. The result is in little endian
 (least significant digit first).
 </dd>
@@ -793,8 +959,12 @@ positional notation above.
 </dd>
 
 <dt>isprime(n)</dt>
-<dd>Primality test. Deterministic for numbers below
-<code>2^64</code>, probalistic for numbers beyond.</dd>
+<dd>Deterministic primality test.</dd>
+
+<dt>isprime(n,e)</dt>
+<dd>Probalistic primality test with false positive probability of less than
+<code>1/(2^e)</code></dt>.
+</dd>
 
 <dt>gcd(x,y), gcd(a)</dt>
 <dd>Greatest common divisor of <code>x,y</code> (of the numbers
@@ -807,7 +977,59 @@ in the list <code>a</code>).</dd>
 <dt>factor(n)</dt>
 <dd>Prime factorization of <code>n</code>.
 </dd>
+
+<dt>divisors(n)</dt>
+<dd>List of divisors of <code>n</code>.
+</dd>
+
+<dt>phi(n)</dt>
+<dd>Euler's totient function.
+</dd>
+
+<dt>lambda(n)</dt>
+<dd>Carmichael function.
+</dd>
 </dl>
+
+
+<h2 id="cf">Module cf</h2>
+
+<p>Combinatorical functions.</p>
+<dl class="code">
+<dt>fac(n)</dt>
+<dd>Factorial.</dd>
+
+<dt>rf(n,k)</dt>
+<dd>Rising factorial.</dd>
+
+<dt>ff(n,k)</dt>
+<dd>Falling factorial.</dd>
+
+<dt>bc(n,k)</dt>
+<dd>Binomial coefficient.
+</dd>
+
+<dt>mc([k1,...,kn])</dt>
+<dd>Multinomial coefficient.
+</dd>
+
+<dt>Stirling1(n,k)</dt>
+<dd>Stirling numbers of the first kind.
+</dd>
+
+<dt>Stirling2(n,k)</dt>
+<dd>Stirling numbers of the second kind.
+</dd>
+
+<dt>Delta(n,f,x,h)</dt>
+<dd>Finite difference, iterated <code>n</code> times.
+<pre class="moss">
+Delta = |n,f,x,h| ((|x| f(x+h)-f(x))^n)(x)
+</pre>
+</dd>
+
+</dl>
+
 
 <h2 id="gx">Module gx</h2>
 
@@ -816,32 +1038,37 @@ in the list <code>a</code>).</dd>
 
 <dl class="code">
 <dt>gx.new(w,h,size)</dt>
-<dd>Returns a new canvas that has a width of <code>w</code> pixels and
+<dd>Return a new canvas that has a width of <code>w</code> pixels and
 a height of <code>h</code> pixels. The edge length of a pixel
-is <code>size</code> screen pixels.
+is <code>size</code> screen pixels.</dd>
+
+<dt>gx.HSL(h,s,l)</dt>
+<dd>Take a HSL color and return the corresponding RGB color.
+</dd>
 
 <dt>canvas.flush()</dt>
-<dd>Flushes the canvas buffer to the screen.</dd>
+<dd>Flush the canvas buffer to the screen.</dd>
 
 <dt>canvas.pset(x,y)</dt>
-<dd>Draws a pixel at position <code>[x,y]</code>.</dd>
+<dd>Draw a pixel at position <code>[x,y]</code>.</dd>
 
 <dt>canvas.fill(x,y,w,h)</dt>
-<dd>Fills a rectangle of pixels.</dd>
+<dd>Fill a rectangle of pixels.</dd>
 
-<dt>canvas.cset(r,g,b), canvas.cset([r,g,b])</dt>
-<dd>Sets the color state by using the RGB color space. The values
+<dt>canvas.cset(r,g,b,a=1), canvas.cset([r,g,b],a=1)</dt>
+<dd>Set the color state by using the RGB color space. The values
 <code>r,g,b</code> are floating point numbers from the interval
 <code>[0,1]</code>. If a number is out of bounds, the
-extremal value is used.</dd>
+extremal value is used. That <code>a</code> is the alpha value
+for alpha compositing.</dd>
 
 <dt>canvas.HSL(h,s,l)</dt>
-<dd>Sets the color state by using the HSL color space. The value
+<dd>Set the color state by using the HSL color space. The value
 <code>h</code> is from the interval <code>[0,2pi]</code>, the values
 <code>s,l</code> are from the interval <code>[0,1]</code>.
 If <code>h</code> is out of bounds, <code>h</code> modulo 2pi is
-used. If <code>s,l</code> are out of bounds, the extramal values
-are used.
+used. If <code>s,l</code> are out of bounds, the extremal value
+is used.
 <pre>
 red......h=000*pi/180
 green....h=120*pi/180
@@ -854,18 +1081,18 @@ yellow...h=060*pi/180
 </dd>
 
 <dt>canvas.key()</dt>
-<dd>Returns the next key from the queue of pressed
+<dd>Return the next key from the queue of pressed
 keys. Returns <code>null</code> if the queue is empty.</dd>
 
 <dt>canvas.point(x,y)</dt>
-<dd>Draws a point at position <code>[x,y]</code>. The position
+<dd>Draw a point at position <code>[x,y]</code>. The position
 <code>[0,0]</code> is in the middle of the canvas, the coordinate
-system is orthonormal. The values <code>x,y</code> are floats from
+system is orthonormal. The value <code>x</code> is a float from
 the interval <code>[-1,1]</code>, otherwise the point won't be drawn.
-Anti-aliasing may be used.</dd>
+Anti-aliasing will be used.</dd>
 
 <dt>canvas.point()</dt>
-<dd>Draws a point at position state. The rules are as above.</dd>
+<dd>Draw a point at position state. The rules are as above.</dd>
 </dl>
 
 

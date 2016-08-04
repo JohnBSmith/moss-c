@@ -1,0 +1,32 @@
+
+
+== Representation of symbolic expressions ==
+
+# 2*x
+["*", [2, "x"]]
+
+# q{2*x}
+table[ast] t=["*", [2, "x"]] end
+
+# |x| x
+{type="fn", a=["x"], t="x"}
+
+# |x,y| x+y
+{type="fn", a=["x", "y"], t=["+", ["x", "y"]]}
+
+# "hello"
+{type="str", value="hello"}
+
+# for i in a do b end
+{type="for", i="i", a="a", b="b"}
+
+# sin(x)
+["sin", ["x"]]
+
+# [1, 2]
+["[]", [1, 2]]
+
+# -2
+["u-", [2]]
+
+

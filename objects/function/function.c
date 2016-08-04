@@ -95,7 +95,7 @@ int function_argc(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f.argc(): f is not a function.");
+    mf_type_error1("in f.argc(): f (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -116,7 +116,7 @@ int function_id(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f.id(): f is not a function.");
+    mf_type_error1("in f.id(): f (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -293,10 +293,18 @@ mt_function* float_range_iter(mt_range* r){
   double a,b,step;
   int e=0;
   a=mf_float(&r->a,&e);
+  if(e){
+    mf_type_error1("in iter(a..b:step): cannot convert a (type: %s) to float.",&r->a);
+    return NULL;
+  }
   b=mf_float(&r->b,&e);
+  if(e){
+    mf_type_error1("in iter(a..b:step): cannot convert b (type: %s) to float.",&r->b);
+    return NULL;
+  }
   step=mf_float(&r->step,&e);
   if(e){
-    mf_type_error("Type error in iter(a..b:step): a,b,step must be convertible to float.");
+    mf_type_error1("in iter(a..b:step): cannot convert step (type: %s) to float.",&r->b);
     return NULL;
   }
   mt_function* f = mf_new_function(NULL);
@@ -321,17 +329,27 @@ mt_function* mf_iter_range(mt_range* r){
     a=r->a.value.i;
   }else if(r->a.type==mv_null){
     a=0;
+  }else if(r->a.type==mv_float){
+    return float_range_iter(r);
   }else{
-    mf_type_error("Type error in iter(a..b): a is not an integer.");
+    mf_type_error1("in iter(a..b): a (type: %s) is not an integer.",&r->a);
     return NULL;
   }
   if(r->b.type!=mv_int && r->b.type!=mv_null){
-    mf_type_error("Type error in iter(a..b): b is not an integer.");
-    return NULL;
+    if(r->b.type==mv_float){
+      return float_range_iter(r);
+    }else{
+      mf_type_error1("in iter(a..b): b (type: %s) is not an integer.",&r->b);
+      return NULL;
+    }
   }
   if(r->step.type!=mv_int){
-    mf_type_error("Type error in iter(a..b:step): step is not an integer.");
-    return NULL;
+    if(r->step.type==mv_float){
+      return float_range_iter(r);
+    }else{
+      mf_type_error1("in iter(a..b:step): step (type: %s) is not an integer.",&r->step);
+      return NULL;
+    }
   }
   mt_function* f = mf_new_function(NULL);
   f->argc=0;
@@ -346,9 +364,10 @@ mt_function* mf_iter_range(mt_range* r){
 }
 
 mt_function* mf_iter(mt_object* x){
+  mt_function* f;
   switch(x->type){
   case mv_int:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     mt_tuple* context = mf_raw_tuple(3);
     mt_object* a=context->a;
@@ -361,12 +380,11 @@ mt_function* mf_iter(mt_object* x){
     f->context = context;
     f->fp=range_next;
     return f;
-  } break;
+  }
   case mv_range:
     return mf_iter_range((mt_range*)x->value.p);
-    break;
   case mv_list:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     f->context=mf_raw_tuple(2);
     mt_object* a=f->context->a;
@@ -374,9 +392,10 @@ mt_function* mf_iter(mt_object* x){
     a[1].type=mv_int;
     a[1].value.i=0;
     f->fp=list_next;
-  } break;
+    return f;
+  }
   case mv_string:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     f->context=mf_raw_tuple(2);
     mt_object* a=f->context->a;
@@ -384,9 +403,10 @@ mt_function* mf_iter(mt_object* x){
     a[1].type=mv_int;
     a[1].value.i=0;
     f->fp=string_next;
-  } break;
+    return f;
+  }
   case mv_bstring:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     f->context=mf_raw_tuple(2);
     mt_object* a=f->context->a;
@@ -394,9 +414,10 @@ mt_function* mf_iter(mt_object* x){
     a[1].type=mv_int;
     a[2].value.i=0;
     f->fp=bstring_next;
-  } break;
+    return f;
+  }
   case mv_map:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     f->context=mf_raw_tuple(2);
     mt_object* a=f->context->a;
@@ -404,9 +425,10 @@ mt_function* mf_iter(mt_object* x){
     a[1].type=mv_int;
     a[1].value.i=0;
     f->fp=dict_next;
-  } break;
+    return f;
+  }
   case mv_set:{
-    mt_function* f = mf_new_function(NULL);
+    f = mf_new_function(NULL);
     f->argc=0;
     f->context=mf_raw_tuple(2);
     mt_object* a=f->context->a;
@@ -414,14 +436,15 @@ mt_function* mf_iter(mt_object* x){
     a[1].type=mv_int;
     a[1].value.i=0;
     f->fp=set_next;
-  } break;
+    return f;
+  }
   case mv_function:{
-    mt_function* f=(mt_function*)x->value.p;
+    f=(mt_function*)x->value.p;
     f->refcount++;
     return f;
-  } break;
+  }
   default:
-    mf_type_error("Type error in iter(x): x is not iterable.");
+    mf_type_error1("in iter(x): x (type: %s) is not iterable.",x);
     return NULL;
   }
 }
@@ -445,7 +468,7 @@ int function_list(mt_object* x, int argc, mt_object* v){
   long max;
   if(argc==1){
     if(v[1].type!=mv_int){
-      mf_type_error("Type error in i.list(n): n is not an integer.");
+      mf_type_error1("in i.list(n): n (type: %s) is not an integer.",v+1);
       return 1;
     }
     max=v[1].value.i;
@@ -456,7 +479,7 @@ int function_list(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.list(): i is not a function.");
+    mf_type_error1("in i.list(): i (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -490,7 +513,7 @@ int function_list(mt_object* x, int argc, mt_object* v){
 static
 int function_all(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.all(p): i is not a function.");
+    mf_type_error1("in i.all(p): i (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -509,8 +532,8 @@ int function_all(mt_object* x, int argc, mt_object* v){
         return 1;
       }
       if(y.type!=mv_bool){
+        mf_type_error1("in i.all(): return value (type: %s) of i is not a boolean.",&y);
         mf_dec_refcount(&y);
-        mf_type_error("Type error in i.all(): return value of i is not a boolean.");
         return 1;
       }
       if(y.value.b==0){
@@ -524,7 +547,7 @@ int function_all(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in i.all(p): p is not a function.");
+    mf_type_error1("in i.all(p): p (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* p = (mt_function*)v[1].value.p;
@@ -549,7 +572,7 @@ int function_all(mt_object* x, int argc, mt_object* v){
     }
     mf_dec_refcount(&y);
     if(c.type!=mv_bool){
-      mf_type_error("Type error in i.all(p): return value of p is not a boolean.");
+      mf_type_error1("in i.all(p): return value (type: %s) of p is not a boolean.",&c);
       mf_dec_refcount(&c);
       return 1;
     }
@@ -565,7 +588,7 @@ int function_all(mt_object* x, int argc, mt_object* v){
 static
 int function_any(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.any(p): i is not a function.");
+    mf_type_error1("in i.any(p): i (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -584,8 +607,8 @@ int function_any(mt_object* x, int argc, mt_object* v){
         return 1;
       }
       if(y.type!=mv_bool){
+        mf_type_error1("in i.any(): return value (type: %s) of i is not a boolean.",&y);
         mf_dec_refcount(&y);
-        mf_type_error("Type error in i.any(): return value of i is not a boolean.");
         return 1;
       }
       if(y.value.b==1){
@@ -599,7 +622,7 @@ int function_any(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in i.any(p): p is not a function.");
+    mf_type_error1("in i.any(p): p (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* p = (mt_function*)v[1].value.p;
@@ -624,7 +647,7 @@ int function_any(mt_object* x, int argc, mt_object* v){
     }
     mf_dec_refcount(&y);
     if(c.type!=mv_bool){
-      mf_type_error("Type error in i.any(p): return value of p is not a boolean.");
+      mf_type_error1("in i.any(p): return value (type: %s) of p is not a boolean.",&c);
       mf_dec_refcount(&c);
       return 1;
     }
@@ -659,7 +682,7 @@ long simple_count(mt_function* f){
 static
 int function_count(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.count(p): i is not a function.");
+    mf_type_error1("in i.count(p): i (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -679,7 +702,7 @@ int function_count(mt_object* x, int argc, mt_object* v){
     return 0;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in i.count(p): p is not a function.");
+    mf_type_error1("in i.count(p): p (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* p = (mt_function*)v[1].value.p;
@@ -707,7 +730,7 @@ int function_count(mt_object* x, int argc, mt_object* v){
     }
     mf_dec_refcount(&y);
     if(c.type!=mv_bool){
-      mf_type_error("Type error in i.count(p): return value of p is not a boolean.");
+      mf_type_error1("in i.count(p): return value (type: %s) of p is not a boolean.",&c);
       mf_dec_refcount(&c);
       return 1;
     }
@@ -738,8 +761,8 @@ int until_next(mt_object* x, int argc, mt_object* v){
   }
   if(c.type!=mv_bool){
     mf_dec_refcount(&y);
+    mf_type_error1("in i.until(p): return value (type: %s) of p is not a boolean.",&c);
     mf_dec_refcount(&c);
-    mf_type_error("Type error in i.until(p): return value of p is not a boolean.");
     return 1;
   }
   if(c.value.b==0){
@@ -759,11 +782,11 @@ int function_until(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.until(f): i is not a function.");
+    mf_type_error1("in i.until(f): i (type: %s) is not a function.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in i.until(f): f is not a function.");
+    mf_type_error1("in i.until(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* f = mf_new_function(NULL);
@@ -785,11 +808,11 @@ int function_each(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.all(f): i is not a function.");
+    mf_type_error1("in i.all(f): i (type: %s) is not a function.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in i.all(f): f is not a function.");
+    mf_type_error1("in i.all(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -826,13 +849,13 @@ int function_sum(mt_object* x, int argc, mt_object* v){
   argv[0].type=mv_null;
   mt_object t,y,s;
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.sum(f): i is not a function.");
+    mf_type_error1("in i.sum(f): i (type: %s) is not a function.",v);
     return 1;
   }
   g = (mt_function*)v[0].value.p;
   if(argc==1){
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in i.sum(f): f is not a function.");
+      mf_type_error1("in i.sum(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
     f = (mt_function*)v[1].value.p;
@@ -892,13 +915,13 @@ int function_prod(mt_object* x, int argc, mt_object* v){
   argv[0].type=mv_null;
   mt_object t,y,p;
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.prod(f): i is not a function.");
+    mf_type_error1("in i.prod(f): i (type: %s) is not a function.",v);
     return 1;
   }
   g = (mt_function*)v[0].value.p;
   if(argc==1){
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in i.prod(f): f is not a function.");
+      mf_type_error1("in i.prod(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
     f = (mt_function*)v[1].value.p;
@@ -1005,17 +1028,17 @@ int accu_next(mt_object* x, int argc, mt_object* v){
 static
 int function_accu(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in i.accu: i is not a function.");
+    mf_type_error1("in i.accu(f): i (type: %s) is not a function.",v);
     return 1;
   }
   if(argc==1){
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in i.accu(f): f is not a function.");
+      mf_type_error1("in i.accu(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
   }else if(argc==2){
     if(v[2].type!=mv_function){
-      mf_type_error("Type error in i.accu(e,f): f is not a function.");
+      mf_type_error1("in i.accu(e,f): f (type: %s) is not a function.",v+2);
       return 1;
     }
   }else{
@@ -1104,16 +1127,16 @@ int function_pow(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f^n: f is not a function.");
+    mf_type_error1("in f^n: f (type: %s) is not a function.",v);
     return 1;
   }
   if(v[1].type!=mv_int){
-    mf_type_error("Type error in f^n: n is not an integer.");
+    mf_type_error1("in f^n: n (type: %s) is not an integer.",v+1);
     return 1;
   }
   long n=v[1].value.i;
   if(n<0){
-    mf_value_error("Value error in f^n: negative values of n are not allowed.");
+    mf_value_error("Value error in f^n: n<0, but expected n>=0.");
     return 0; 
   }
   mt_function* f = mf_new_function(NULL);
@@ -1159,8 +1182,7 @@ int compositum(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-static
-int function_compose(mt_object* x, int argc, mt_object* v){
+int mf_fcompose(mt_object* x, int argc, mt_object* v){
   mt_list* list;
   long i;
   if(argc!=1){
@@ -1177,7 +1199,7 @@ int function_compose(mt_object* x, int argc, mt_object* v){
   }
   for(i=0; i<list->size; i++){
     if(list->a[i].type!=mv_function){
-      mf_type_error("Type error in compose: a[i] is not a function.");
+      mf_type_error1("in compose(a): a[i] (type: %s) is not a function.",list->a+i);
       mf_list_dec_refcount(list);
       return 1;
     }
@@ -1218,7 +1240,7 @@ int function_orbit(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f.orbit(x): f is not a function.");
+    mf_type_error1("in f.orbit(x): f (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* i = mf_new_function(NULL);
@@ -1240,7 +1262,7 @@ int function_call(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f.call(self,...): f is not a function.");
+    mf_type_error1("in f.call(self,...): f (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
@@ -1270,7 +1292,38 @@ int function_call(mt_object* x, int argc, mt_object* v){
       mf_free(args);
       return 1;
     }
-    free(args);
+    mf_free(args);
+    return 0;
+  }
+}
+
+int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
+  if(a->type!=mv_list){
+    mf_type_error1("in f[a]: a (type: %s) is not a list.",a);
+    return 1;
+  }
+  mt_list* list = (mt_list*)a->value.p;
+  mt_object y;
+  if(f->argc==-1){
+    // todo
+    abort();
+  }else{
+    mt_object* args = mf_malloc((list->size+1)*sizeof(mt_object));
+    if(self){
+      mf_copy(&args[0],self);
+    }else{
+      args[0].type=mv_null;
+    }
+    long i;
+    for(i=0; i<list->size; i++){
+      mf_copy(args+i+1,list->a+i);
+    }
+    if(mf_call(f,x,list->size,args)){
+      mf_traceback("apply");
+      mf_free(args);
+      return 1;
+    }
+    mf_free(args);
     return 0;
   }
 }
@@ -1282,33 +1335,11 @@ int function_apply(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error("Type error in f.apply(self,a): f is not a function.");
+    mf_type_error1("in f.apply(self,a): f (type: %s) is not a function.",v);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
-  if(v[2].type!=mv_list){
-    mf_type_error("Type error in f.apply(self,a): a is not a list.");
-    return 1;
-  }
-  mt_object y;
-  if(f->argc==-1){
-    abort();
-  }else{
-    mt_list* list = (mt_list*)v[2].value.p;
-    mt_object* args = mf_malloc((list->size+1)*sizeof(mt_object));
-    mf_copy(args,v+1);
-    long i;
-    for(i=0; i<list->size; i++){
-      mf_copy(args+i+1,list->a+i);
-    }
-    if(mf_call(f,x,list->size,args)){
-      mf_traceback("apply");
-      mf_free(args);
-      return 1;
-    }
-    free(args);
-    return 0;
-  }
+  return mf_apply(f,x,v+1,v+2);
 }
 
 void mf_init_type_function(mt_table* type){
@@ -1330,8 +1361,7 @@ void mf_init_type_function(mt_table* type){
   mf_insert_function(m,0,1,"prod",function_prod);
   mf_insert_function(m,1,2,"acuu",function_accu);
   mf_insert_function(m,0,1,"join",function_join);
-  mf_insert_function(m,1,1,"pow",function_pow);
-  mf_insert_function(m,0,-1,"compose",function_compose);
+  mf_insert_function(m,1,1,"POW",function_pow);
   mf_insert_function(m,1,1,"orbit",function_orbit);
 }
 

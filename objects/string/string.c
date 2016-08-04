@@ -22,7 +22,7 @@ mt_string* mf_raw_string(long size){
 
 mt_string* mf_str_new(long size, const char* a){
   mt_string* s = mf_raw_string(size);
-  int i;
+  long i;
   for(i=0; i<size; i++){
     s->a[i]=a[i];
   }
@@ -31,7 +31,7 @@ mt_string* mf_str_new(long size, const char* a){
 
 mt_string* mf_str_new_u32(long size, const uint32_t* a){
   mt_string* s = mf_raw_string(size);
-  int i;
+  long i;
   for(i=0; i<size; i++){
     s->a[i]=a[i];
   }
@@ -167,13 +167,13 @@ mt_string* mf_str(mt_object* x){
     }
     goto Default;
   default: Default:
-    e=mf_object_get_memory(&f,x,3,"str");
+    e=mf_object_get_memory(&f,x,3,"STR");
     if(e){
       s=mf_cstr_to_str("object");
       return s;
     }
     if(f.type!=mv_function){
-      mf_type_error("Type error in str(x): x.str is not a function.");
+      mf_type_error("Type error in str(x): x.STR is not a function.");
       return NULL;
     }
     mt_object y;
@@ -181,7 +181,7 @@ mt_string* mf_str(mt_object* x){
       return NULL;
     }
     if(y.type!=mv_string){
-      mf_type_error("Type error in str(x): return value of x.str() is not a string.");
+      mf_type_error("Type error in str(x): return value of x.STR() is not a string.");
       mf_dec_refcount(&y);
       return NULL;
     }
@@ -306,7 +306,7 @@ int str_upper(mt_object* x, int argc, mt_object* v){
   unsigned long c;
   for(i=0; i<size; i++){
     c=a[i];
-    if(c>=0 && c<256){
+    if(c<256){
       b[i]=toupper(c);
     }else{
       b[i]=c;
@@ -336,7 +336,7 @@ int str_lower(mt_object* x, int argc, mt_object* v){
   unsigned long c;
   for(i=0; i<size; i++){
     c=a[i];
-    if(c>=0 && c<256){
+    if(c<256){
       b[i]=tolower(c);
     }else{
       b[i]=c;
@@ -523,7 +523,7 @@ mt_string* mf_str_decode_utf8(long size, unsigned char* a){
   mt_str buffer;
   mf_decode_utf8(&buffer,a,size);
   mt_string* s = mf_str_new_u32(buffer.size,buffer.a);
-  free(buffer.a);
+  mf_free(buffer.a);
   return s;
 }
 

@@ -20,7 +20,7 @@ void mf_list_push(mt_list* list, mt_object* x);
 
 void mf_long_delete(mt_long* x){
   mpz_clear(x->value);
-  free(x);
+  mf_free(x);
 }
 
 void mf_long_dec_refcount(mt_long* x){
@@ -42,14 +42,14 @@ mt_long* mf_string_to_long(mt_string* x){
   char* buffer = mf_str_to_cstr(x);
   mt_long* y = mf_long_new();
   mpz_set_str(y->value,buffer,10);
-  free(buffer);
+  mf_free(buffer);
   return y;
 }
 
 mt_string* mf_long_to_string(mt_long* x){
   char* buffer = mpz_get_str(NULL,10,x->value);
   mt_string* s = mf_cstr_to_str(buffer);
-  free(buffer);
+  mf_free(buffer);
   return s;
 }
 
@@ -157,7 +157,7 @@ mt_long* mf_long_powmod(mt_long* a, mt_long* b, mt_long* m){
 void mf_long_print(mt_long* x){
   char* buffer = mpz_get_str(NULL,10,x->value);
   printf("%s",buffer);
-  free(buffer);
+  mf_free(buffer);
 }
 
 uint32_t mf_long_hash(mt_long* x){
@@ -167,7 +167,7 @@ uint32_t mf_long_hash(mt_long* x){
   for(i=0; a[i]!=0; i++){
     y = a[i]+(y<<6)+(y<<16)-y;
   }
-  free(a);
+  mf_free(a);
   return y;
 }
 
@@ -205,5 +205,9 @@ mt_list* mf_long_base(mt_long* a, unsigned int b){
 
 int mf_long_isprime(mt_long* x){
   return mpz_probab_prime_p(x->value,20);
+}
+
+double mf_long_float(mt_long* x){
+  return mpz_get_d(x->value);
 }
 

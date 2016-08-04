@@ -99,6 +99,7 @@ typedef struct{
   long data_size;
   unsigned char* program;
   unsigned char* data;
+  mt_list* string_pool;
 } mt_module;
 
 typedef struct{

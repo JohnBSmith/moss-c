@@ -13,7 +13,7 @@ void mf_vec_init(mt_vec* v, int bsize){
 }
 
 void mf_vec_delete(mt_vec* v){
-  free(v->a);
+  mf_free(v->a);
   v->a=NULL;
   v->capacity=0;
   v->size=0;
@@ -35,7 +35,7 @@ void mf_vec_push(mt_vec* v, void* data){
     memcpy(a+v->size*v->bsize,data,v->bsize);
     v->capacity=2*v->size;
     v->size++;
-    free(v->a);
+    mf_free(v->a);
     v->a=a;
   }
 }
@@ -51,7 +51,7 @@ void mf_vec_pop(mt_vec* v, int n){
     v->capacity=v->capacity/2;
     a = mf_malloc(v->capacity*v->bsize);
     memcpy(a,v->a,v->bsize*v->size);
-    free(v->a);
+    mf_free(v->a);
     v->a=a;
   }
 }

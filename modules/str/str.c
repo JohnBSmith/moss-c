@@ -14,14 +14,14 @@ void mf_bstr(mt_bstr* s, const char* a){
 
 void bstr_delete(bstring* s){
   if(s->allocated){
-    free(s->a);
+    mf_free(s->a);
     s->allocated=0;
   }
   s->size=0;
 }
 
 void bstr_slice(bstring* s, char* a, int n){
-  s->a = malloc(n+1);
+  s->a = mf_malloc(n+1);
   memcpy(s->a,a,n);
   s->a[n]=0;
   s->size=n;
@@ -33,7 +33,7 @@ void bstr_get(bstring* s){
   fgets(buffer,1000,stdin);
   int n=strlen(buffer)-1;
   s->size=n;
-  s->a=malloc(n+1);
+  s->a=mf_malloc(n+1);
   s->allocated=1;
   memcpy(s->a,buffer,n);
   s->a[n]=0;
@@ -69,7 +69,7 @@ void bvec_push_data(mt_vec* bv, bstring* data){
 
 void bvec_tos(bstring* s, mt_vec* bv){
   int n=mf_vec_size(bv);
-  s->a = malloc(n+1);
+  s->a = mf_malloc(n+1);
   memcpy(s->a,bv->a,n);
   s->a[n]=0;
   s->size=n;

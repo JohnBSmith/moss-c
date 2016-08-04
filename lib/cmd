@@ -1,22 +1,37 @@
 
-import math: e, pi, nan, floor, ceil, sqrt,\
-  exp, ln, fac, gamma, sin, cos, tan, sinh, cosh, tanh
-import cmath: re, im, arg
-import ma: diff, int, inv
-import sys: argv
-import plotlib: plot, cplot
-import time: sleep
-# import nt: isprime, gcd, lcm, factor, base
-import os: cd, ls, wd, isdir, isfile
+# Environment for command line sessions
+# moss -i /cmd
+
+use math: e, pi, inf, nan, floor, ceil,\
+  sqrt, erf
+use cmath: re, im, conj, arg, exp, ln,\
+  sin, cos, tan, sinh, cosh, tanh,\
+  asin, acos, atan, asinh, acosh, atanh
+use sf: B, gamma, digamma, zeta
+use cf: fac, bc
+use na: diff, inv, integral
+use sys: argv
+use time: sleep
+use nt: isprime, gcd, lcm
+use os: cd, ls, wd, isdir, isfile
+use plotlib: plot, cplot, fractal
+use fraction: u
+use statistics: sample
 
 grad = pi/180
 gon = pi/200
 tau = 2*pi
-
 p = print
+s = sin
+c = cos
+t = tan
+r = sqrt
 
 sub info(x)
   print(record(x).keys().sort().join("\s"))
 end
+
+D = |f| |x| diff(f,x)
+D.POW = |n| |f| |x| diff(f,x,n)
 
 

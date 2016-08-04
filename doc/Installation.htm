@@ -18,7 +18,41 @@ From source:
 
 <h3>Dependencies</h3>
 
-<p>Currently the Moss-interpreter depends more or less
+<p>The following features outside of C89 are used:
+</p>
+<table class="bt">
+<tr>
+<th>Found in
+<th>Feature
+
+<tr>
+<td>C99
+<td>Flexible array as a structs last member
+
+<tr>
+<td>C99
+<td>Fixed size types <code>uint8_t</code>,
+  <code>int32_t</code>, <code>uint32_t</code>
+
+<tr>
+<td>C99
+<td>Supplements to <code>math.h</code>
+
+<tr>
+<td>C99
+<td><code>complex.h</code> (<code>import cmath, sf</code>)
+
+<tr>
+<td>C11
+<td><code>CMPLX (complex.h)</code>
+
+<tr>
+<td>Clang, GCC
+<td><code>__builtin_add_overflow, __builtin_sub_overflow,
+  __builtin_mul_overflow (if available)
+</table>
+
+<p>Currently the Moss interpreter depends more or less
 on the following programs.
 </p>
 
@@ -39,23 +73,30 @@ apt-get install libgmp-dev
 # Graphics interface (optional)
 apt-get install libsdl2-dev
 
+# Vector font rendering for SDL,
+# depends on FreeType
+apt-get install libsdl-ttf2.0-dev
+
 # Cross compiler, target: MS Windows
 apt-get install mingw32
 </pre>
 
-<h3>Development tools.
+<h3>Development tools
 </h3>
 
 <pre>
 # IDE
-apt-get geany
+apt-get install geany
 
 # Static program analysis
 apt-get install splint
 
-# Debugger and memory checker
+# Debugger
 apt-get install gdb
+
+# Dynamic program analysis
 apt-get install valgrind
+apt-get install kcachegrind
 
 # Emulator for cross compiler output
 apt-get install wine
@@ -68,6 +109,9 @@ egrep -nrwi "regex" ./
   () | [] . * ?
   {n} {min,} {,max} {min,max}
   ^ $ \&lt; \&gt; \w \b
+
+# GNU Scientific Library
+apt-get install libgsl-dev
 </pre>
 
 </body>

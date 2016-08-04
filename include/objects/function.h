@@ -3,6 +3,7 @@
 
 void mf_function_delete(mt_function* f);
 void mf_function_dec_refcount(mt_function* f);
+int mf_fcompose(mt_object* x, int argc, mt_object* v);
 
 #endif
 

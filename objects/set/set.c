@@ -36,8 +36,8 @@ void mf_set_delete(mt_set* m){
       mf_dec_refcount(&a[i].key);
     }
   }
-  free(htab->a);
-  free(m);
+  mf_free(htab->a);
+  mf_free(m);
 }
 
 void mf_set_dec_refcount(mt_set* m){

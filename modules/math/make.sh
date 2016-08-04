@@ -1,3 +1,3 @@
 
-gcc -c math.c -Wimplicit-function-declaration -o ../../bin/mmath.o\
+gcc -c math.c -Wimplicit-function-declaration -o ../../bin/math.o\
   -I../../include

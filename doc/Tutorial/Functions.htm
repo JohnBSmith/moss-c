@@ -28,6 +28,7 @@
 <li><a href="#app">Function application</a>
 <li><a href="#return">Multiple return values</a>
 <li><a href="#static">Static variables</a>
+<li><a href="#lazy">Lazy evaluation</a>
 </ol>
 
 <h2 id="rec">Recursion</h2>
@@ -304,9 +305,10 @@ But they can be simulated by dictionarys.
 <h2 id="unpacking">
 List unpacking</h2>
 
-<p>Sometimes we want a variadic function to take the elements of
-a list as its arguments. To make this task simple, there is a
-function called <code>apply</code>.
+<p>Sometimes we want a variadic function <code>f</code> to take the
+elements of a list as its arguments.
+To make this task simple, there is an
+alternative application operation <code>f[a]</code>.
 </p>
 
 <pre class="moss">
@@ -319,16 +321,29 @@ function called <code>apply</code>.
 
 # unpacking call
 &gt; a = [1,2,3,4]
-&gt; s.apply(null,a)
+&gt; s[a]
 10
 </pre>
 
-<p>The first argument of <code>apply</code> is the self argument.
+<p>Now we can precisely state a feature of <code>print</code>.
+</p>
+
+<pre class="moss">
+# One can transform
+print("abcd") == print("a","b","c","d")
+== print[["a","b","c","d"]] == print[list("abcd")]
+
+# So, in general, if s is a string
+print(s) == print[list(s)]
+</pre>
+
+<p>If an unpacking call gets two arguments, the first
+argument is the self argument.
 So, if <code>x</code> is an object and <code>m</code> is a two
 argument method of <code>x</code>, we have</code>
 
 <pre class="moss">
-  x.m(a,b) == x.m.apply(x,[a,b]).
+  x.m(a,b) == x.m[x,[a,b]].
 </pre>
 
 <h2 id="argc">
@@ -347,7 +362,7 @@ the number of arguments of a given boolean function.
 sub truth_table(f)
   a = [false,true]^f.argc()
   for x in a
-    print((x+[f.apply(null,x)]).map(int))
+    print((x+[f[x]]).map(int))
   end
 end
 </pre>
@@ -444,25 +459,24 @@ a[k](x) means a[k] applied to x
 Look what that means.
 </p>
 <pre class="moss">
-function.type.add = sub|g| f=self
+function.type.ADD = sub|g| f=self
   return |x| f(x)+g(x)
 end
 </pre>
 <p>Now one can write <code>(f+g)(x)</code>.</p>
 
-<p>The function application operator is a special case of
-the function called <code>call</code>. And <code>call</code> is itself
-a special case of <code>apply</code>.
+<p>If <code>t</code> is a pair, one can write
+<code>f[t]</code> instead of <code>f(t[0],t[1])</code>.
+That is a more general way of function application,
+because one can always write
+<code>f[[t[0],t[1]]]</code>. Thus we have
 </p>
 
 <pre class="moss">
-  f(x,y) == f.call(null,x,y) == f.apply(null,[x,y])
-a.m(x,y) == a.m.call(a,x,y)  == a.m.apply(a,[x,y])
+  f(x,y) == f[[x,y]],
+a.m(x,y) == a.m.call(a,x,y)  == a.m[a,[x,y]].
 </pre>
 
-<p>Frankly speaking we can call apply a general method of
-application.
-</p>
 
 <h2 id="return">Multiple return values
 </h2>
@@ -490,7 +504,7 @@ point of a circle line. This can be achieved by the following
 function&nbsp;<code>f</code>.
 </p>
 <pre class="moss">
-import math: pi, sin, cos
+use math: pi, sin, cos
 
 f = |t,r| [r*cos(2*pi*t), r*sin(2*pi*t)]
 
@@ -554,6 +568,95 @@ end
 c1 = new_counter(0)
 c2 = new_counter(1000)
 c3 = copy(c2)
+</pre>
+
+<h2 id="lazy">Lazy evaluation</h2>
+
+<p>Lazy evaluation is not standard in Moss, but one can simulate
+it like in Scheme.
+</p>
+
+<table class="bt">
+<tr>
+<th>Moss
+<th>Scheme
+<tr>
+<td><code>t=|| expression
+<td><code>(define t (delay expression))</code>
+<tr>
+<td><code>t()</code>
+<td><code>(force t)</code>
+</table>
+
+<p>Now let us build such an infinite tree:
+</p>
+<pre>
+                    0
+                   / \
+                  /   \
+                 /     \
+                /       \
+               /         \
+              /           \
+             /             \
+            /               \
+           /                 \
+          /                   \
+         0                     1
+        / \                   / \
+       /   \                 /   \
+      /     \               /     \
+     /       \             /       \
+    0         1           1         2
+   / \       / \         / \       / \
+  0   1     1   2       1   2     2   3
+ / \ / \   / \ / \     / \ / \   / \ / \
+.. ... .. .. ... ..   .. ... .. .. ... ..
+</pre>
+
+<pre class="moss">
+# This won't work
+sub tree(x)
+  table x=x, left=tree(x), right=tree(x+1) end
+end
+print(tree(0).right.right.right.x)
+
+# We have to use explicit lazy evaluation
+sub tree(x)
+  table x=x, left=|| tree(x), right=|| tree(x+1) end
+end
+print(tree(0).right().right().right().x)
+</pre>
+
+<p>In some constructions, a value could either be a lazy expression
+or a normal value.
+In this case, lazy expressions should have their own data type.
+</p>
+
+<pre class="moss">
+lazy_type = table
+  STR = || "lazy expression"
+end
+sub delay(f)
+  table[lazy_type] call=f end
+end
+sub force(x)
+  type(x) is lazy_type? x.call(): x
+end
+
+t = delay(|| 1+2)
+print([force(2), force(t)])
+</pre>
+
+<p>But in most constructions, a value is never a function.
+In such cases we can simply check for a function.
+</p>
+
+<pre class="moss">
+sub force(x)
+  type(x) is function.type? x(): x
+end
+print([force(2), force(|| 1+2)])
 </pre>
 
 </body>

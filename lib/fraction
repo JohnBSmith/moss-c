@@ -1,0 +1,84 @@
+
+use nt: gcd
+
+sub fraction(n,d)
+  t = gcd(n,d)
+  return table[fraction.type]
+    n=n//t, d=d//t
+  end
+end
+
+fraction.type = table
+  sub STR
+    str(self.n)+"/"+str(self.d)
+  end,
+  sub ADD(b)
+    if b is in int.type
+      n = self.n+b*self.d
+      d = self.d
+      return fraction(n,d)
+    else
+      n = self.n*b.d+b.n*self.d
+      d = self.d*b.d
+      return fraction(n,d)
+    end
+  end,
+  sub RADD(b)
+    return fraction(self*b.d+b.n,b.d)
+  end,
+  sub SUB(b)
+    if b is in int.type
+      n = self.n-b*self.d
+      d = self.d
+      return fraction(n,d)
+    else
+      n = self.n*b.d-b.n*self.d
+      d = self.d*b.d
+      return fraction(n,d)
+    end
+  end,
+  sub RSUB(b)
+    return fraction(self*b.d-b.n,b.d)
+  end,
+  sub MPY(b)
+    if b is in int.type
+      n = self.n*b
+      d = self.d
+      return fraction(n,d)
+    else
+      n = self.n*b.n
+      d = self.d*b.d
+      return fraction(n,d)
+    end
+  end,
+  sub RMPY(b)
+    return fraction(self*b.n,b.d)
+  end,
+  sub DIV(b)
+    if b is in int.type
+      n = self.n
+      d = self.d*b
+      return fraction(n,d)
+    else
+      n = self.n*b.d
+      d = self.d*b.n
+      return fraction(n,d)
+    end
+  end,
+  sub RDIV(b)
+    return fraction(self*b.d,b.n)
+  end,
+  sub POW(b)
+    if b>0
+      return fraction(self.n^b, self.d^b)
+    elif b<0
+      return fraction(self.d^(-b), self.n^(-b))
+    else
+      return fraction(1,1)
+    end
+  end
+end
+
+u = fraction(1,1)
+
+

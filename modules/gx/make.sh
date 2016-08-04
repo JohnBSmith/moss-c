@@ -1,4 +1,4 @@
 
-gcc -c gx.c -Wimplicit-function-declaration\
+gcc -c gx.c -g -Wimplicit-function-declaration\
   -o ../../bin/gx.o -I../../include
 

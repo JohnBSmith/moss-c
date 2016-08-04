@@ -26,6 +26,8 @@
 <li><a href="#sets">Set theory</a>
 <li><a href="#comb">Combinatorics</a>
 <li><a href="#numerics">Numerics</a>
+<li><a href="#Euler">Euler method</a>
+<li><a href="#Lorenz">Lorenz attractor</a>
 <li><a href="#la">Linear algebra</a>
 <li><a href="#nt">Number theory</a>
 <li><a href="#lex">Lexical analysis</a>
@@ -76,14 +78,7 @@ call = sub|f,m,n|
   return x
 end
 
-Fac = sub|m,n|
-  if n==0
-    return m
-  else
-    return begin Fac(m*n,n-1) end
-  end
-end
-
+Fac = |m,n| n==0? m: || Fac(m*n,n-1)
 fac = |n| call(Fac,1,n)
 
 # Solve the functional equation
@@ -123,10 +118,10 @@ define = sub|s,f|
   gtab()[s]=f
 end
 
-define("fac",sub|n|
+define("fac",|n|
   If(eq(n,0),
-    begin 1 end,
-    begin mpy(n,fac(minus(n,1))) end) end)
+    || 1,
+    || mpy(n,fac(minus(n,1)))))
 
 # Tacit programming
 compose = |f| |g| |x| f(g(x))
@@ -155,6 +150,17 @@ fib = memo(fib)
 # Functional iteration
 Fib = |x| [x[0]+x[1],x[0]]
 fib = |n| (Fib^(n-1))([1,1])[1]
+
+# By a general algorithm for
+# a(n):=f(n,a(n-2),a(n-1))
+rec = |a0,a1,f| sub|n|
+  x,y=a0,a1
+  for k in n
+    x,y=y,f(k,x,y)
+  end
+  return x
+end
+fib = rec(0,1,|n,x,y| x+y)
 </pre>
 
 
@@ -171,32 +177,39 @@ end
 print(f.o(f).o(f)(10))
 </pre>
 
+
 <h2 id="pa">Partial application</h2>
 <pre class="moss">
 first = |f,x| |y| f(x,y)
 second = |f,y| |x| f(x,y)
 
 # variadic, fix first arguments
-first = |f,*a| |*b| f.apply(null,a+b)
+first = |f,*a| |*b| f[a+b]
 
 # variadic, fix last arguments
-last = |f,*a| |*b| f.apply(null,b+a)
+last = |f,*a| |*b| f[b+a]
 </pre>
+
 
 <h2 id="currying">Currying</h2>
 <pre class="moss">
 curry = sub|f|
   n=f.argc()
   a=list(0..n-1)
-  g = sub|x| a[n-1]=x; f.apply(null,a) end
+  g = sub|x| a[n-1]=x; f[a] end
   for i in 2..n
     g = sub|x| a[n-i]=x; g end
   end
   return g
 end
 
+curry = sub|f| n=f.argc(); a=list(0..n-1)
+  return (2..n).reduce(sub|x| a[n-1]=x; f[a]
+  end, |g,i| sub|x| a[n-i]=x; g end) end
+
 uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 </pre>
+
 
 <h2 id="rn">Random numbers</h2>
 <pre class="moss">
@@ -207,9 +220,10 @@ a = list(1..100).shuffle()
 print(a)
 </pre>
 
+
 <h2 id="stat">Statistics</h2>
 <pre class="moss">
-import math: sqrt
+use math: sqrt
 
 # Mean value
 mean = |a| a.sum()/size(a)
@@ -233,8 +247,34 @@ end
 
 # Covariance matrix
 cov_matrix = |X| X.map(|a| X.map(|b| cov(a,b)))
-</pre>
 
+# Pairwise summation
+sub sum(a)
+  while size(a)>3
+    a = a.chunks(2).map(|t| t.sum())
+  end
+  return a.sum()
+end
+
+# Pairwise summation,
+# traditional algorithm
+sub sum(a)
+  m=size(a)
+  while m!=1
+    i=0
+    for k in 0..m-2: 2
+      a[i] = a[k]+a[k+1]
+      i++
+    end
+    if m%2!=0
+      a[i]=a[m-1]
+      i++
+    end
+    m=i
+  end
+  return a[0]
+end
+</pre>
 
 
 <h2 id="qsort">Quicksort</h2>
@@ -247,6 +287,14 @@ qsort = |a| if size(a)==0 then [] else
 # Test function
 issorted = |a| (0..size(a)-2).all(|i| a[i]&lt;=a[i+1])
 
+# Alternative form
+sub qsort(a)
+  size(a)==0?[]:begin
+    R,L=[],[]
+    a[1..].each(|x|(x&lt;a[0]?R:L).push(x))
+    return [R,L].map(qsort)
+  end().reduce(|R,L| R+[a[0]]+L)
+end
 </pre>
 
 <h2 id="msort">Mergesort</h2>
@@ -258,7 +306,9 @@ msort = |a| if size(a)<=1 then copy(a) else
 merge = sub|L,R| y=[]
   while size(L)!=0 and size(R)!=0
     y.push(if L[-1]>R[-1] then L else R end.pop())
-  end; L+R+y.rev() end
+  end
+  return L+R+y.rev()
+end
 </pre>
 
 
@@ -397,6 +447,70 @@ N = sub|f,x|
 end
 </pre>
 
+<h2 id="Euler">Euler method</h2>
+
+<pre class="moss">
+use na: interpolate
+
+# f'(x)=g(x,f(x))
+# h: step size
+# N: number of steps
+sub euler(g,x0,y0,h,N)
+  x=x0; y=y0
+  a=[[x,y]]
+  for k in 1..N
+    y = y+h*g(x,y)
+    x = x0+k*h
+    a.push([x,y])
+  end
+  return interpolate(a)
+end
+
+# f^(m)(x) = g(x,y)
+# y = [f(x),f'(x),...,f^(m-1)(x)]
+sub euler_any_order(g,x0,y0,h,N)
+  x=x0; y=copy(y0)
+  m=size(y)
+  a=[[x,y[0]]]
+  for k in 1..N
+    hg = h*g(x,y)
+    for i in 0..m-2
+      y[i] = y[i]+h*y[i+1]
+    end
+    y[m-1] = y[m-1]+hg
+    x = x0+k*h
+    a.push([x,y[0]])
+  end
+  return interpolate(a)
+end
+
+exp = euler(|x,y| y,
+  0, 1, 0.01, 1000)
+sin = euler_any_order(|x,y| -y[0],
+  0, [0,1], 0.01, 1000)
+</pre>
+
+<h2 id="Lorenz">Lorenz attractor</h2>
+<pre class="moss">
+use ode
+use plotlib: system
+
+x,y,z = ode.runge_kutta_system({
+  g = sub|t,v| x,y,z=v
+    [10*(y-x),
+     x*(28-z)-y,
+     x*y-8/3*z]
+  end,
+  t0=0, y0=[1,1,1],
+  w=40, unilateral
+})
+
+s = system({wx=50, wy=50, py=20})
+s.vplot(|t| [x(t),z(t)],{
+  t1=0, t2=40, n=80000
+})
+s.idle()
+</pre>
 
 <h2 id="la">Linear algebra</h2>
 
@@ -425,8 +539,8 @@ diag = sub|a| n=size(a)
 end
 
 # Operator overloading
-import math: fac
-import la: matrix
+use math: fac
+use la: matrix
 
 exp = |A| (0..9).sum(|k| A^k/fac(k))
 A = matrix([1,2],[3,4])
@@ -586,8 +700,8 @@ rot13 = |s| s.map(|c|
 <h2 id="fft">FFT</h2>
 
 <pre class="moss">
-import math: pi
-import cmath: exp
+use math: pi
+use cmath: exp
 
 # size(a) is a power of two
 fft = sub|a| if size(a)<=1 then return a end
@@ -597,6 +711,7 @@ fft = sub|a| if size(a)<=1 then return a end
   return (L.map(|k| even[k]+T[k])+
           L.map(|k| even[k]-T[k])) end
 </pre>
+
 
 
 </body>

@@ -10,7 +10,7 @@ enum{
   CONST_INT, CONST_FLOAT, CONST_NULL,
   CONST_BOOL, CONST_STR, CONST_BSTR, CONST_IMAG,
   HALT, DATA,
-  LOAD, LOAD_REF, STORE, STN,
+  LOAD, LOAD_REF, STORE, STN, STORE_INDEX,
   PRINT, PUT, JMP, JPZ, LIST, MAP, CALL,
   GET, GETREF, RSTORE, STORE_LOCAL, POP,
   RET, CONST_FN, LOAD_LOCAL, LOAD_REF_LOCAL,
@@ -33,9 +33,11 @@ enum{
 
 int mf_vm_eval(unsigned char* data, long ip);
 int mf_vm_eval_global(mt_module* module, long ip);
-void mf_vm_init_gvtab();
-void mf_vm_init();
+void mf_vm_init_gvtab(void);
+void mf_vm_init(void);
+void mf_vm_delete(void);
 void mf_vm_set_program(mt_module* module);
+void mf_vm_unset_program(mt_module* module);
 
 #endif
 

@@ -1,0 +1,82 @@
+
+sub mod(m)
+  return sub|a|
+    table[mod_type] a=a%m, m=m end
+  end
+end
+
+mod_type = table
+  sub STR
+    [self.a," mod ",self.m].join()
+  end,
+  sub ADD(b)
+    if type(b) is mod_type
+      return table[mod_type]
+        a=(self.a+b.a)%self.m,
+        m=self.m
+      end
+    else
+      return table[mod_type]
+        a=(self.a+b)%self.m,
+        m=self.m
+      end
+    end
+  end,
+  sub SUB(b)
+    table[mod_type]
+      a=(self.a-b.a)%self.m,
+      m=self.m
+    end
+  end,
+  sub MPY(b)
+    table[mod_type]
+      a=(self.a*b.a)%self.m,
+      m=self.m
+    end
+  end,
+  sub RMPY(b)
+    table[mod_type]
+      a=(self*b.a)%b.m,
+      m=b.m
+    end
+  end,
+  sub POW(n)
+    if type(n) is mod_type
+      return table[mod_type]
+        a=pow(self.a,n.a,self.m),
+        m=self.m
+      end
+    else
+      return table[mod_type]
+        a=pow(self.a,n,self.m),
+        m=self.m
+      end
+    end
+  end,
+  sub RPOW(n)
+    table[mod_type]
+      a=pow(self,n.a,n.m),
+      m=n.m
+    end
+  end,
+  sub sqrt
+    m=self.m; a=self.a
+    (0..m-1).filter(sub|x|
+      x=x%m
+      return x*x%m==a
+    end).list()
+  end,
+  sub preimage(f)
+    m=self.m; a=self
+    (0..m-1).filter(sub|x|
+      x=table[mod_type] a=x%m, m=m end
+      return f(x).a==a.a
+    end).list()
+  end
+end of table
+
+
+
+
+
+

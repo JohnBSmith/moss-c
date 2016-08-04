@@ -1020,5 +1020,6 @@ const char* font_get_char(uint32_t c){
   case '`': p=cgrave; break;
   default: p=cpp;
   }
+  return p;
 }
 

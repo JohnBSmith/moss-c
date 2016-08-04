@@ -16,6 +16,10 @@ pre, code{
   font-family: "FreeMono", "Courier New", monospace;
 }
 
+div.code{
+  font-family: "FreeMono", "Courier New", monospace;
+}
+
 .keyword{
   font-weight: bold;
   color: #204080;
@@ -40,7 +44,7 @@ pre, code{
 .code dt{
   font-family: "FreeMono", "Courier New", "monospace";
 }
-.code dd{
+dd{
   margin-bottom: 1em;
 }
 

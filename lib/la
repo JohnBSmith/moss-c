@@ -1,0 +1,74 @@
+
+use math: sqrt
+
+sub array(a)
+  if size(a)>0
+    if type(a[0]) is list.type
+      d=2; n=size(a[0])
+      a=a.chain()
+    else
+      d=1; n=1
+    end
+  else
+    d=1; n=1
+  end
+  return table[array_type]
+    a=a, d=d, n=n
+  end
+end
+
+array_type = table
+  sub STR
+    if self.d==2
+      return str(self.a.chunks(self.n))
+    else
+      return str(self.a)
+    end
+  end,
+  sub list
+    if self.d==2
+      return self.a.chunks(self.n)
+    else
+      return self.a
+    end
+  end,
+  sub GET(*i)
+    if size(i)==1
+      return self.a[i[0]]
+    else
+      return self.a[i[0]*self.n+i[1]]
+    end
+  end,
+  sub ADD(b)
+    table[array_type]
+      a=map(self.a,b.a,|x,y| x+y),
+      d=self.d, n=self.n
+    end
+  end,
+  sub SUB(b)
+    table[array_type]
+      a=map(self.a,b.a,|x,y| x-y),
+      d=self.d, n=self.n
+    end
+  end,
+  sub MPY(r)
+    table[array_type]
+      a=map(self.a,|x| r*x),
+      d=self.d, n=self.n
+    end
+  end,
+  sub RMPY(b)
+    r=self
+    table[array_type]
+      a=map(b.a,|x| r*x),
+      d=b.d, n=b.n
+    end
+  end,
+  sub dot(b)
+    map(self.a,b.a,|x,y| x*y).sum()
+  end,
+  sub abs
+    sqrt(self.a.sum(|x| x*x))
+  end
+end of table
+

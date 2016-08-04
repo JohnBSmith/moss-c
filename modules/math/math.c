@@ -1,7 +1,6 @@
 
 #include <math.h>
 #include <moss.h>
-
 double mf_float(mt_object* x, int* error);
 
 static
@@ -295,6 +294,57 @@ int math_tanh(mt_object* x, int argc, mt_object* v){
 }
 
 static
+int math_asinh(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"asinh");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in asinh(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=asinh(t);
+  return 0;
+}
+
+static
+int math_acosh(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"acosh");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in acosh(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=acosh(t);
+  return 0;
+}
+
+static
+int math_atanh(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"atanh");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in atanh(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=atanh(t);
+  return 0;
+}
+
+static
 int math_fac(mt_object* x, int argc, mt_object* v){
   if(argc!=1){
     mf_argc_error(argc,1,1,"fac");
@@ -325,6 +375,46 @@ int math_gamma(mt_object* x, int argc, mt_object* v){
   }
   x->type=mv_float;
   x->value.f=tgamma(t);
+  return 0;
+}
+
+static
+int math_lgamma(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"lgamma");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in lgamma(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=lgamma(t);
+  return 0;
+}
+
+static
+double sgngamma(double x){
+  if(x>0) return 1;
+  return copysign(1,sin(M_PI*x));
+}
+
+static
+int math_sgngamma(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"gamma");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error1("in sgngamma(x): cannot convert x (type: %s) to float.",v+1);
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=sgngamma(t);
   return 0;
 }
 
@@ -377,8 +467,13 @@ mt_table* mf_math_load(){
   mf_insert_function(m,1,1,"sinh",math_sinh);
   mf_insert_function(m,1,1,"cosh",math_cosh);
   mf_insert_function(m,1,1,"tanh",math_tanh);
+  mf_insert_function(m,1,1,"asinh",math_asinh);
+  mf_insert_function(m,1,1,"acosh",math_acosh);
+  mf_insert_function(m,1,1,"atanh",math_atanh);
   mf_insert_function(m,1,1,"fac",math_fac);
   mf_insert_function(m,1,1,"gamma",math_gamma);
+  mf_insert_function(m,1,1,"lgamma",math_lgamma);
+  mf_insert_function(m,1,1,"sgngamma",math_sgngamma);
   mf_insert_function(m,1,1,"erf",math_erf);
   m->frozen=1;
   return math;

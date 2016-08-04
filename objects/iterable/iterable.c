@@ -622,6 +622,14 @@ int iterable_dict(mt_object* x, int argc, mt_object* v){
   }
 }
 
+int mf_fdict(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"dict");
+    return 1;
+  }
+  return iterable_dict0(x,v+1);
+}
+
 void mf_init_type_iterable(mt_table* type){
   type->name=mf_cstr_to_str("iterable");
   type->m=mf_empty_map();

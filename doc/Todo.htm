@@ -10,11 +10,6 @@
 <h2>Todo list</h2>
 
 <ol>
-<li>New general multi dimension slicing: <code>a[i,j,k]</code>
-  will behave like <code>a.get(i,j,k)</code> and <code>a[i,j,k]=value</code>
-  will behave like <code>a.set(value,i,j,k)</code>. This enables
-  slice assignments too.
-<li>Wich names should be chosen for shallow copy and deep copy?
 <li>Cache hash value in a string object.
 <li>Allow cyclic data structures? Think about <code>a==b</code> and deallocation.
 <li>Predefined functions: how to achieve superglobal access?
@@ -100,7 +95,23 @@ operating systems.
 <td><code>201605</code>
 <td>Add import-statement to the
 programming language.
-<td><code>import math: pi, sin, cos</code>
+<td><code>use math: pi, sin, cos</code>
+
+<tr>
+<td><code>201606</code>
+<td>Wich names should be chosen for shallow copy and deep copy?
+<td>Let <code>copy(x)</code> be a shallow copy and <code>copy(n,x)</code>
+a copy of deepness <code>n</code>. Let <code>copy(null,x)</code> be
+a complete deep copy. Thus it is consistent with <code>const(x)</code>
+and <code>const(n,x)</code>.
+
+<tr>
+<td><code>201606</code>
+<td>New general multi dimension indexing: <code>a[i,j,k]</code>
+  will behave like <code>a.get(i,j,k)</code> and <code>a[i,j,k]=value</code>
+  will behave like <code>a.set(value,i,j,k)</code>.
+<td>This enables higher dimensional slices and
+assignments to slices too.
 </table>
 
 </body>

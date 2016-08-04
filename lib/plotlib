@@ -1,8 +1,9 @@
 
 # a simple function grapher
-import math: tanh
-import cmath: arg, re, im
-import gx, time
+use math: lg, tanh
+use cmath: arg, re, im
+use gx, time
+use na
 
 gw=960; gw2=gw//2
 gh=640; gh2=gh//2
@@ -14,136 +15,177 @@ sub setw(x,y)
 end
 
 sub vline(c,x)
-  for y in gh
-    c.fill(x,y,2,2)
-  end
+  c.fill(x,0,2,gh-1)
 end
 
 sub hline(c,y)
-  for x in gw
+  c.fill(0,y,gw-1,2)
+end
+
+sub vbars(c,y)
+  for t in vbars.a
+    x = int(gw2+gw2/10*t)
+    c.fill(x,y+2,2,2)
     c.fill(x,y,2,2)
+    c.fill(x,y-2,2,2)
   end
 end
 
-sub grid(c)
-  c.cset(0.9,0.9,0.84)
+sub hbars(c,x)
+  for t in hbars.a
+    y = int(gh2+gw2/10*t)
+    c.fill(x+2,y,2,2)
+    c.fill(x,y,2,2)
+    c.fill(x-2,y,2,2)
+  end
+end
+
+vbars.a = [-8..-2:2, 2..8:2].chain()
+hbars.a = [-8..-1, 1..8].chain()
+
+sub grid(c,a)
+  c.cset(0.9,0.9,0.84,a)
   for x in -9..9
     vline(c,int(gw2+gw2/10*x))
   end
   for y in -10..10
     hline(c,int(gh2+gw2/10*y))
   end
-  c.cset(0.7,0.7,0.64)
+  c.cset(0.7,0.7,0.64,a)
   vline(c,gw2)
   hline(c,gh2)
-  c.flush()
+end
+
+sub ftos(w,p,x)
+  a = abs(w)
+  if abs(p)<10*a and (a<0.001 or a>10000000)
+    s=str.E(x,1)
+  else
+    n = 2+int(-lg(abs(w)))
+    s=str.f(x,n)
+  end
+  if x<0
+    return s
+  else
+    return "\s"+s
+  end
+end of sub
+
+sub labels(c,wx,wy,px,py)
+  c.cset(0.4,0.4,0.4)
+  vbars(c,gh2)
+  hbars(c,gw2)
+  for x in 2..8:2
+    c.pos(int(gw2+gw2/10*x)-24,gh2+8)
+    c.print(ftos(wx,px,px+x*wx/10))
+  end
+  for x in -8..-2:2
+    c.pos(int(gw2+gw2/10*x)-24,gh2+8)
+    c.print(ftos(wx,px,px+x*wx/10))
+  end
+  for y in 1..6
+    c.pos(gw2+4,int(gh2-gw2/10*y)-12)
+    c.print(ftos(wy,py,py+y*wy/10))
+  end
+  for y in -6..-1
+    c.pos(gw2+4,int(gh2-gw2/10*y)-12)
+    c.print(ftos(wy,py,py+y*wy/10))
+  end
 end
 
 color_table = [
-  [0,0,0.4],
-  [0,0.4,0],
-  [0.6,0,0.6],
-  [0,0.4,0.4],
-  [0.4,0.0,0.0]
+  [0, 0, 0.4],
+  [0, 0.4, 0],
+  [0.6, 0, 0.6],
+  [0, 0.4, 0.4],
+  [0.4, 0, 0],
+  [0.8, 0.6, 0],
+  [0, 0, 0]
 ]
 
-sub plot(a,*argv)
-  t = size(argv)==1?argv[0]:{}
-  c=gx.new(gw,gh,1)
-  c.clear(1,1,1)
-  c.mix(0)
-  grid(c)
-  if type(a) is function.type
-    a=[a]
-  end
-  wx = "wx" in t? t["wx"]: 10.0
-  wy = "wy" in t? t["wy"]: 10.0
-  px = "px" in t? t["px"]: 0.0
-  py = "py" in t? t["py"]: 0.0
-  n = "n" in t? t["n"]: 1000
-  d=wx/n
-  index=0
-  x1=px-wx
-  x2=px+wx
-  for f in a
-    color = color_table[index%3]
-    c.cset(color[0],color[1],color[2])
-    x=x1
-    while x<x2
-      c.point((x-px)/wx,(f(x)-py)/wy)
-      x+=d
-    end
-    c.flush()
-    index++
-  end
-  while c.key()!="q"
-    time.sleep(0.2)
-  end
+sub plot(f,*a)
+  d = size(a)==0? {}: a[0]
+  s = system(d)
+  s.plot(f,d)
+  s.idle()
 end
 
 tplot = table
   sub idle
     c = self.canvas
+    c.flush()
     while c.key()!="q"
       time.sleep(0.2)
     end
   end,
   
-  sub plot(f,*argv)
+  sub plot(a,*argv)
+    if type(a) is function.type
+      a=[a]
+    end
     t = size(argv)==1?argv[0]:{}
-    n = "n" in t? t["n"]: 1000
+    n = "n" in t? t["n"]: self.n
     wx=self.wx; px=self.px
     wy=self.wy; py=self.py
     d=wx/n
     x1=px-wx
     x2=px+wx
     m = size(color_table)
-    color = color_table[self.index%m]
-    self.index++
     c = self.canvas
-    c.cset(color[0],color[1],color[2])
-    x=x1
-    while x<x2
-      c.point((x-px)/wx,(f(x)-py)/wy)
-      x+=d
+    for f in a
+      if "color" in t
+        c.cset(t["color"])
+      else
+        c.cset(color_table[self.index%m])
+        self.index++
+      end
+      x=x1
+      while x<x2
+        c.point((x-px)/wx,(f(x)-py)/wy)
+        x+=d
+      end
     end
-    c.flush()
   end,
 
   sub vplot(f,*argv)
     t = size(argv)==1?argv[0]:{}
-    n = "n" in t? t["n"]: 1000
+    n = "n" in t? t["n"]: self.n
     t1 = "t1" in t? t["t1"]: 0.0
     t2 = "t2" in t? t["t2"]: 10.0
     wx=self.wx; px=self.px
     wy=self.wy; py=self.py
     d=abs(t2-t1)/n
-    m = size(color_table)
-    color = color_table[self.index%m]
-    self.index++
     c = self.canvas
-    c.cset(color[0],color[1],color[2])
+    if "color" in t
+      c.cset(t["color"])
+    else
+      m = size(color_table)
+      c.cset(color_table[self.index%m])
+      self.index++
+    end
     t=t1
     while t<t2
       x,y=f(t)
       c.point((x-px)/wx,(y-py)/wy)
       t+=d
     end
-    c.flush()
   end,
 
-  sub scatter(a)
+  sub scatter(a,*argv)
+    t = size(argv)==0?{}:argv[0]
     wx=self.wx; px=self.px
     wy=self.wy; py=self.py
-    m = size(color_table)
-    color = color_table[self.index%m]
-    self.index++
     c=self.canvas
-    c.cset(color[0],color[1],color[2])
-    for t in a
-      c.scatter((t[0]-px)/wx,(t[1]-py)/wy)
+    if "color" in t
+      c.cset(t["color"])
+    else
+      m = size(color_table)
+      c.cset(color_table[self.index%m])
+      self.index++
     end
-    c.flush()
+    for v in a
+      c.scatter((v[0]-px)/wx,(v[1]-py)/wy)
+    end
   end,
 
   sub palette(i)
@@ -151,14 +193,17 @@ tplot = table
   end,
 
   sub interlace(f,*argv)
-    t = size(argv)==1?argv[0]:{}
+    t = size(argv)==0?{}:argv[0]
     wx=self.wx; px=self.px
     wy=self.wy; py=self.py
     x1=px-wx
     x2=px+wx
-    color = color_table[0]
     c = self.canvas
-    c.cset(color[0],color[1],color[2])
+    if "color" in t
+      c.cset(t["color"])
+    else
+      c.cset(color_table[0])
+    end
     d=wx/100
     while true
       k=0
@@ -176,21 +221,86 @@ tplot = table
       end
       d=d/2
     end
-  end of sub
+  end of sub,
+
+  sub random(f,*argv)
+    t = size(argv)==0?{}:argv[0]
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    x1=px-wx
+    x2=px+wx
+    c = self.canvas
+    if "color" in t
+      c.cset(t["color"])
+    else
+      c.cset(color_table[0])
+    end
+    r = rand(194352)
+    k=0
+    while true
+      x=x1+r()*(x2-x1)
+      c.point((x-px)/wx,(f(x)-py)/wy)
+      if k%1000==0
+        c.flush()
+        if c.key()=="q" then return null
+        end
+        time.sleep(0.1)
+      end
+      k++
+    end
+  end of sub,
+
+  sub ani(callback,*argv)
+    self.n=500
+    c = self.canvas
+    a=0
+    while true
+      c.clear(1,1,1)
+      c.cset(0.7,0.7,0.64,1)
+      vline(c,gw2)
+      hline(c,gh2)
+      labels(c,self.wx,self.wy,self.px,self.py)
+      self.palette(0)
+      callback(a)
+      if c.key()=="q" then break
+      end
+      c.flush()
+      time.sleep(0.02)
+      a+=0.1
+    end
+  end,
+
+  sub flush
+    self.canvas.flush()
+  end
 end of table
 
-sub new(*argv)
-  t = size(argv)==1?argv[0]:{}
+sub system(*argv)
+  t = size(argv)!=0?argv[0]:{}
   c=gx.new(gw,gh,1)
+  c.font(16)
+  s = table[tplot] canvas=c, index=0 end
+  s.n = "n" in t? t["n"]: 1000
+  s.wx = "wx" in t? t["wx"]: 10.0
+  s.wy = "wy" in t? t["wy"]: 10.0
+  s.px = "px" in t? t["px"]: 0.0
+  s.py = "py" in t? t["py"]: 0.0
+  if "x" in t
+    x=t["x"]
+    s.px = (x[0]+x[1])/2
+    s.wx = x[1]-s.px
+  end
+  if "y" in t
+    y=t["y"]
+    s.py = (y[0]+y[1])/2
+    s.wy = y[1]-s.py
+  end
   c.clear(1,1,1)
   c.mix(0)
-  grid(c)
-  y = table[tplot] canvas=c, index=0 end
-  y.wx = "wx" in t? t["wx"]: 10.0
-  y.wy = "wy" in t? t["wy"]: 10.0
-  y.px = "px" in t? t["px"]: 0.0
-  y.py = "py" in t? t["py"]: 0.0
-  return y
+  grid(c,1)
+  labels(c,s.wx,s.wy,s.px,s.py)
+  c.flush()
+  return s
 end
 
 sub sigmoid(x)
@@ -206,16 +316,21 @@ sub cplot(f,*argv)
   a=gw//4; b=gh//4
   a2=gw/8; b2=gh/8
   c=gx.new(gw,gh,1)
+  c.font(16)
   c.clear(1,1,1)
   c.mix(0)
   for x in a
     for y in b
-      z = ((x-a2)/a*wx+px)+(py-(y-b2)/a*wy)*1i
+      z = ((x-a2)/a2*wx+px)+(py-(y-b2)/a2*wy)*1i
       w = f(z)
       c.HSL(arg(w),1,sigmoid(abs(w)))
       c.fill(4*x,4*y,4,4)
     end
   end
+  c.cset(0.7,0.7,0.64,0.2)
+  vline(c,gw2)
+  hline(c,gh2)
+  labels(c,wx,wy,px,py)
   c.flush()
   while c.key()!="q"
     time.sleep(0.2)
@@ -238,6 +353,7 @@ end
 sub fractal(f,g)
   W=1024; H=640
   canvas = gx.new(W,H,1)
+  canvas.font(20)
   get_color = get_color_new(
     [0.0,0.0,0.1], [1.0,1.0,0.4]
   )

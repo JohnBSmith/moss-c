@@ -15,6 +15,7 @@ int mf_map_print(mt_map* m);
 int mf_map_eq(mt_map* m1, mt_map* m2);
 void mf_init_type_dict(mt_table* t);
 void mf_map_extend(mt_map* m, mt_map* m2);
+void mf_map_update(mt_map* m, mt_map* m2);
 
 #endif
 

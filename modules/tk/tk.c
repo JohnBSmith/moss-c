@@ -18,12 +18,28 @@ void mf_file_read(FILE* f, mt_bstr* data){
 
 void mf_file_load(const char* id, mt_bstr* data){
   FILE* file = fopen(id,"rb");
-  if(file==0){
+  if(file==NULL){
     printf("File %s could not be opened.\n",id);
     exit(1);
   }
   mf_file_read(file,data);
   fclose(file);
+}
+
+void mf_file_write(FILE* f, mt_bstr* data){
+  fwrite(data->a,1,data->size,f);
+}
+
+char mv_file_save_error[200];
+int mf_file_save(const char* id, mt_bstr* data){
+  FILE* file = fopen(id,"wb");
+  if(file==0){
+    snprintf(mv_file_save_error,200,"File '%s' could not be opened to write.",id);
+    return 1;
+  }
+  mf_file_write(file,data);
+  fclose(file);
+  return 0;
 }
 
 // deprecated
@@ -46,20 +62,6 @@ void file_load(const char* id, bstring* data){
     exit(1);
   }
   file_read(file,data);
-  fclose(file);
-}
-
-void file_write(FILE* f, bstring* data){
-  fwrite(data->a,1,data->size,f);
-}
-
-void file_save(const char* id, bstring* data){
-  FILE* file = fopen(id,"wb");
-  if(file==0){
-    printf("File %s could not be opened to write.\n",id);
-    exit(1);  
-  }
-  file_write(file,data);
   fclose(file);
 }
 

@@ -85,18 +85,15 @@ mt_list* mf_list_copy(mt_list* a){
 }
 
 int mf_put_repr(mt_object* x);
-int mf_list_print(mt_list* a){
-  long size = a->size;
+int mf_buffer_print(long size, mt_object* a){
   long i;
-  printf("[");
   for(i=0; i<size; i++){
     if(i>0) printf(", ");
-    if(mf_put_repr(a->a+i)){
+    if(mf_put_repr(a+i)){
       printf("\n");
       return 1;
     }
   }
-  printf("]");
   return 0;
 }
 
@@ -117,7 +114,7 @@ void mf_list_push(mt_list* list, mt_object* x){
     mf_copy(a+n,x);
     list->size++;
     list->capacity=capacity;
-    free(list->a);
+    mf_free(list->a);
     list->a=a;
   }else{
     mf_copy(list->a+n,x);
@@ -161,7 +158,7 @@ mt_list* frange_to_list(mt_range* r){
   }else if(r->a.type==mv_null){
     a=0;
   }else{
-    mf_type_error("Type error in list(a..b:step): cannot convert a to float.");
+    mf_type_error1("in list(a..b:step): cannot convert a (type: %s) to float.",&r->a);
     return NULL;
   }
   if(r->b.type==mv_int){
@@ -179,7 +176,7 @@ mt_list* frange_to_list(mt_range* r){
   }else if(r->step.type==mv_float){
     step = r->step.value.f;
   }else{
-    mf_type_error("Type error in list(a..b:step): cannot convert step to float.");
+    mf_type_error1("in list(a..b:step): cannot convert step (type: %s) to float.",&r->step);
     return NULL;
   }
 
@@ -200,12 +197,12 @@ static
 mt_list* srange_to_list(mt_range* r){
   mt_string* a = (mt_string*)r->a.value.p;
   if(r->b.type!=mv_string){
-    mf_type_error("Type error in list(a..b): b is not a string.");
+    mf_type_error1("in list(a..b): b (type: %s) is not a string.",&r->b);
     return NULL;
   }
   mt_string* b = (mt_string*)r->b.value.p;
   if(a->size!=1 || b->size!=1){
-    mf_type_error("Type error in list(a..b): a and b must be of size one.");
+    mf_value_error("Value error in list(a..b): a and b must be strings of size one.");
     return NULL;
   }
   unsigned long i=a->a[0];
@@ -238,7 +235,7 @@ mt_list* range_to_list(mt_range* r){
   case mv_string:
     return srange_to_list(r);
   default:
-    mf_type_error("Type error in list(a..b): a is not an integer.");
+    mf_type_error1("in list(a..b): a (type: %s) is not an integer.",&r->a);
     return NULL;
   }
   if(r->b.type==mv_int){
@@ -249,7 +246,7 @@ mt_list* range_to_list(mt_range* r){
   }else if(r->b.type==mv_float){
     return frange_to_list(r);
   }else{
-    mf_type_error("Type error in list(a..b): b is not an integer.");
+    mf_type_error1("in list(a..b): b (type: %s) is not an integer.",&r->b);
     return NULL;
   }
   if(r->step.type==mv_int){
@@ -257,7 +254,7 @@ mt_list* range_to_list(mt_range* r){
   }else if(r->step.type==mv_float){
     return frange_to_list(r);
   }else{
-    mf_type_error("Type error in list(a..b:step): step is not an integer.");
+    mf_type_error1("in list(a..b:step): step (type: %s) is not an integer and not a float.",&r->step);
     return NULL;
   }
   
@@ -331,7 +328,7 @@ mt_list* mf_list(mt_object* a){
     return mf_map_to_list(m);
   }
   default:
-    mf_type_error("Type error in list(x): cannot convert x into a list.");
+    mf_type_error1("in list(x): cannot convert x (type: %s) into a list.",a);
     return NULL;
   }
 }
@@ -362,12 +359,12 @@ int mf_flist(mt_object* x, int argc, mt_object* v){
 static
 int list_push(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.push(x): a is not a list.");
+    mf_type_error1("in a.push(x): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* a = (mt_list*)v[0].value.p;
   if(a->frozen){
-    mf_value_error("Error in a.push(x): a is frozen.");
+    mf_value_error("Value error in a.push(x): a is frozen.");
     return 1;
   }
   int i;
@@ -382,32 +379,33 @@ int list_push(mt_object* x, int argc, mt_object* v){
 static
 int list_pop(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.pop(): a is not a list.");
+    mf_type_error1("in a.pop(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
   if(list->frozen){
-    mf_std_exception("Error in a.pop(): a is frozen.");
+    mf_std_exception("Value error in a.pop(): a is frozen.");
     return 1;
   }
   if(list->size==0){
-    mf_index_error("Error in a.pop(): list a is empty.");
+    mf_index_error("Index error in a.pop(): a is empty.");
     return 1;
   }
   if(argc==1){
     if(v[1].type!=mv_int){
-      mf_type_error("Error in a.pop(i): i is not an integer.");
+      mf_type_error1("in a.pop(i): i (type %s) is not an integer.",v+1);
       return 1;
     }
     long i = v[1].value.i;
     if(i<0){
       i+=list->size;
       if(i<0){
-        mf_index_error("Error in a.pop(i): i is out of lower bound.");
+        mf_index_error1("in a.pop(i): i (value: %li) is out of lower bound.",v[1].value.i);
         return 1;
       }
     }else if(i>=list->size){
-      mf_index_error("Error in a.pop(i): i is out of upper bound.");
+      mf_index_error1("in a.pop(i): i (value: %li) is out of upper bound.",i);
+      return 1;
     }
     mf_copy(x,list->a+i);
     long j;
@@ -429,7 +427,7 @@ int list_pop(mt_object* x, int argc, mt_object* v){
 static
 int list_clear(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.clear(): a is not a list.");
+    mf_type_error1("in a.clear(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -445,7 +443,7 @@ int list_clear(mt_object* x, int argc, mt_object* v){
     list->size=0;
   }else if(argc==1){
     if(v[1].type!=mv_int){
-      mf_type_error("Type error in a.clear(n): i is not an integer.");
+      mf_type_error1("in a.clear(n): i (type: %s) is not an integer.",v+1);
       return 1;
     }
     long n=v[1].value.i;
@@ -492,7 +490,7 @@ int list_reverse(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.rev(): a is not of type list.");
+    mf_type_error1("Type error in a.rev(): a (type: %s) is not of type list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -514,11 +512,11 @@ int list_rot(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.rot(n): a is not of type list.");
+    mf_type_error1("in a.rot(n): a (type: %s) is not of type list.",v);
     return 1;    
   }
   if(v[1].type!=mv_int){
-    mf_type_error("Type error in a.rot(n): n is not of type int.");
+    mf_type_error1("in a.rot(n): n (type: %s) is not of type int.",v+1);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -544,11 +542,11 @@ int list_map(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.map(f): a is not a list.");
+    mf_type_error1("in a.map(f): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in a.map(f): f is not a function.");
+    mf_type_error1("in a.map(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_list* a = (mt_list*)v[0].value.p;
@@ -563,7 +561,9 @@ int list_map(mt_object* x, int argc, mt_object* v){
     e = mf_call(f,b->a+i,1,argv);
     if(e){
       mf_traceback("map");
-      mf_list_dec_refcount(b);
+      mf_dec_refcounts(i,b->a);
+      mf_free(b->a);
+      mf_free(b);
       return 1;
     }
   }
@@ -579,11 +579,11 @@ int list_filter(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.filter(f): a is not a list.");
+    mf_type_error1("in a.filter(f): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in a.filter(f): f is not a function.");
+    mf_type_error1("in a.filter(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_function* f = (mt_function*)v[1].value.p;
@@ -603,7 +603,7 @@ int list_filter(mt_object* x, int argc, mt_object* v){
       return 1;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a.filter(f): return value of f is not of type bool.");
+      mf_type_error1("in a.filter(f): return value (type: %s) of f is not a boolean.",&y);
       mf_list_dec_refcount(list2);
       mf_dec_refcount(&y);
       return 1;
@@ -876,8 +876,8 @@ int mf_list_count(mt_object* x, mt_list* list, mt_function* p){
       return 1;
     }
     if(y.type!=mv_bool){
+      mf_type_error1("in count(a,p): return value (type: %s) of p is not a boolean.",&y);
       mf_dec_refcount(&y);
-      mf_type_error("Type error in count(a,p): return value of p is not a boolean.");
       return 1;
     }
     if(y.value.b){
@@ -887,27 +887,6 @@ int mf_list_count(mt_object* x, mt_list* list, mt_function* p){
   x->type=mv_int;
   x->value.i=counter;
   return 0;
-}
-
-static
-int list_count(mt_object* x, int argc, mt_object* v){
-  if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.count(): a is not a list.");
-    return 1;
-  }
-  mt_list* list = (mt_list*)v[0].value.p;
-  if(argc==0){
-    x->type=mv_int;
-    x->value.i=list->size;
-    return 0;
-  }else if(argc!=1){
-    mf_argc_error(argc,0,1,"count");
-    return 1;
-  }
-  if(v[1].type!=mv_function){
-    return mf_count_element(x,list,v+1);
-  }
-
 }
 
 static
@@ -990,7 +969,7 @@ int list_shuffle(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.shuffle(): a is not a list.");
+    mf_type_error1("in a.shuffle(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1080,9 +1059,9 @@ int mf_fzip(mt_object* x, int argc, mt_object* v){
   for(i=1; i<=argc; i++){
     if(v[i].type!=mv_list){
       char s[400];
-      snprintf(s,400,"Type error in zip(*a): argument %li is not a list.",i);
-      mf_type_error(s);
-      return 0;
+      snprintf(s,400,"in zip(*a): a[%li] (type: %%s) is not a list.",i-1);
+      mf_type_error1(s,v+i);
+      return 1;
     }
   }
   mt_list* a;
@@ -1122,7 +1101,7 @@ int mf_funzip(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_list){
-    mf_type_error("Type error in unzip(a): a is not a list.");
+    mf_type_error1("in unzip(a): a (type: %s) is not a list.",v+1);
     return 1;
   }
   mt_list* a = (mt_list*)v[1].value.p;
@@ -1130,7 +1109,7 @@ int mf_funzip(mt_object* x, int argc, mt_object* v){
   int i,j;
   for(i=0; i<a->size; i++){
     if(a->a[i].type!=mv_list){
-      mf_type_error("Type error in unzip(a): a[k] is not a list.");
+      mf_type_error1("in unzip(a): a[k] (type: %s) is not a list.",a->a+i);
       return 1;
     }
   }
@@ -1167,15 +1146,15 @@ int list_swap(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.swap(i,j): a is not a list.");
+    mf_type_error1("in a.swap(i,j): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_int){
-    mf_type_error("Type error in a.swap(i,j): i is not an integer.");
+    mf_type_error1("in a.swap(i,j): i (type: %s) is not an integer.",v+1);
     return 1;
   }
   if(v[2].type!=mv_int){
-    mf_type_error("Type error in a.swap(i,j) j is not an integer.");
+    mf_type_error1("in a.swap(i,j) j (type: %s) is not an integer.",v+2);
     return 1;
   }
   long i,j;
@@ -1209,11 +1188,11 @@ int list_extend(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.extend(b): a is not a list.");
+    mf_type_error1("in a.extend(b): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_list){
-    mf_type_error("Type error in a.extend(b): b is not a list.");
+    mf_type_error1("in a.extend(b): b (type: %s) is not a list.",v+1);
     return 1;
   }
   mt_list* p = (mt_list*)v[0].value.p;
@@ -1273,7 +1252,7 @@ mt_pair* decorate(mt_list* list, mt_function* f){
       for(j=0; j<i; j++){
         mf_dec_refcount(&a[i].key);
       }
-      free(a);
+      mf_free(a);
       return NULL;
     }
     mf_copy(&a[i].key,&y);
@@ -1312,7 +1291,7 @@ int list_sort(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.sort(f): a is not a list.");
+    mf_type_error1("in a.sort(f): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1329,7 +1308,7 @@ int list_sort(mt_object* x, int argc, mt_object* v){
     }
   }else{
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in a.sort(f): f is not a function.");
+      mf_type_error1("in a.sort(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
     mt_function* f = (mt_function*)v[1].value.p;
@@ -1395,14 +1374,14 @@ int mf_join(mt_vec* buffer, mt_list* list, mt_string* sep){
 static
 int list_join(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.join(): a is not a list.");
+    mf_type_error1("in a.join(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
   mt_string* sep;
   if(argc==1){
     if(v[1].type!=mv_string){
-      mf_type_error("Type error in a.join(sep): sep is not a string.");
+      mf_type_error1("in a.join(sep): sep (type: %s) is not a string.",v+1);
       return 1;
     }
     sep=(mt_string*)v[1].value.p;
@@ -1454,7 +1433,7 @@ int list_chain(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.chain(): a is not a list.");
+    mf_type_error1("in a.chain(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* elist;
@@ -1468,7 +1447,17 @@ int list_chain(mt_object* x, int argc, mt_object* v){
       for(j=0; j<elist->size; j++){
         mf_copy_inc(&t,elist->a+j);
         mf_list_push(list2,&t);
-        
+      }
+    }else if(list->a[i].type==mv_range){
+      elist = mf_list(&list->a[i]);
+      if(elist==NULL){
+        mf_list_dec_refcount(list2);
+        mf_traceback("chain");
+        return 1;
+      }
+      for(j=0; j<elist->size; j++){
+        mf_copy_inc(&t,elist->a+j);
+        mf_list_push(list2,&t);
       }
     }else{
       mf_copy_inc(&t,list->a+i);
@@ -1501,8 +1490,8 @@ mt_list* list_partition(mt_list* list, mt_function* f){
         return NULL;
       }
       if(y.type!=mv_bool){
-        mf_type_error("Type error in a.chunks(f): return value of is not a boolean.");
-        free(a);
+        mf_type_error1("in a.chunks(f): return value (type: %s) of f is not a boolean.",&y);
+        mf_free(a);
         return NULL;
       }
       if(y.value.b==1){
@@ -1542,7 +1531,7 @@ int list_chunks(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.chunks(n): a is not a list.");
+    mf_type_error1("in a.chunks(n): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1614,7 +1603,7 @@ int list_chunks(mt_object* x, int argc, mt_object* v){
     x->value.p=(mt_basic*)list2;
     return 0;
   }else{
-    mf_type_error("Type error in a.chunks(n): n is not an integer.");
+    mf_type_error1("in a.chunks(n): n (type: %s) is not an integer.",v+1);
     return 1;  
   }
 }
@@ -1626,11 +1615,11 @@ int list_match(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.match(f): a is not a list.");
+    mf_type_error1("in a.match(f): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in a.match(f): f is not a functino.");
+    mf_type_error1("in a.match(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1661,11 +1650,11 @@ int list_index(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.index(f): a is not a list.");
+    mf_type_error1("in a.index(f): a (type: %s) is not a list.",v);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error("Type error in a.index(f): f is not a functino.");
+    mf_type_error1("in a.index(f): f (type: %s) is not a function.",v+1);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1700,8 +1689,8 @@ mt_list* mf_list_slice_index_list(mt_list* list, mt_list* ilist){
   mt_object t;
   for(i=0; i<ilist_size; i++){
     if(a[i].type!=mv_int){
-      snprintf(s,200,"Type error in index list a: a[%li] is not an integer.",i);
-      mf_type_error(s);
+      snprintf(s,200,"in index list a: a[%li] (type: %%s) is not an integer.",i);
+      mf_type_error1(s,a+i);
       mf_list_dec_refcount(list2);
       return NULL;
     }
@@ -1722,7 +1711,7 @@ int list_flip(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.flip(): a is not a list.");
+    mf_type_error1("in a.flip(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1731,8 +1720,8 @@ int list_flip(mt_object* x, int argc, mt_object* v){
   long max=0;
   for(i=0; i<list->size; i++){
     if(list->a[i].type!=mv_list){
-      snprintf(s,200,"Type error in a.flip(): a[%li] is not a list.",i);
-      mf_type_error(s);
+      snprintf(s,200,"in a.flip(): a[%li] (type: %%s) is not a list.",i);
+      mf_type_error1(s,list->a+i);
       return 1;
     }
     size = ((mt_list*)list->a[i].value.p)->size;
@@ -1767,7 +1756,7 @@ int list_flip(mt_object* x, int argc, mt_object* v){
 static
 int list_insert(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.insert(i,x): a is not a list.");
+    mf_type_error1("in a.insert(i,x): a (type: %s) is not a list.",v);
     return 1;
   }
   if(argc!=2){
@@ -1775,7 +1764,7 @@ int list_insert(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[1].type!=mv_int){
-    mf_type_error("Type error in a.insert(i,x): i is not an integer.");
+    mf_type_error1("in a.insert(i,x): i (type: %s) is not an integer.",v+1);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
@@ -1784,12 +1773,12 @@ int list_insert(mt_object* x, int argc, mt_object* v){
   if(index<0){
     index+=size;
     if(index<0){
-      mf_index_error("Index error in a.insert(i,x): i is out of lower bound.");
-      return 0;
+      mf_index_error1("in a.insert(i,x): i (value: %li) is out of lower bound.",v[1].value.i);
+      return 1;
     }
   }else if(index>size){
-    mf_index_error("Index error in a.insert(i,x): i is out of upper bound.");
-    return 0;
+    mf_index_error1("in a.insert(i,x): i (value: %li) is out of upper bound.",index);
+    return 1;
   }
   if(index==size){
     mf_inc_refcount(v+2);
@@ -1857,7 +1846,7 @@ int list_max_fn(mt_object* x, mt_list* list, mt_function* f){
       return 0;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a.max(p): return value of '>' is not a boolean.");
+      mf_type_error1("in a.max(p): return value (type: %s) of '>' is not a boolean.",&y);
       mf_list_dec_refcount(b);
       mf_dec_refcount(&y);
       return 1;
@@ -1901,7 +1890,7 @@ int list_min_fn(mt_object* x, mt_list* list, mt_function* f){
       return 0;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a.min(p): return value of '<' is not a boolean.");
+      mf_type_error1("in a.min(p): return value (type: %s) of '<' is not a boolean.",&y);
       mf_list_dec_refcount(b);
       mf_dec_refcount(&y);
       return 1;
@@ -1919,13 +1908,13 @@ int list_min_fn(mt_object* x, mt_list* list, mt_function* f){
 static
 int list_max(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.max(): a is not a list.");
+    mf_type_error1("in a.max(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
   if(argc==1){
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in a.max(f): f is not a function.");
+      mf_type_error1("in a.max(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
     mt_function* f = (mt_function*)v[1].value.p;
@@ -1949,7 +1938,8 @@ int list_max(mt_object* x, int argc, mt_object* v){
       return 1;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a.max(): return value of '>' is not a boolean.");
+      mf_type_error1("in a.max(): return value (type: %s) of '>' is not a boolean.",&y);
+      mf_dec_refcount(&y);
       return 1;
     }
     if(y.value.b==1){
@@ -1963,13 +1953,13 @@ int list_max(mt_object* x, int argc, mt_object* v){
 static
 int list_min(mt_object* x, int argc, mt_object* v){
   if(v[0].type!=mv_list){
-    mf_type_error("Type error in a.min(): a is not a list.");
+    mf_type_error1("in a.min(): a (type: %s) is not a list.",v);
     return 1;
   }
   mt_list* list = (mt_list*)v[0].value.p;
   if(argc==1){
     if(v[1].type!=mv_function){
-      mf_type_error("Type error in a.min(f): f is not a function.");
+      mf_type_error1("in a.min(f): f (type: %s) is not a function.",v+1);
       return 1;
     }
     mt_function* f = (mt_function*)v[1].value.p;
@@ -1993,7 +1983,8 @@ int list_min(mt_object* x, int argc, mt_object* v){
       return 1;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a.min(): return value of '<' is not a boolean.");
+      mf_type_error1("in a.min(): return value (type: %s) of '<' is not a boolean.",&y);
+      mf_dec_refcount(&y);
       return 1;
     }
     if(y.value.b==1){
@@ -2003,60 +1994,6 @@ int list_min(mt_object* x, int argc, mt_object* v){
   mf_copy_inc(x,&m);
   return 0;
 }
-
-/****
-static
-Object* list_dict(int argc, Object** v){
-  if(argc!=1){
-    mf_argc_error(argc,1,"dict");
-    return 0;
-  }
-  if(v[0]->type!=mv_list){
-    mf_type_error("Type error in a.dict(f): a is not a list.");
-    return 0;
-  }
-  if(v[1]->type!=mv_function){
-    mf_type_error("Type error in a.dict(f): f is not a function.");
-    return 0;
-  }
-  List* list = (List*)v[0];
-  Function* f = (Function*)v[1];
-  Map* m = mf_empty_map();
-  List* t;
-  Object* y;
-  Object* args[2];
-  args[0]=null;
-  int i;
-  int error;
-  uint32_t hash;
-  for(i=0; i<list->size; i++){
-    args[1]=list->a[i];
-    y = feval(f,1,args);
-    if(y==0){
-      mf_traceback("dict");
-      mf_dec_refcount((Object*)m);
-      return 0;
-    }
-    if(y->type!=mv_list || ((List*)y)->size!=2){
-      mf_type_error("Type error in a.dict(f): f should return a list of size 2.");
-      mf_dec_refcount((Object*)m);
-      return 0;
-    }
-    t = (List*)y;
-    hash = mf_hash(t->a[0],&error);
-    if(error){
-      mf_std_error("Error in dict: key is not hashable.");
-      mf_dec_refcount((Object*)m);
-      return 0;
-    }
-    if(!mf_map_has(m, t->a[0])){
-      mf_map_set(m,t->a[0],t->a[1],hash);
-    }
-  }
-  return (Object*)m;
-}
-****/
-
 
 static
 long ipow(long a, long n){
@@ -2095,6 +2032,24 @@ mt_list* mf_list_pow(mt_list* a, long n){
   return list;
 }
 
+mt_list* mf_list_cart(mt_list* a, mt_list* b){
+  mt_list* pair;
+  mt_list* list = mf_raw_list(0);
+  long i,j;
+  mt_object t;
+  t.type=mv_list;
+  for(i=0; i<a->size; i++){
+    for(j=0; j<b->size; j++){
+      pair = mf_raw_list(2);
+      mf_copy_inc(pair->a,a->a+i);
+      mf_copy_inc(pair->a+1,b->a+j);
+      t.value.p=(mt_basic*)pair;
+      mf_list_push(list,&t);
+    }
+  }
+  return list;
+}
+
 int mf_list_eq(mt_list* La, mt_list* Lb){
   if(La->size!=Lb->size) return 0;
   long size=La->size;
@@ -2108,7 +2063,8 @@ int mf_list_eq(mt_list* La, mt_list* Lb){
       return -1;
     }
     if(y.type!=mv_bool){
-      mf_type_error("Type error in a==b: value of a[i]==b[i] is not a boolean.");
+      mf_type_error1("in a==b: value of a[i]==b[i] (type: %s) is not a boolean.",&y);
+      mf_dec_refcount(&y);
       return -1;
     }
     if(y.value.b==0){
@@ -2136,7 +2092,7 @@ void mf_init_type_list(mt_table* type){
   mf_insert_function(m,0,1,"join",list_join);
   mf_insert_function(m,0,0,"chain",list_chain);
   mf_insert_function(m,1,1,"chunks",list_chunks);
-  mf_insert_function(m,1,1,"div",list_chunks);
+  mf_insert_function(m,1,1,"DIV",list_chunks);
   mf_insert_function(m,1,1,"match",list_match);
   mf_insert_function(m,1,1,"index",list_index);
   mf_insert_function(m,0,0,"flip",list_flip);

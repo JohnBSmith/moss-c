@@ -1,5 +1,5 @@
 
-gcc -c vec.c -o ../../bin/vec.o\
+gcc -c -g vec.c -o ../../bin/vec.o\
   -I../../include
 
 

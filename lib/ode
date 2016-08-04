@@ -1,0 +1,87 @@
+
+use na: interpolate
+
+sub runge_kutta_first_order(t)
+  g=t["g"]
+  h="h" in t? t["h"]: 0.001
+  w="w" in t? t["w"]: 10
+  x0="t0" in t? t["t0"]: 0
+  y0="y0" in t? t["y0"]: 0
+  N=int(w/abs(h))+1
+  x=x0; y=y0
+  a = [[x,y]]
+  if "unilateral" not in t
+    for k in 1..N
+      k1 = g(x,y)
+      k2 = g(x-0.5*h,y-0.5*h*k1)
+      k3 = g(x-0.5*h,y-0.5*h*k2)
+      k4 = g(x-h,y-h*k3)
+      y = y-h/6*(k1+2*(k2+k3)+k4)
+      x = x0-k*h
+      a.push([x,y])
+    end
+    a.rev()
+    x=x0; y=y0
+  end
+  for k in 1..N
+    k1 = g(x,y)
+    k2 = g(x+0.5*h,y+0.5*h*k1)
+    k3 = g(x+0.5*h,y+0.5*h*k2)
+    k4 = g(x+h,y+h*k3)
+    y = y+h/6*(k1+2*(k2+k3)+k4)
+    x = x0+k*h
+    a.push([x,y])
+  end
+  if h<0
+    a.rev()
+  end
+  return interpolate(a)
+end
+
+sub runge_kutta_system(t)
+  g=t["g"]
+  h="h" in t? t["h"]: 0.001
+  w="w" in t? t["w"]: 10
+  x0="t0" in t? t["t0"]: 0
+  y0="y0" in t? t["y0"]: [0]
+  N=int(w/abs(h))+1
+  x=x0; y=copy(y0)
+  a = [[x,y]]
+  if "unilateral" not in t
+    for k in 1..N
+      k1 = g(x,y)
+      k2 = g(x-0.5*h,map(y,k1,|y,k1| y-0.5*h*k1))
+      k3 = g(x-0.5*h,map(y,k2,|y,k2| y-0.5*h*k2))
+      k4 = g(x-h,map(y,k3,|y,k3| y-h*k3))
+      y = map(y,k1,k2,k3,k4,|y,k1,k2,k3,k4| y-h/6*(k1+2*(k2+k3)+k4))
+      x = x0-k*h
+      a.push([x,y])
+    end
+    a.rev()
+    x=x0; y=copy(y0)
+  end
+  for k in 1..N
+    k1 = g(x,y)
+    k2 = g(x+0.5*h,map(y,k1,|y,k1| y+0.5*h*k1))
+    k3 = g(x+0.5*h,map(y,k2,|y,k2| y+0.5*h*k2))
+    k4 = g(x+h,map(y,k3,|y,k3| y+h*k3))
+    y = map(y,k1,k2,k3,k4,|y,k1,k2,k3,k4| y+h/6*(k1+2*(k2+k3)+k4))
+    x = x0+k*h
+    a.push([x,y])
+  end
+  if h<0
+    a.rev()
+  end
+  return list(size(y0)).map(sub|k|
+    interpolate(a.map(|t| [t[0],t[1][k]]))
+  end)
+end
+
+sub runge_kutta(t)
+  m = size(t["y0"])
+  g=t["g"]; m1=m-1
+  t["g"] = |x,y| y[1..m1]+[g(x,y)]
+  return runge_kutta_system(t)
+end
+
+

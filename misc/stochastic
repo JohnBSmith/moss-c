@@ -1,6 +1,6 @@
 
-import gx, time
-import math: pi, sin, cos
+use gx, time
+use math: pi, sin, cos
 
 sub main
   c = gx.new(720,480,1)

@@ -22,5 +22,6 @@ int mf_long_sgn(mt_long* x);
 uint32_t mf_long_hash(mt_long* x);
 int mf_long_cmp(mt_long* a, mt_long* b);
 int mf_long_cmp_si(mt_long* a, long b);
+double mf_long_float(mt_long* x);
 
 #endif

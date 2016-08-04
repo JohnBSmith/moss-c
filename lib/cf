@@ -1,0 +1,37 @@
+
+sub fac(n)
+  return (1..n).prod()
+end
+
+sub rf(x,n)
+  n.prod(|k| x+k)
+end
+
+sub ff(x,n)
+  n.prod(|k| x-k)
+end
+
+sub bc(n,k)
+  if k<0 or k>n
+    return 0
+  elif k==0 or k==n
+    return 1
+  else
+    k=min(k,n-k)
+    y=1
+    for i in k
+      y = y*(n-i)//(i+1)
+    end
+    return y
+  end
+end
+
+sub mc(k)
+  return size(k).prod(|i| bc(i.sum(|j| k[j]),k[i]))
+end
+
+sub Delta(n,f,x,h)
+  return (sub|x| f(x+h)-f(x) end^n)(x)
+end
+
+

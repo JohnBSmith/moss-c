@@ -1,0 +1,30 @@
+
+use na: interpolate
+use la: array
+use plotlib: system
+
+sub euler(g,x0,y0,h,N)
+  x=x0; y=array(y0)
+  a = [[x,y]]
+  for k in 1..N
+    y = y+h*array(g(x,y))
+    x = x0+k*h
+    a.push([x,y])
+  end
+  return list(size(y0)).map(sub|k|
+    interpolate(a.map(|t| [t[0],t[1][k]]))
+  end)
+end
+
+g = |x,v|[
+  10*(v[1]-v[0]),
+  v[0]*(28-v[2])-v[1],
+  v[0]*v[1]-8/3*v[2]
+]
+v = euler(g,0,[1,20,0],0.01,10000)
+s = system({wx=50,wy=50,py=20})
+s.vplot(|t| [v[0](t),v[2](t)],{
+  n=100000, t1=0, t2=40
+})
+s.idle()
+

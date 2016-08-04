@@ -1,6 +1,6 @@
 
-import math: pi, cos, sin
-import gx, time
+use math: pi, cos, sin
+use gx, time
 tau = 2*pi
 
 new = sub|w,h|

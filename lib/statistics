@@ -1,0 +1,20 @@
+
+use math: sqrt
+
+sample_type = table
+  sub STR
+    ["mean: "+str(self.mean),
+     "sigma: "+str(self.sigma)].join("\n")
+  end
+end
+
+sub sample(a)
+  n = size(a)
+  m = a.sum()/n
+  sigma = sqrt(a.sum(|x| (x-m)^2)/(n-1))
+  return table[sample_type]
+    mean=m, sigma=sigma
+  end
+end
+
+

@@ -321,48 +321,48 @@ Operator overloading</h2>
   <th>right
 <tr>
   <td class="r"><code>a+b</code>
-  <td><code>add</code>
-  <td><code>radd</code>
+  <td><code>ADD</code>
+  <td><code>RADD</code>
 <tr>
   <td class="r"><code>a-b</code>
-  <td><code>sbt</code>
-  <td><code>rsbt</code>
+  <td><code>SUB</code>
+  <td><code>RSUB</code>
 <tr>
   <td class="r"><code>a*b</code>
-  <td><code>mpy</code>
-  <td><code>rmpy</code>
+  <td><code>MPY</code>
+  <td><code>RMPY</code>
 <tr>
   <td class="r"><code>a/b</code>
-  <td><code>div</code>
-  <td><code>rdiv</code>
+  <td><code>DIV</code>
+  <td><code>RDIV</code>
 <tr>
   <td class="r"><code>a//b</code>
-  <td><code>idiv</code>
-  <td><code>ridiv</code>
+  <td><code>IDIV</code>
+  <td><code>RIDIV</code>
 <tr>
   <td class="r"><code>a^b</code>
-  <td><code>pow</code>
-  <td><code>rpow</code>
+  <td><code>POW</code>
+  <td><code>RPOW</code>
 <tr>
   <td class="r"><code>a==b</code>
-  <td><code>eq</code>
-  <td><code>req</code>
+  <td><code>EQ</code>
+  <td><code>REQ</code>
 <tr>
   <td class="r"><code>a&lt;b</code>
-  <td><code>lt</code>
-  <td><code>rlt</code>
+  <td><code>LT</code>
+  <td><code>RLT</code>
 <tr>
   <td class="r"><code>a&gt;b</code>
-  <td><code>gt</code>
-  <td><code>rgt</code>
+  <td><code>GT</code>
+  <td><code>RGT</code>
 <tr>
   <td class="r"><code>a&lt;=b</code>
-  <td><code>le</code>
-  <td><code>rle</code>
+  <td><code>LE</code>
+  <td><code>RLE</code>
 <tr>
   <td class="r"><code>a&gt;=b</code>
-  <td><code>ge</code>
-  <td><code>rge</code>
+  <td><code>GE</code>
+  <td><code>RGE</code>
 </table>
 
 <p>Table of unary overloadable operators.
@@ -373,10 +373,10 @@ Operator overloading</h2>
   <th>Method
 <tr>
   <td class="r"><code>-a</code>
-  <td><code>neg</code>
+  <td><code>NEG</code>
 <tr>
   <td class="r"><code>~a</code>
-  <td><code>comp</code>
+  <td><code>COMP</code>
 </table>
 
 <p>Here is an implementation of complex number arithmetic.
@@ -390,31 +390,32 @@ complex = sub|x,y|
 end
 
 complex.type = table
-  str = begin
+  sub STR
     return "("+str(self.re)+", "+str(self.im)+")"
   end,
-  add = sub|b|
-    if type(b) is int.type
-      return complex(self.re+b,self.im)
-    else
+  sub ADD(b)
+    if type(b) is complex.type
       return complex(self.re+b.re,self.im+b.im)
+    else
+      return complex(self.re+b,self.im)
     end
   end,
-  radd = sub|b|
+  sub RADD(b)
     return complex(self+b.re,b.im)
   end,
-  mpy = sub|b|
-    if type(b) is int.type
-      return complex(self.re*b,self.im*b)
-    else
+  sub MPY(b)
+    if type(b) is complex.type
       return complex(self.re*b.re-self.im*b.im,
         self.re*b.im+self.im*b.re)
+    else
+      return complex(self.re*b,self.im*b)
     end
   end,
-  rmpy = sub|b|
+  sub RMPY(b)
     return complex(self*b.re,self*b.im)
   end,
-  pow = sub|n| a=self
+  sub POW(n)
+    a=self
     return (1..n).prod(|k| a)
   end
 end of table
