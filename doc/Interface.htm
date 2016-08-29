@@ -100,17 +100,17 @@ typedef struct{
 } mt_str;
 // String type
 
-void mf_encode_utf8(mt_bstr* s, long size, uint32_t* a);
+void mf_encode_utf8(mt_bstr* s, long size, const uint32_t* a);
 // This functions never sets s-&gt;a to NULL, it has always to be freed.
 // The result of encode is always null terminated.
 
-void mf_decode_utf8(mt_str* s, long size, unsigned char* a);
+void mf_decode_utf8(mt_str* s, long size, const unsigned char* a);
 // This function never sets s-&gt;a to NULL, it has always to be
 // freed. If the UTF-8 string conains invalid character, the result
 // will contain fill characters. Information about the error is
 // stored in global variables.
 
-mt_string* mf_str_decode_utf8(long size, unsigned char* a);
+mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 // This function never returns NULL.
 // If the UTF-8 string contains invalid characters, the result will
 // contain fill characters. Information about the error is stored in

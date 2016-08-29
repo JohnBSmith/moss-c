@@ -1,0 +1,85 @@
+
+use math: sqrt
+
+sample_type = table
+  sub STR
+    ["mean: "+str(self.mean),
+     "sigma: {E1}"%[self.sigma],
+     "max: "+str(self.max),
+     "min: "+str(self.min),
+     "range: "+str(self.range),
+     "median: "+str(self.median)].join("\n")
+  end
+end
+
+sub sample(a)
+  n = size(a)
+  m = a.sum()/n
+  sigma = sqrt(a.sum(|x| (x-m)^2)/(n-1))
+  b = copy(a).sort()
+  if n%2==0
+    median = 0.5*(b[n//2-1]+b[n//2])
+  else
+    median = b[n//2]
+  end
+  max=a.max()
+  min=a.min()
+  return table[sample_type]
+    mean=m, sigma=sigma,
+    max=max, min=min, range=max-min,
+    median=median
+  end
+end
+
+sub bag(a)
+  m={}
+  for x in a
+    if x in m then m[x]++ else m[x]=1 end
+  end
+end
+
+sub mode(a)
+  return list(bag(a)).max(|t| t[1])[0]
+end
+
+sub mean(a)
+  a.sum()/size(a)
+end
+
+sub square_sum(a,m)
+  a.sum(|x| (x-m)^2)
+end
+
+sub product_sum(a,b,mx,my)
+  map(a,b,sub|x,y| (x-mx)*(y-my) end).sum()
+end
+
+linear_regression_type = table
+  sub STR
+    ["rxy: "+str(self.r)].join("\n")
+  end
+end
+
+sub linear_regression(a)
+  x,y = unzip(a)
+  mx = mean(x)
+  my = mean(y)
+  sx = square_sum(x,mx)
+  sy = square_sum(y,my)
+  sxy = product_sum(x,y,mx,my)
+  rxy = sxy/sqrt(sx*sy)
+  ax=sxy/sx; bx=my-sxy/sx*mx
+  ay=sxy/sy; by=mx-sxy/sy*my
+  fx = |x| ax*x+bx
+  fy = |y| ay*y+by
+  gx = |y| (y-bx)/ax
+  gy = |x| (x-by)/ay
+  return table[linear_regression_type]
+    mx=mx, my=my, r=rxy, c=[mx,my],
+    sx=sx, sy=sy, sxy=sxy,
+    ax=ax, ay=ay, bx=bx, by=by,
+    fx=fx, fy=fy, gx=gx, gy=gy
+  end
+end
+
+

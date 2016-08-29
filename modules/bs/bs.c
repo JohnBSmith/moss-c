@@ -54,7 +54,7 @@ void mf_bs_push_raw(mt_bs* s, long size){
   }
 }
 
-void mf_bs_push(mt_bs* s, const char* a, long size){
+void mf_bs_push(mt_bs* s, long size, const char* a){
   long n = s->size+size;
   long capacity=s->capacity;
   if(n>capacity){
@@ -77,7 +77,7 @@ void mf_bs_push(mt_bs* s, const char* a, long size){
 
 void mf_bs_push_cstr(mt_bs* s, const char* a){
   long size = strlen(a);
-  mf_bs_push(s,a,size+1);
+  mf_bs_push(s,size+1,a);
   s->size--;
 }
 

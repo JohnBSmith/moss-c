@@ -3,7 +3,7 @@ use math: pi, cos, sin
 use gx, time
 tau = 2*pi
 
-new = sub|w,h|
+sub new(w,h)
   canvas = gx.new(w,h,1)
   canvas.clear(1,1,1)
   canvas.mix(0)

@@ -59,15 +59,10 @@ end
 sub ftos(w,p,x)
   a = abs(w)
   if abs(p)<10*a and (a<0.001 or a>10000000)
-    s=str.E(x,1)
+    return str(x,"-E",1)
   else
     n = 2+int(-lg(abs(w)))
-    s=str.f(x,n)
-  end
-  if x<0
-    return s
-  else
-    return "\s"+s
+    return str(x,"-f",n)
   end
 end of sub
 
@@ -132,6 +127,7 @@ tplot = table
     x2=px+wx
     m = size(color_table)
     c = self.canvas
+    point = c.point
     for f in a
       if "color" in t
         c.cset(t["color"])
@@ -141,7 +137,7 @@ tplot = table
       end
       x=x1
       while x<x2
-        c.point((x-px)/wx,(f(x)-py)/wy)
+        point(c;(x-px)/wx,(f(x)-py)/wy)
         x+=d
       end
     end
@@ -156,6 +152,7 @@ tplot = table
     wy=self.wy; py=self.py
     d=abs(t2-t1)/n
     c = self.canvas
+    point = c.point
     if "color" in t
       c.cset(t["color"])
     else
@@ -165,8 +162,8 @@ tplot = table
     end
     t=t1
     while t<t2
-      x,y=f(t)
-      c.point((x-px)/wx,(y-py)/wy)
+      v=f(t)
+      point(c;(v[0]-px)/wx,(v[1]-py)/wy)
       t+=d
     end
   end,

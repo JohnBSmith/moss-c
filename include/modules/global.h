@@ -47,14 +47,14 @@ int mf_fextend(mt_object* x, int argc, mt_object* v);
 int mf_fpow(mt_object* x, int argc, mt_object* v);
 int mf_fbool(mt_object* x, int argc, mt_object* v);
 int mf_fcomplex(mt_object* x, int argc, mt_object* v);
+int mf_fread(mt_object* x, int argc, mt_object* v);
+int mf_fassert(mt_object* x, int argc, mt_object* v);
+int mf_fhex(mt_object* x, int argc, mt_object* v);
 
 int mf_print(mt_object* x);
 int mf_put_repr(mt_object* x);
 int mf_fput(mt_object* x, int argc, mt_object* v);
 int mf_fprint(mt_object* x, int argc, mt_object* v);
-int mf_fixed(mt_object* x, int argc, mt_object* v);
-int mf_exponential(mt_object* x, int argc, mt_object* v);
-
 
 mt_table* mf_table(mt_object* prototype);
 int mf_table_literal(mt_object* x, mt_object* prototype, mt_object* m);

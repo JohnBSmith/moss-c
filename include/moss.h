@@ -20,6 +20,7 @@ mt_function* mf_insert_function(mt_map* m, int min, int max,
 mt_table* mf_table(mt_object* prototype);
 mt_string* mf_cstr_to_str(const char* a);
 int mf_print(mt_object* x);
+int mf_isa(mt_object* x, void* prototype);
 
 void mf_type_error(const char* s);
 void mf_type_error1(const char* s, mt_object* x);
@@ -28,7 +29,7 @@ void mf_arg_error(int given, const char* s);
 void mf_argc_error(int argc, int min, int max, const char* s);
 void mf_value_error(const char* s);
 void mf_index_error(const char* s);
-void mf_index_error1(const char* s, long index);
+void mf_index_error2(const char* s, long index, long size);
 void mf_std_exception(const char* s);
 void mf_traceback(const char* s);
 

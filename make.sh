@@ -14,13 +14,16 @@ cd modules
 (cd math && sh make.sh)
 (cd cmath && sh make.sh)
 (cd na && sh make.sh)
+(cd la && sh make.sh)
 (cd sf && sh make.sh)
 (cd nt && sh make.sh)
 (cd gx && sh make.sh)
 (cd module && sh make.sh)
+(cd format && sh make.sh)
 
 cd ../objects
 (cd string && sh make.sh)
+(cd bstring && sh make.sh)
 (cd map && sh make.sh)
 (cd list && sh make.sh)
 (cd complex && sh make.sh)

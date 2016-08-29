@@ -8,7 +8,7 @@ function isdigit(s){
   return /^\d+$/.test(s);
 }
 
-var keyword = {
+var ckeyword = {
   "auto": 0, "break": 0,
   "case": 0, "char": 0, "const": 0, "continue": 0,
   "default": 0, "do": 0, "double": 0, 
@@ -21,7 +21,7 @@ var keyword = {
   "void": 0, "volatile": 0, "while": 0
 };
 
-function syntax(s){
+function csyntax(s){
   var id,s2,st,c;
   s2="";
   var i=0;
@@ -33,7 +33,7 @@ function syntax(s){
         id+=s[i];
         i++;
       }
-      if(keyword.hasOwnProperty(id)){
+      if(ckeyword.hasOwnProperty(id)){
         s2+="<span class='keyword'>"+id+"</span>";
       }else{
         s2+=id;
@@ -119,7 +119,7 @@ function syntax(s){
 function main(){
   var a = document.getElementsByClassName("c");
   for(var i=0; i<a.length; i++){
-    a[i].innerHTML = syntax(a[i].innerHTML);
+    a[i].innerHTML = csyntax(a[i].innerHTML);
   }
 }
 

@@ -1,0 +1,29 @@
+
+use syntax: scan, ast, ast_print, ast_to_string, cas_error
+use basic: diff, substitute
+
+sub main
+  while true
+    s = input("> ")
+    if s=="" then
+      continue
+    end
+    # try
+      a = scan(s)
+      print(a)
+      t = ast(a)
+      # t = diff(t,"x")
+      t = substitute(t,"x",ast(scan("a+1")))
+      ast_print(t,0)
+      s2 = ast_to_string(t)
+      print(s2)
+    /*catch e: cas_error
+      print(e)
+    end*/
+  end
+end
+
+main()
+
+
+

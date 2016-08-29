@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <moss.h>
+#include <modules/str.h>
 
 mt_string* mf_cstr_to_str(const char* a);
 double mf_float(mt_object* x, int* error);
@@ -34,8 +35,8 @@ mt_table* canvas_type;
 static
 void gx_delete(void* p){
   mt_canvas* canvas=p;
-	SDL_DestroyWindow(canvas->screen);
-	SDL_Quit();
+  SDL_DestroyWindow(canvas->screen);
+  SDL_Quit();
 }
 
 static
@@ -548,6 +549,7 @@ void point(mt_canvas* canvas, double x, double y){
   unsigned int px=rx;
   unsigned int py=ry;
   int i,j;
+  double d,a;
   for(i=-2; i<=2; i++){
     for(j=-2; j<=2; j++){
       psetdiff(canvas,rx,ry,px+i,py+j);
@@ -602,8 +604,8 @@ int mf_gx_point(mt_object* x, int argc, mt_object* v){
   }
   if(!isnan(rx) && !isnan(ry)){
     // int px,py;
-    // px=(canvas->w+canvas->w*x)/2.0;
-    // py=(canvas->h-canvas->w*y)/2.0;
+    // px=(canvas->w+canvas->w*rx)/2.0;
+    // py=(canvas->h-canvas->w*ry)/2.0;
     // gx_pset(canvas,px,py);
     point(canvas,rx,ry);
   }
@@ -777,7 +779,7 @@ int mf_gx_print(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr bs;
-  mf_encode_utf8(&bs,s->a,s->size);
+  mf_encode_utf8(&bs,s->size,s->a);
   gx_print_ttf(canvas,bs.a);
   // gx_print(canvas,s->size,s->a);
   x->type=mv_null;

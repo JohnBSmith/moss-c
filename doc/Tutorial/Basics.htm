@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Basics</title>
   <link rel="stylesheet" href="../css/main.css">
-  <script src = "../js/syntax.js" type="text/javascript">
+  <script src = "../js/syntax.js">
   </script>
 </head>
 <body>
@@ -694,12 +694,7 @@ moss -unsafe alpha
 </pre>
 
 <p>The file name extension of a Moss source code file is
-"<code>.mf</code>" (<code><u>m</u>oss <u>f</u>ile</code>),
-but the interpreter
-does not care about file name extensions. Thus it could be
-<code>".src"</code>, <code>".txt"</code> or completely omitted.
-Only a multi language IDE needs a file name extension to determine
-the programming language.
+"<code>.moss</code>".
 </p>
 
 <h2 id="comments">Comments</h2>
@@ -902,11 +897,11 @@ another.
 </p>
 
 <pre class="moss">
-x = int(input())
+x = int(input("A number: "))
 if x%2==0
-  print("The number is even.")
+  print("This number is even.")
 else
-  print("The number is odd.")
+  print("This number is odd.")
 end
 </pre>
 
@@ -930,7 +925,7 @@ f = |n| n==0? 1: n*f(n-1)
 <p>A more complicated example:
 </p>
 <pre class="moss">
-theta = int(input())
+theta = int(input("A temperature: "))
 print(if theta&lt;1 then "freezing"
   elif theta&lt;6 then "cold"
   elif theta&lt;17 then "fresh"

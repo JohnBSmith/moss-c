@@ -400,11 +400,15 @@ int list_pop(mt_object* x, int argc, mt_object* v){
     if(i<0){
       i+=list->size;
       if(i<0){
-        mf_index_error1("in a.pop(i): i (value: %li) is out of lower bound.",v[1].value.i);
+        mf_index_error2("in a.pop(i): i (value: %li) is out of lower bound (size: %li).",
+          v[1].value.i,list->size
+        );
         return 1;
       }
     }else if(i>=list->size){
-      mf_index_error1("in a.pop(i): i (value: %li) is out of upper bound.",i);
+      mf_index_error2("in a.pop(i): i (value: %li) is out of upper bound (size: %li).",
+        i,list->size
+      );
       return 1;
     }
     mf_copy(x,list->a+i);
@@ -542,14 +546,15 @@ int list_map(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_list){
-    mf_type_error1("in a.map(f): a (type: %s) is not a list.",v);
+    mf_type_error1("in a.map(f): a (type: %s) is not a list.",&v[0]);
     return 1;
   }
   if(v[1].type!=mv_function){
-    mf_type_error1("in a.map(f): f (type: %s) is not a function.",v+1);
+    mf_type_error1("in a.map(f): f (type: %s) is not a function.",&v[1]);
     return 1;
   }
   mt_list* a = (mt_list*)v[0].value.p;
+  a->refcount++;
   mt_function* f = (mt_function*)v[1].value.p;
   mt_list* b = mf_raw_list(a->size);
   long i;
@@ -557,9 +562,11 @@ int list_map(mt_object* x, int argc, mt_object* v){
   argv[0].type=mv_null;
   int e;
   for(i=0; i<a->size; i++){
-    mf_copy(argv+1,a->a+i);
+    mf_copy_inc(argv+1,a->a+i);
     e = mf_call(f,b->a+i,1,argv);
+    mf_dec_refcount(&argv[1]);
     if(e){
+      mf_dec_refcount(&argv[0]);
       mf_traceback("map");
       mf_dec_refcounts(i,b->a);
       mf_free(b->a);
@@ -567,6 +574,7 @@ int list_map(mt_object* x, int argc, mt_object* v){
       return 1;
     }
   }
+  mf_dec_refcount(&argv[0]);
   x->type=mv_list;
   x->value.p=(mt_basic*)b;
   return 0;
@@ -1773,11 +1781,15 @@ int list_insert(mt_object* x, int argc, mt_object* v){
   if(index<0){
     index+=size;
     if(index<0){
-      mf_index_error1("in a.insert(i,x): i (value: %li) is out of lower bound.",v[1].value.i);
+      mf_index_error2("in a.insert(i,x): i (value: %li) is out of lower bound (size: %li).",
+        v[1].value.i,size
+      );
       return 1;
     }
   }else if(index>size){
-    mf_index_error1("in a.insert(i,x): i (value: %li) is out of upper bound.",index);
+    mf_index_error2("in a.insert(i,x): i (value: %li) is out of upper bound (size: %li).",
+      index,size
+    );
     return 1;
   }
   if(index==size){

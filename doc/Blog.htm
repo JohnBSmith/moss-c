@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Blog</title>
+  <link rel="stylesheet" href="css/main.css">
+  <script src="js/blog.js">
+  </script>
+</head>
+<body>
+
+<h1>Development blog</h1>
+<h2>Table of contents</h2>
+<div id="toc"></div>
+
+<h3 data-date="20160808" id="new-formatted-printing-policy">
+New formatted printing policy</h3>
+<p>Separation between formatted printing to <code>stdout</code> and string
+buffers shall be resolved. Formatted printing to <code>stdout</code>
+shall be removed in favor of string buffers.
+</p>
+
+<h3 data-date=20160808 id="new-formatted-printing-function">
+New formatted printing function</h3>
+<p>Moss gets a function and syntax for formatted printing.
+I&nbsp;will compare it with equivalents from&nbsp;C.
+</p>
+<pre>
+   C: printf("(%li,%li)",x,y)
+Moss: print("({},{})"%[x,y])
+
+   C: snprintf(s,N,"(%li,%li)",x,y)
+Moss: s = "({},{})" % [x,y]
+</pre>
+<p>The template syntax will be similar to <code>format</code>
+from Python but may differ more or less.
+</p>
+<pre>
+# Here is an example of proper usage:
+a = list(0..10).map(|x| [x,x^2])
+buffer=[]
+for t in a
+  buffer.push("({},{})"%t)
+end
+s = buffer.join("\n")
+print(s)
+
+# More briefly:
+/*1*/ a = list(0..10).map(|x| [x,x^2])
+/*2*/ s = a.map(|t| "({},{})"%t).join("\n")
+/*3*/ print(s)
+</pre>
+<p>We see a practical pattern: a strict separation between actual
+information structure (1), formatting (2) and stdout (3).
+</p>
+<p>Note: to have advanced output, libraries should be provided
+that return tables as HTML5, LATEX2E and plots as PNG, SVG
+as automatically as possible. Whole documents or books (libraries?)
+could be generated automatically from data. But one must say
+to this, that HTML5 is more easy to use than LATEX2E.
+</p>
+
+</body>
+</html>
+

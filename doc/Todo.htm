@@ -19,7 +19,6 @@
   arguments are needed. The first one (<code>args[0]</code>) is the self-argument.
 <li>Keyword-Arguments
 <li>Basic regex implementation
-<li>Basic <code>format</code> (snprintf analog)
 <li>Strided array datatype, basic interfaces to BLAS and LAPACK.
   (This is the datatype that supports vectorized operations
   like in MATLAB)
@@ -112,6 +111,20 @@ and <code>const(n,x)</code>.
   will behave like <code>a.set(value,i,j,k)</code>.
 <td>This enables higher dimensional slices and
 assignments to slices too.
+
+<tr>
+<td><code>201608</code>
+<td>Basic format strings (<code>snprintf</code> analog)
+<td><code>"{}|{}"%[m,n] # snprintf(a,N,"%li|%li",m,n)</code>
+<br><code>"{4f2}"%[x] # snprintf(a,N,"%4.2f",x)</code>
+
+<tr>
+<td><code>201608</code>
+<td>Provide a syntax to state the self argument explicitly.
+<td>One has to separate self argument and argument list
+by a semicolon: <code>m=a.m; m(a;x)</code> instead of
+<code>m.a(x)</code>. This runs faster and is more clear than
+<code>m.call(a,x)</code>.
 </table>
 
 </body>

@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <title>Style</title>
   <link rel="stylesheet" href="../css/main.css">
-  <script src = "../js/syntax.js" type="text/javascript">
+  <script src = "../js/syntax.js">
   </script>
 </head>
 <body>
 
 <h1>Manual of style</h1>
 
+<h2>Line breaks</h2>
 <p>Under normal circumstances line breaks are disallowed in
 expressions, because a line break marks the end of a statement.
 </p>
@@ -52,6 +53,12 @@ s = ("a"
 s = ("a"
   +"b"
   +"c")
+
+# To allow line breaks inside of an import statement,
+# put a bracket right after 'use'.
+use(math:
+  pi, exp, ln,
+  sin, cos, tan)
 </pre>
 
 

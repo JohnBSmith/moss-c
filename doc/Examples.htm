@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Examples</title>
   <link rel="stylesheet" href="css/main.css">
-  <script src = "js/syntax.js" type="text/javascript">
+  <script src = "js/syntax.js">
   </script>
 </head>
 <body>
@@ -653,10 +653,12 @@ end
 <h2 id="basic">Basic algorithms</h2>
 
 <pre class="moss">
-to_int = |s,b| s.reduce(0,|x,c| b*x+ord(c)-ord('0'))
+# Any base
+integer = |s,b| s.reduce(0,|x,c| b*x+ord(c)-ord('0'))
+base = |n,b| x==0? "0": base(n//b,b)+chr(n%b+ord('0'))
 
-to_str = sub|n,b|
-  s=if n==0 then "0" else "" end
+base = sub|n,b|
+  s = n==0? "0": ""
   while n!=0
     s=chr(n%b+ord('0'))+s
     n=n//b
@@ -664,12 +666,15 @@ to_str = sub|n,b|
   return s
 end
 
-to_str = sub|n,s|
-  b=size(s)
-  return if n&lt;b then s[n]
-  else to_str(n//b,s)+s[n%b] end
+# Abstract version (mathematically pure)
+base = |n,b| n==0? []: base(n//b,b)+[n%b]
+
+# Custom digits
+base = sub|n,s| b=size(s)
+  n&lt;b? s[n]: base(n//b,s)+s[n%b]
 end
 
+# Reverse
 rev = sub|a|
   n=size(a)-1
   for i in 0..size(a)//2-1

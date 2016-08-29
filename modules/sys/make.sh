@@ -1,3 +1,3 @@
 
-gcc -c sys.c -Wimplicit-function-declaration\
+gcc -c sys.c -g -Wimplicit-function-declaration\
   -o ../../bin/sys.o -I../../include

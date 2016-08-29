@@ -6,6 +6,7 @@
 #include <modules/bs.h>
 #include <modules/tk.h>
 #include <modules/vec.h>
+#include <modules/str.h>
 #include <modules/system.h>
 #include <objects/list.h>
 #include <vm.h>
@@ -24,13 +25,8 @@ void mf_vtoken_delete(mt_vec* v);
 #define OPTION_c 2
 static int option;
 
-static
-char* mf_strdup(const char* s){
-  long size = strlen(s);
-  char* s2 = mf_malloc(size+1);
-  strcpy(s2,s);
-  return s2;
-}
+extern char* mv_path;
+mt_list* mv_path_list;
 
 static
 void module_delete(mt_module* m){
@@ -65,34 +61,136 @@ void mf_module_dec_refcount(mt_module* m){
   }
 }
 
+static
+int mf_get_path(char* buffer, size_t maxsize, size_t size, const char* id){
+  size_t i=size-1;
+  while(i>=0){
+    if(id[i]=='/') break;
+    i--;
+  }
+  if(i+1>maxsize){
+    buffer[0]=0;
+    return 1;
+  }
+  if(i>0){
+    memcpy(buffer,id,i);
+    buffer[i]=0;
+  }else{
+    buffer[0]=0;
+  }
+  return 0;
+}
+
+static
+void init_path_list(const char* self){
+  mv_path_list = mf_raw_list(2);
+  mt_object* a = mv_path_list->a;
+  a[0].type=mv_string;
+  a[0].value.p=(mt_basic*) mf_cstr_to_str(self);
+  a[1].type=mv_string;
+  a[1].value.p=(mt_basic*) mf_cstr_to_str(mv_path);
+}
+
+static
+void init_path_info(int argc, char** argv){
+  char path[400];
+  if(argc>1){
+    mf_get_path(path,400,strlen(argv[1]),argv[1]);
+    if(strlen(path)==0){
+      path[0]='.'; path[1]=0;
+    }
+  }else{
+    path[0]='.'; path[1]=0;
+  }
+  char* real = mf_realpath(path);
+  if(real==NULL){
+    init_path_list(path);
+  }else{
+    init_path_list(real);
+    free(real);
+  }
+}
+
 void mf_get_complete_id(mt_bs* bid, const char* id, int size){
   if(size>0 && id[0]=='/'){
-    mf_bs_push_cstr(bid,"/usr/local/lib/moss");
-    mf_bs_push(bid,id,size);
+    mf_bs_push_cstr(bid,mv_path);
+    mf_bs_push(bid,size,id);
   }else{
-    mf_bs_push(bid,id,size);
+    mf_bs_push(bid,size,id);
   }
-  mf_bs_push(bid,"\0",1);
+  mf_bs_push(bid,1,"\0");
+}
+
+static
+int has_dot(const char* id){
+  while(*id!=0){
+    if(*id=='.') return 1;
+    id++;
+  }
+  return 0;
+}
+
+FILE* mf_open(const char* id, const char* mode){
+  if(mf_isfile(id)){
+    return fopen(id,mode);
+  }else{
+    return NULL;
+  }
 }
 
 int mf_read_file(mt_bstr* data, const char* id){
   FILE* fp;
-  char id2[300];
-  if(id[0]=='/'){
-    snprintf(id2,300,"/usr/local/lib/moss%s",id);
-    fp = fopen(id2,"rb");
-    if(fp==NULL) return 1;
+  char id2[400];
+  size_t n = strlen(id);
+  if(n>0 && id[0]=='/'){
+    snprintf(id2,400,"%s%s.moss",mv_path,id);
+    fp = mf_open(id2,"rb");
+    if(fp) goto read;
+    snprintf(id2,400,"%s%s",mv_path,id);
+    fp = mf_open(id2,"rb");
+    if(fp) goto read;
+    return 1;
   }
-  fp = fopen(id,"rb");
-  if(fp==NULL){
-    char id2[300];
-    snprintf(id2,300,"/usr/local/lib/moss/%s",id);
-    fp = fopen(id2,"rb");
-    if(fp==NULL) return 1;
+
+  mt_bstr bs;
+  long size = mv_path_list->size;
+  mt_object* a = mv_path_list->a;
+  long i;
+  for(i=0; i<size; i++){
+    if(a[i].type==mv_string){
+      mt_string* s = (mt_string*)a[i].value.p;
+      mf_encode_utf8(&bs,s->size,s->a);
+    }
+    snprintf(id2,400,"%s/%s.moss",bs.a,id);
+    fp = mf_open(id2,"rb");
+    if(fp){mf_free(bs.a); goto read;}
+    snprintf(id2,400,"%s/%s",bs.a,id);
+    mf_free(bs.a);
+    fp = mf_open(id2,"rb");
+    if(fp) goto read;
   }
+  return 1;
+
+  read:
   mf_file_read(fp,data);
   fclose(fp);
   return 0;
+}
+
+void mf_main_load(const char* id, mt_bstr* data){
+  char id2[400];
+  FILE* fp;
+  snprintf(id2,400,"%s.moss",id);
+  fp = mf_open(id2,"rb");
+  if(fp==NULL){
+    fp = mf_open(id,"rb");
+    if(fp==NULL){
+      printf("File '%s' could not be opened.\n",id);
+      exit(1);
+    }
+  }
+  mf_file_read(fp,data);
+  fclose(fp);
 }
 
 mt_table* mf_eval_module(mt_module* module, long ip);
@@ -143,7 +241,7 @@ int mf_eval_string(mt_object* x, mt_string* s){
   mf_compiler_context_save(&context);
   compiler_context.mode_cmd=1;
   mt_bstr bs;
-  mf_encode_utf8(&bs,s->a,s->size);
+  mf_encode_utf8(&bs,s->size,s->a);
   int e;
   mt_vec v;
   mf_vec_init(&v,sizeof(mt_token));
@@ -164,6 +262,7 @@ int mf_eval_string(mt_object* x, mt_string* s){
   if(e) return 1;
   mf_copy(x,&y);
   return 0;
+
   error:
   mf_vtoken_delete(&v);
   mf_compiler_context_restore(&context);
@@ -175,7 +274,7 @@ mt_module* compile_file(char* id){
   mt_vec v;
   mf_vec_init(&v,sizeof(mt_token));
   mt_bstr input;
-  mf_file_load(id,&input);
+  mf_main_load(id,&input);
   int e = mf_scan(&v,input.a,input.size,0);
   if(e) goto error;
   mt_module* module;
@@ -201,7 +300,7 @@ int eval_file(char* id){
   mt_vec v;
   mf_vec_init(&v,sizeof(mt_token));
   mt_bstr input;
-  mf_file_load(id,&input);
+  mf_main_load(id,&input);
   int e = mf_scan(&v,input.a,input.size,0);
   if(e) goto error;
   mt_module* module;
@@ -299,6 +398,7 @@ int is_option(char* s, int size){
 int mf_module_save(mt_module* module, const char* id);
 
 int main(int argc, char** argv){
+  init_path_info(argc,argv);
   gv_argv=argv+1;
   gv_argc=argc-1;
   int i;

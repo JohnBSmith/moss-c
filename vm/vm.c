@@ -9,12 +9,17 @@
 #include <vm.h>
 #include <objects/list.h>
 #include <objects/string.h>
+#include <objects/bstring.h>
 #include <objects/map.h>
 #include <objects/long.h>
 #include <objects/set.h>
 #include <objects/function.h>
 #include <modules/global.h>
 
+// TODO: command line type only "use", segfault
+// TODO: no weak references for
+// mf_call: argv. This is a major bug. See list_map.
+// TODO: try overshadows line, col
 // TODO: unpacking assignment line, col
 // TODO: d.get(key,default_value)
 // TODO: cycle
@@ -23,8 +28,6 @@
 // TODO: str.type.isrange
 // TODO: iterkeys, itervalues
 // TODO: "end of" interactive
-// TODO: format
-// TODO: variadic index operator
 // TODO: f->data refcount?
 // TODO: type bstr, convert from and to list
 
@@ -86,6 +89,7 @@ int mf_fsgn(mt_object* x, int argc, mt_object* v);
 int mf_empty(void);
 void mf_table_dec_refcount(mt_table* t);
 void mf_module_dec_refcount(mt_module* m);
+void mf_new_traceback_list(void);
 
 mt_table* mv_type_bool;
 mt_table* mv_type_int;
@@ -100,6 +104,7 @@ mt_table* mv_type_dict;
 mt_table* mv_type_iterable;
 mt_table* mv_type_range;
 mt_table* mv_type_set;
+mt_table* mv_type_array;
 
 int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
   int e;
@@ -121,12 +126,16 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
   case mv_string:
     m = mv_type_string->m;
     goto iterable_get;
+  case mv_bstring:
+    return mf_map_get(x,mv_type_bstring->m,key);
   case mv_list:
     m = mv_type_list->m;
     goto iterable_get;
   case mv_map:
     m = mv_type_dict->m;
     goto iterable_get;
+  case mv_array:
+    return mf_map_get(x,mv_type_array->m,key);
   case mv_range:
     m = mv_type_range->m;
     goto iterable_get;
@@ -201,11 +210,11 @@ mt_object* mf_get_ref(mt_object* a, mt_object* key){
     if(index<0){
       index+=list->size;
       if(index<0){
-        mf_index_error1("in a[i]=value: i (value: %li) is out of lower bound.",key->value.i);
+        mf_index_error2("in a[i]=value: i (value: %li) is out of lower bound (size: %li).",key->value.i,list->size);
         return NULL;
       }
     }else if(index>=list->size){
-      mf_index_error1("in a[i]=value: i (value: %li) is out of upper bound.",key->value.i);
+      mf_index_error2("in a[i]=value: i (value: %li) is out of upper bound (size: %li).",key->value.i,list->size);
       return NULL;
     }
     if(list->frozen){
@@ -280,11 +289,15 @@ int store_index(mt_object* value, mt_object* a, int argc, mt_object* index){
         if(i<0){
           i+=list->size;
           if(i<0){
-            mf_index_error1("in a[i]=value: i (value: %li) is out of lower bound.",index->value.i);
+            mf_index_error2("in a[i]=value: i (value: %li) is out of lower bound (size: %li).",
+              index->value.i,list->size
+            );
             return 1;
           }
         }else if(i>=list->size){
-          mf_index_error1("in a[i]=value: i (value: %li) is out of upper bound.",i);
+          mf_index_error2("in a[i]=value: i (value: %li) is out of upper bound (size: %li).",
+            i,list->size
+          );
           return 1;
         }
         if(list->frozen){
@@ -383,8 +396,6 @@ void mf_vm_init_gvtab(void){
   f=mf_insert_function(m,1,1,"str",mf_fstr);
   f->m=mf_empty_map();
   mf_insert_table(f->m,"type",mv_type_string);
-  mf_insert_function(f->m,2,2,"f",mf_fixed);
-  mf_insert_function(f->m,2,2,"E",mf_exponential);
 
   f=mf_insert_function(m,1,1,"set",mf_fset);
   f->m=mf_empty_map();
@@ -401,6 +412,12 @@ void mf_vm_init_gvtab(void){
   mf_insert_table(range->m,"type",mv_type_range);
   mf_insert_table(m,"range",range);
   range->refcount--;
+
+  mt_table* bstr = mf_table(NULL);
+  bstr->m=mf_empty_map();
+  mf_insert_table(bstr->m,"type",mv_type_bstring);
+  mf_insert_table(m,"bstr",bstr);
+  bstr->refcount--;
 
   f=mf_insert_function(m,1,1,"dict",mf_fdict);
   f->m=mf_empty_map();
@@ -433,7 +450,10 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,2,-1,"extend",mf_fextend);
   mf_insert_function(m,2,3,"pow",mf_fpow);
   mf_insert_function(m,0,-1,"compose",mf_fcompose);
-  
+  mf_insert_function(m,1,2,"read",mf_fread);
+  mf_insert_function(m,2,2,"assert",mf_fassert);
+  mf_insert_function(m,1,1,"hex",mf_fhex);
+
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
 }
 
@@ -477,6 +497,9 @@ void mf_vm_init(void){
   mv_type_string = mf_table(&iterable);
   mf_init_type_string(mv_type_string);
 
+  mv_type_bstring = mf_table(NULL);
+  mf_init_type_bstring(mv_type_bstring);
+
   mv_type_list = mf_table(&iterable);
   mf_init_type_list(mv_type_list);
 
@@ -493,6 +516,9 @@ void mf_vm_init(void){
   mv_type_set = mf_table(&iterable);
   mv_type_set->name = mf_cstr_to_str("set");
   mv_type_set->m = mf_empty_map();
+  
+  mv_type_array = mf_table(NULL);
+  mv_type_array->m = mf_empty_map();
 }
 
 void mf_vm_delete(void){
@@ -525,7 +551,7 @@ void mf_argc_error_sub(int argc, mt_function* f){
   char a[100];
   mt_bstr s;
   if(f->name){
-    mf_encode_utf8(&s,f->name->a,f->name->size);
+    mf_encode_utf8(&s,f->name->size,f->name->a);
     mf_argc_error(argc,f->argc,f->argc,(char*)s.a);
     mf_free(s.a);
   }else{
@@ -552,7 +578,7 @@ void traceback_lambda(mt_function* f, unsigned char* instruction, mt_function* c
   if(mv_traceback_list){
     if(instruction){
       if(f->name){
-        mf_encode_utf8(&s,f->name->a,f->name->size);
+        mf_encode_utf8(&s,f->name->size,f->name->a);
         snprintf(a,200,"%s (%i:%i)%s",s.a,line,col,id);
         mf_free(s.a);
         mf_traceback(a);
@@ -562,7 +588,7 @@ void traceback_lambda(mt_function* f, unsigned char* instruction, mt_function* c
       }
     }else{
       if(f->name){
-        mf_encode_utf8(&s,f->name->a,f->name->size);
+        mf_encode_utf8(&s,f->name->size,f->name->a);
         snprintf(a,200,"%s",s.a);
         mf_free(s.a);
         mf_traceback(a);
@@ -621,7 +647,7 @@ void argc_error_str(int argc, int min, int max, mt_function* f){
   mt_bstr s;
   char a[100];
   if(f->name){
-    mf_encode_utf8(&s,f->name->a,f->name->size);
+    mf_encode_utf8(&s,f->name->size,f->name->a);
     mf_argc_error(argc,min,max,(char*)s.a);
     mf_free(s.a);
   }else{
@@ -736,7 +762,7 @@ void undefined_variable(mt_object* x){
   assert(x->type==mv_string);
   mt_string* id = (mt_string*)x->value.p;
   mt_bstr s;
-  mf_encode_utf8(&s,id->a,id->size);
+  mf_encode_utf8(&s,id->size,id->a);
   char a[200];
   snprintf(a,200,"Error: undefined variable: '%s'.",s.a);
   mf_free(s.a);
@@ -1186,7 +1212,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       // [..., function, self, arg1, arg2, ..., argn, ...]
       // stack[sp]....................................^
       if(p1->type!=mv_function){
-        mf_type_error1("in f(...): f (type: %S) is not a functoin.",p1);
+        mf_type_error1("in f(...): f (type: %s) is not a function.",p1);
         goto error;
       }else{
         f = (mt_function*)p1->value.p;
@@ -1322,7 +1348,7 @@ int mf_vm_eval(unsigned char* a, long ip){
           if(p1->type==mv_string){
             mt_string* s = (mt_string*)p1->value.p;
             mt_bstr buffer;
-            mf_encode_utf8(&buffer,s->a,s->size);
+            mf_encode_utf8(&buffer,s->size,s->a);
             char a[200];
             snprintf(a,200,"Error: cannot find member '%s' in prototype chain.",buffer.a);
             mf_free(buffer.a);
@@ -1470,6 +1496,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       mf_dec_refcount(&mv_exception);
       mf_copy(&mv_exception,stack+sp-1);
       sp--;
+      mf_new_traceback_list();
       goto error;
       break;
     case EXCEPTION:
@@ -1527,17 +1554,27 @@ mt_list* mf_load_data(unsigned char* data){
   uint32_t size;
   mt_list* a = mf_raw_list(0);
   mt_string* s;
+  mt_bstring* bs;
   mt_object x;
-  x.type=mv_string;
   for(i=0; i<n; i++){
     if(*data==MT_STRING){
       data++;
       size=*(uint32_t*)data;
       data+=4;
       s = mf_str_new_u32(size,(uint32_t*)data);
+      x.type=mv_string;
       x.value.p=(mt_basic*)s;
       mf_list_push(a,&x);
       data+=size*4;
+    }else if(*data==MT_BSTRING){
+      data++;
+      size=*(uint32_t*)data;
+      data+=4;
+      bs = mf_buffer_to_bstring(size,data);
+      x.type=mv_bstring;
+      x.value.p=(mt_basic*)bs;
+      mf_list_push(a,&x);
+      data+=size;
     }else{
       printf("Error in mf_load_data.");
       exit(1);

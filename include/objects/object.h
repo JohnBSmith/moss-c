@@ -14,10 +14,11 @@
 #define mv_bstring 9
 #define mv_set 10
 #define mv_map 11
-#define mv_range 12
-#define mv_function 13
-#define mv_table 14
-#define mv_native 15
+#define mv_array 12
+#define mv_range 13
+#define mv_function 14
+#define mv_table 15
+#define mv_native 16
 
 typedef struct mt_basic mt_basic;
 typedef struct{
@@ -48,7 +49,7 @@ typedef struct{
 typedef struct{
   long refcount;
   long size;
-  uint8_t a[];
+  unsigned char a[];
 } mt_bstring;
 
 typedef struct{

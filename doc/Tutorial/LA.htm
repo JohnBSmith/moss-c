@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Linear algebra</title>
   <link rel="stylesheet" href="../css/main.css">
-  <script src = "../js/syntax.js" type="text/javascript">
+  <script src = "../js/syntax.js">
   </script>
 </head>
 <body>
@@ -14,13 +14,15 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#Basic">Basic approach</a>
+<li><a href="#ha">Array data type</a>
+<li><a href="#Matrixfun">Matrix functions</a>
 </ol>
 
 <h2 id="Basic">Basic approach</h2>
 
 <p>The Moss programming language incorporates the neccessary
 features (operator overloading, multiindex array slices,
-slice assignments), to state formulas from linear algebra in a
+slice assignments) to state formulas from linear algebra in a
 nicely looking form.
 </p>
 
@@ -56,8 +58,8 @@ end
 
 # a[i*n+j]: row-major indexing (possible)
 # a[i+j*m]: column-major indexing (impossible)
-# a[0..n-1]: first row-major stride (row vector a[0,..])
-# a[i*n..i*n+n-1]: row-major stride i (row vector a[i,..])
+# a[0..n-1]: row vector a[0,..] (row major)
+# a[i*n..i*n+n-1]: row vector a[i,..] (row major)
 </pre>
 
 <p>Now we can do pretty indexing.
@@ -76,25 +78,25 @@ vector addition.
 <pre class="moss">
 matrix.type = table
   # ...,
-  sub mpy(r)
+  sub MPY(r)
     return table[vector.type]
       m=self.m, n=self.n,
       a=self.a.map(|x| r*x)
     end
   end,
-  sub neg
+  sub NEG
     return table[vector.type]
       m=self.m, n=self.n,
       a=self.a.map(|x| -x)
     end
   end,
-  sub add(w)
+  sub ADD(w)
     return table[vector.type]
       m=self.m, n=self.n,
       a=map(self.a,w.a,|x,y| x+y)
     end
   end,
-  sub sbt(w)
+  sub SUB(w)
     return table[vector.type]
       m=self.m, n=self.n,
       a=map(self.a,w.a,|x,y| x-y)
@@ -107,6 +109,136 @@ the elements can be real numbers, complex numbers or long integers.
 Even matrices (each of a different signature) as elements of a matrix
 are possible. Such a structure is known as a block matrix.
 </p>
+
+<h2 id="ha">Array data type</h2>
+<p>Moss has builtin linear algebra support, based on a
+multidimensional array data type. These arrays are homogenous,
+that means all elements must have the same data type
+(float or complex). A general constructor <code>ha</code>
+(homogenous array) takes a list and builds such an array from it.
+</p>
+<pre class="moss">
+use la: hv, hm, ha
+
+# A vector
+v = hv(1,2,3)
+# = ha([1,2,3])
+
+# A col vector
+A = hm(1,2,3)
+# = ha([[1],[2],[3]])
+
+# A row vector
+A = hm([1,2,3])
+# = ha([[1,2,3]])
+
+# A square matrix
+A = hm([1,2],[3,4])
+# = ha([[1,2],[3,4]])
+
+# Tranposition of A
+B = A.T()
+</pre>
+<p>One can do basic arithmetic.
+</p>
+<pre class="moss">
+# Linear combinations
+a = hv(1,2)
+b = hv(3,4)
+c = 2*a+4*b
+
+# Custom base vectors
+e1 = hv(1,0)
+e2 = hv(0,1)
+a = 1*e1+2*e2
+
+# Standard scalar product
+a = hv(1,2)
+b = hv(3,4)
+s = a*b
+
+# Standard scalar product,
+# col vectors instead of vectors
+a = hm(1,2)
+b = hm(3,4)
+s = a.T()*b
+
+# Scalar product, involving a metric tensor
+a = hv(1,2); b = hv(3,4)
+g = hm([10,2],[2,10])
+s = (g*a)*b
+# = g*a*b
+</pre>
+<p>Functions returning vectors or any objects
+<code>v</code> that support index operations <code>v[0],v[1]</code> can be directly graphed by <code>vplot</code>.
+</p>
+<pre class="moss">
+use plotlib: system
+use math: sin, cos
+use la: hv
+
+s = system()
+s.vplot(|t| (sin(5*t)+4)*hv(cos(t),sin(t)))
+s.idle()
+</pre>
+
+<p>An advanced example: Calculation of the arc length of a curve
+<code>gamma</code> in polar coordinates.
+</p>
+<pre class="moss">
+use math: sqrt
+use na: diff, integral
+use la: hv, hm
+
+# General arc length calculation
+L = |g,t0,t1,gamma| integral(t0,t1,sub|t|
+  v = diff(gamma,t)
+  return sqrt(g(gamma(t))*v*v)
+end)
+
+# Metric tensor
+# x = hv(r,phi)
+g = |x| hm([1,0],[0,x[0]^2])
+
+# Some curve
+use math: pi, sin
+star = |t| hv(sin(5*t)+4,t)
+print(L(g,0,2*pi,star))
+</pre>
+
+<p>A few more examples.
+</p>
+<pre class="moss">
+# Approximate calculation of the
+# exponential of a square matrix
+use la: hm
+use math: fac
+
+expm = |x| (0..80).sum(|k| x^k/fac(k))
+A = hm([1,2],[3,4])
+print(expm(A))
+
+# Directional derivative
+use la: hv
+use na: diff
+
+D = |v,f,x| diff(|t| f(x+t*v),0)
+</pre>
+
+<h2 id="Matrixfun">Matrix functions</h2>
+<pre class="moss">
+use la: hv, hm, idm, diag, det, expm
+A = hm([1,2],[3,4])
+v = hv(1,2,3)
+
+idm(n)  # n times n identity matrix
+diag(v) # diagonal matrix
+A.T()   # transposition of A
+A.H()   # hermitian adjoint of A
+det(A)  # determinant of A
+A.inv() # inverse matrix of A
+expm(A) # matrix exponential
+</pre>
 
 </body>
 </html>

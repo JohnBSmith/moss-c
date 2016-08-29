@@ -1,0 +1,154 @@
+
+Tlist = list.type
+Tstr = str.type
+Tint = int.type
+
+sub isconst(t,id)
+  T = type(t)
+  if T is Tstr
+    return t!=id
+  elif T is Tlist
+    return t[1].all(|u| isconst(u,id))
+  end
+  return true
+end
+
+sub substitute(t,id,s)
+  T = type(t)
+  if T is Tstr
+    if t==id
+      return s
+    end
+  elif T is Tlist
+    return [t[0],t[1].map(|u| substitute(u,id,s))]
+  end
+  return t
+end
+
+sub diff(t,id)
+  T = type(t)
+  if T is Tstr
+    return t==id? 1: 0
+  elif T is Tint
+    return 0
+  elif T is Tlist
+    if t[0]=="+"
+      a = t[1].map(|u| diff(u,id)).filter(|u| u!=0)
+      return size(a)>1? ["+",a]: size(a)>0? a[0]: 0
+    elif t[0]=="*"
+      a = t[1]
+      b=[]
+      for k in size(a)
+        u = diff(a[k],id)
+        ank = a[..k-1]+a[k+1..]
+        if u==1
+          b.push(size(ank)>1? ["*",ank]: ank[0])
+        elif u!=0
+          b.push(["*",[u]+ank])
+        end
+      end
+      return size(b)>1? ["+",b]: size(b)!=0? b[0]:0
+    elif t[0]=="^"
+      x=t[1][0]; n=t[1][1]
+      if isconst(x,id)
+        n1=diff(n,id)
+        return ["*",[t,["*",[
+          ["ln",[x]],n1
+        ]]]]
+      elif isconst(n,id)
+        x1=diff(x,id)
+        a = ["^",[x,["+",[n,-1]]]]
+        return ["*",x1==1? [n,a]: [n,a,x1]]
+      end
+    end
+  end
+  return ["diff",[t,"x"]]
+end
+
+associative = {
+  "+", "*", "compose", "max", "min"
+}
+
+sub flatten(t)
+  T = type(t)
+  if T is Tlist
+    op = t[0]
+    t = [op,t[1].map(flatten)]
+    if op in associative
+      a=[]
+      for u in t[1]
+        if type(u) is Tlist and u[0]==op
+          a.extend(u[1])
+        else
+          a.push(u)
+        end
+      end
+      return [op,a]
+    end
+  end
+  return t
+end
+
+sub simplify_sum(a)
+  s=0; d={}
+  for t in a
+    t=simplify(t)
+    T = type(t)
+    if T is Tint
+      s+=t
+    elif T is Tlist and t[0]=="*" and type(t[1][0]) is Tint
+      p = t[1][1..]
+      p = size(p)==1? p[0]: ["*",p]
+      if p in d
+        d[p]+=t[1][0]
+      else
+        d[p]=t[1][0]
+      end
+    elif t in d
+      d[t]++
+    else
+      d[t]=1
+    end
+  end
+  b = list(d).map(|u| u[1]==1? u[0]: ["*",[u[1],u[0]]])
+  return ["+",s!=0? b+[s]: b]
+end
+
+sub simplify_prod(a)
+  p=1; d={}
+  for t in a
+    t = simplify(t)
+    T = type(t)
+    if T is Tint
+      p=p*t
+    elif T is Tlist and t[0]=="^" and type(t[1][1]) is Tint
+      b=t[1][0]; e=t[1][1]
+      if b in d
+        d[p]+=e
+      else
+        d[p]=e
+      end
+    elif t in d
+      d[t]++
+    else
+      d[t]=1
+    end
+  end
+  b = list(d).map(|u| u[1]==1? u[0]: ["^",u])
+  return ["*",p!=1? [p]+b: b]
+end
+
+sub simplify(t)
+  t = flatten(t)
+  T = type(t)
+  if T is Tlist
+    if t[0]=="+"
+      return simplify_sum(t[1])
+    elif t[0]=="*"
+      return simplify_prod(t[1])
+    end
+  end
+  return t
+end
+
+

@@ -13,12 +13,12 @@
 #include <objects/string.h>
 #include <objects/list.h>
 #include <modules/str.h>
+#include <modules/system.h>
 
 extern int mode_unsafe;
 extern int mode_network;
 extern mt_object mv_exception;
-mt_string* mf_str_decode_utf8(long size, unsigned char* a);
-void mf_encode_utf8(mt_bstr* s, uint32_t* a, long size);
+mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 static mt_object not_found;
 
 static
@@ -49,7 +49,7 @@ int os_ls(mt_object* x, int argc, mt_object* v){
       return 1;
     }
     mt_string* s = (mt_string*)v[1].value.p;
-    mf_encode_utf8(&id,s->a,s->size);
+    mf_encode_utf8(&id,s->size,s->a);
     dir = opendir((char*)id.a);
   }else{
     mf_argc_error(argc,0,1,"ls");
@@ -111,7 +111,7 @@ int os_cd(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr id;
-  mf_encode_utf8(&id,s->a,s->size);
+  mf_encode_utf8(&id,s->size,s->a);
   chdir((char*)id.a);
   mf_free(id.a);
   x->type=mv_null;
@@ -135,7 +135,7 @@ int os_rm(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr id;
-  mf_encode_utf8(&id,s->a,s->size);
+  mf_encode_utf8(&id,s->size,s->a);
   int error = remove((char*)id.a);
   mf_free(id.a);
   if(error){
@@ -163,7 +163,7 @@ int os_system(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr bs;
-  mf_encode_utf8(&bs,s->a,s->size);
+  mf_encode_utf8(&bs,s->size,s->a);
   int e = system((char*)bs.a);
   mf_free(bs.a);
   x->type=mv_int;
@@ -183,18 +183,11 @@ int os_isdir(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr id;
-  mf_encode_utf8(&id,s->a,s->size);
-  struct stat m;
-  int e = stat((char*)id.a,&m);
+  mf_encode_utf8(&id,s->size,s->a);
+  int y = mf_isdir((char*)id.a);
   mf_free(id.a);
-  if(e){
-    x->type=mv_bool;
-    x->value.b=0;
-    return 0;
-  }
-  int value = S_ISDIR(m.st_mode);
   x->type=mv_bool;
-  x->value.b=value;
+  x->value.b=y;
   return 0;
 }
 
@@ -210,18 +203,11 @@ int os_isfile(mt_object* x, int argc, mt_object* v){
   }
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr id;
-  mf_encode_utf8(&id,s->a,s->size);
-  struct stat m;
-  int e = stat((char*)id.a,&m);
+  mf_encode_utf8(&id,s->size,s->a);
+  int y = mf_isfile((char*)id.a);
   mf_free(id.a);
-  if(e){
-    x->type=mv_bool;
-    x->value.b=0;
-    return 0;
-  }
-  int value = S_ISREG(m.st_mode);
   x->type=mv_bool;
-  x->value.b=value;
+  x->value.b=y;
   return 0;
 }
 

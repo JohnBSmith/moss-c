@@ -12,6 +12,8 @@ mt_string* mf_list_to_string(mt_list* list);
 mt_string* mf_long_to_string(mt_long* x);
 int mf_object_get_memory(mt_object* x, mt_object* a,
   long size, const char* id);
+mt_bstring* mf_buffer_to_bstring(long size, const unsigned char* a);
+double mf_float(mt_object* x, int* error);
 
 mt_string* mf_raw_string(long size){
   mt_string* s = mf_malloc(sizeof(mt_string)+size*sizeof(uint32_t));
@@ -92,6 +94,88 @@ char* mf_str_to_cstr(mt_string* s){
   }
   a[size]=0;
   return (char*)a;
+}
+
+static
+void reverse(int size, char* a){
+  int i,m=size/2;
+  char h;
+  for(i=0; i<m; i++){
+    h=a[i]; a[i]=a[size-1-i];
+    a[size-1-i]=h;
+  }
+}
+
+static
+void base(char* buffer, long n, long base){
+  int i=0;
+  while(n!=0){
+    buffer[i]=n%base+'0';
+    i++;
+    n/=base;
+  }
+  reverse(i,buffer);
+  buffer[i]=0;
+  i++;
+}
+
+static
+mt_string* number_to_string(mt_object* x, mt_string* s, long n){
+  long size=s->size;
+  uint32_t* a = s->a;
+  int i;
+  int sign_space;
+  char c;
+  const char* format;
+  if(size>0 && a[0]=='+'){
+    sign_space=2;
+    i=1;
+  }else if(size>0 && a[0]=='-'){
+    sign_space=1;
+    i=1;
+  }else{
+    sign_space=0;
+    i=0;
+  }
+  if(i<size){
+    c=(char)a[i];
+  }else{
+    c='f';
+  }
+  char buffer[100];
+  if(c=='b'){
+    if(x->type!=mv_int){
+      mf_type_error1("in str(x,'b',base): x is not an integer.",x);
+      return NULL;
+    }
+    if(n<2){
+      mf_value_error("Value error in str(x,'b',base): base<2.");
+      return NULL;
+    }
+    base(buffer,x->value.i,n);
+    puts(buffer);
+    return mf_cstr_to_str(buffer);
+  }
+  int error=0;
+  double t = mf_float(x,&error);
+  if(error){
+    mf_type_error1("in str(x,format,n): cannot convert x (type: %s) to float.",x);
+    return NULL;
+  }
+  if(c=='f'){
+    format = sign_space>1? "%+.*f": sign_space? "% .*f": "%.*f";
+  }else if(c=='E'){
+    format = sign_space>1? "%+.*E": sign_space? "% .*E": "%.*E";
+  }else if(c=='e'){
+    format = sign_space>1? "%+.*e": sign_space? "% .*e": "%.*e";
+  }else if(c=='g'){
+    format = sign_space>1? "%+.*g": sign_space? "% .*g": "%.*g";
+  }else{
+    format = sign_space>1? "%+.*g": sign_space? "% .*g": "%.*g";
+  }
+  if(n<0){n=0;}else if(n>20){n=20;}
+  snprintf(buffer,100,format,(int)n,t);
+  return mf_cstr_to_str(buffer);
 }
 
 static
@@ -194,11 +278,25 @@ mt_string* mf_repr(mt_object* x){
 }
 
 int mf_fstr(mt_object* x, int argc, mt_object* v){
-  if(argc!=1){
+  mt_string* s;
+  if(argc==3){
+    if(v[2].type!=mv_string){
+      mf_type_error1("in str(x,format,n): format (type: %s) is not a string.",&v[2]);
+      return 1;
+    }
+    if(v[3].type!=mv_int){
+      mf_type_error1("in str(x,format,n): n (type: %s) is not an integer.",&v[3]);
+      return 1;
+    }
+    s = number_to_string(
+      &v[1], (mt_string*)v[2].value.p, v[3].value.i
+    );
+  }else if(argc==1){
+    s = mf_str(&v[1]);
+  }else{
     mf_argc_error(argc,1,1,"str");
     return 1;
   }
-  mt_string* s=mf_str(v+1);
   if(s==NULL) return 1;
   x->type=mv_string;
   x->value.p=(mt_basic*)s;
@@ -519,9 +617,9 @@ int mf_str_to_int(mt_object* x, mt_string* s){
   return 0;
 }
 
-mt_string* mf_str_decode_utf8(long size, unsigned char* a){
+mt_string* mf_str_decode_utf8(long size, const unsigned char* a){
   mt_str buffer;
-  mf_decode_utf8(&buffer,a,size);
+  mf_decode_utf8(&buffer,size,a);
   mt_string* s = mf_str_new_u32(buffer.size,buffer.a);
   mf_free(buffer.a);
   return s;
@@ -934,6 +1032,35 @@ int mf_str_in_range(mt_string* s, mt_string* a, mt_string* b){
   return mf_str_cmp(a,s)<=0 && mf_str_cmp(s,b)<=0;
 }
 
+static
+int str_encode(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"encode");
+    return 1;
+  }
+  if(v[0].type!=mv_string){
+    mf_type_error("Type error in s.encode(e): s is not a string.");
+    return 1;
+  }
+  if(v[1].type!=mv_string){
+    mf_type_error("Type error in s.encode(e): e is not a string.");
+    return 1;
+  }
+  mt_string* encoding=(mt_string*)v[1].value.p;
+  if(mf_str_cmpmem(encoding,5,"UTF-8")==0){
+    mt_string* s = (mt_string*)v[0].value.p;
+    mt_bstr buffer;
+    mf_encode_utf8(&buffer,s->size,s->a);
+    x->type=mv_bstring;
+    x->value.p=(mt_basic*)mf_buffer_to_bstring(buffer.size,buffer.a);
+    mf_free(buffer.a);
+    return 0;
+  }else{
+    mf_std_exception("Error in s.encode(encoding): unknown encoding.");
+    return 1;
+  }
+}
+
 void mf_init_type_string(mt_table* type){
   type->name = mf_cstr_to_str("str");
   type->m=mf_empty_map();
@@ -952,4 +1079,5 @@ void mf_init_type_string(mt_table* type){
   mf_insert_function(m,0,1,"ltrim",str_ltrim);
   mf_insert_function(m,0,1,"rtrim",str_rtrim);
   mf_insert_function(m,0,1,"trim",str_trim);
+  mf_insert_function(m,0,1,"encode",str_encode);
 }

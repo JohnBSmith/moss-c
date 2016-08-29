@@ -76,6 +76,13 @@ void bvec_tos(bstring* s, mt_vec* bv){
   s->allocated=1;
 }
 
+char* mf_strdup(const char* s){
+  long size = strlen(s);
+  char* s2 = mf_malloc(size+1);
+  strcpy(s2,s);
+  return s2;
+}
+
 int str_mblen(unsigned char c){
   if((c&0x80)==0){
     return 1;
@@ -94,7 +101,7 @@ int str_mblen(unsigned char c){
   }
 }
 
-uint32_t str_mbtoc(unsigned char* s){
+uint32_t str_mbtoc(const unsigned char* s){
   int n = str_mblen(s[0]);
   uint32_t a1,a2,a3;
   if(n==1){
@@ -119,7 +126,7 @@ void mf_put_byte(unsigned char c){
   }
 }
 
-void mf_decode_utf8(mt_str* s, unsigned char* a, long size){
+void mf_decode_utf8(mt_str* s, long size, const unsigned char* a){
   mt_vec buffer;
   mf_vec_init(&buffer,4);
   int i,n,m;
@@ -172,7 +179,7 @@ int u32_to_multibyte(uint32_t c, unsigned char* a){
 }
 
 // Todo: argument order
-void mf_encode_utf8(mt_bstr* s, uint32_t* a, long size){
+void mf_encode_utf8(mt_bstr* s, long size, const uint32_t* a){
   mt_vec buffer;
   mf_vec_init(&buffer,1);
   long i;

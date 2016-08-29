@@ -20,5 +20,8 @@ int mf_str_get(mt_object* x, mt_string* s, mt_object* key);
 int mf_str_in_str(mt_string* a, mt_string* b);
 int mf_str_in_range(mt_string* s, mt_string* a, mt_string* b);
 
+int mf_uisspace(unsigned long n);
+int mf_uisdigit(unsigned long n);
+
 #endif
 

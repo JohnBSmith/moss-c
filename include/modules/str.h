@@ -38,13 +38,14 @@ void bvec_push_cstring(mt_vec* bv, char* s);
 void bvec_push_data(mt_vec* bv, bstring* data);
 void bvec_tos(bstring* s, mt_vec* bv);
 void str_putc(uint32_t n);
+char* mf_strdup(const char* s);
 
-uint32_t str_mbtoc(unsigned char* s);
+uint32_t str_mbtoc(const unsigned char* s);
 int str_mblen(unsigned char c);
 void mf_put_byte(unsigned char c);
 
-void mf_encode_utf8(mt_bstr* s, uint32_t* a, long size);
-void mf_decode_utf8(mt_str* s, unsigned char* a, long size);
+void mf_encode_utf8(mt_bstr* s, long size, const uint32_t* a);
+void mf_decode_utf8(mt_str* s, long size, const unsigned char* a);
 
 #endif
 

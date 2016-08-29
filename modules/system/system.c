@@ -9,8 +9,10 @@
 #include <moss.h>
 #include <modules/vec.h>
 #include <modules/str.h>
+#include <sys/stat.h>
 #ifdef _WIN32
-#include <windows.h>
+  #include <windows.h>
+  #include <io.h>
 #endif
 
 #ifdef __linux__
@@ -25,9 +27,15 @@
 #endif
 
 int mf_put(mt_object* x);
-void mf_encode_utf8(mt_bstr* s, uint32_t* a, long size);
-mt_string* mf_str_decode_utf8(long size, unsigned char* a);
+mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 
+#ifdef _WIN32
+const char* mv_path = "C:/local/lib/moss";
+#else
+const char* mv_path = "/usr/local/lib/moss";
+#endif
+
+static
 int mv_cp850[] = {
 // 0x
   0, 0x263a, 0x263b, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
@@ -88,7 +96,7 @@ char* get_utf8(unsigned char* s, int size){
     a[i]=mv_cp850[s[i]];
   }
   mt_bstr bs;
-  mf_encode_utf8(&bs,a,size);
+  mf_encode_utf8(&bs,size,a);
   mf_free(a);
   return (char*)bs.a;
 }
@@ -137,7 +145,7 @@ void mf_print_string(long size, uint32_t* a){
 #else
 void mf_print_string(long size, uint32_t* a){
   mt_bstr s;
-  mf_encode_utf8(&s,a,size);
+  mf_encode_utf8(&s,size,a);
   printf("%s",s.a);
   mf_free(s.a);
 }
@@ -153,7 +161,7 @@ void mf_print_string_lit(long size, uint32_t* s){
 #ifdef _WIN32
   mf_encode_cp850(&bs,s,size);
 #else
-  mf_encode_utf8(&bs,s,size);
+  mf_encode_utf8(&bs,size,s);
 #endif
   long n=bs.size;
   unsigned char* a=bs.a;
@@ -226,17 +234,24 @@ char* mf_getline_hist(const char* prompt){
 #endif
 
 int mf_finput(mt_object* x, int argc, mt_object* v){
-  if(argc==1){
-    if(mf_put(v+1)){
-      mf_traceback("input");
+  char* p;
+  if(argc==0){
+    p = mf_getline_hist("");
+  }else if(argc==1){
+    if(v[1].type!=mv_string){
+      mf_type_error1("in input(prompt): prompt (type: %s) is not a string.",&v[1]);
       return 1;
     }
-  }else if(argc!=0){
+    mt_string* s=(mt_string*)v[1].value.p;
+    mt_bstr bs;
+    mf_encode_utf8(&bs,s->size,s->a);
+    p = mf_getline_hist(bs.a);
+    mf_free(bs.a);
+  }else{
     mf_argc_error(argc,0,1,"input");
-    return 1;
+    return 1;  
   }
-  char* p = mf_getline("");
-  if(p==0){
+  if(p==NULL){
     mf_std_exception("Error in input(): input error.");
     return 1;
   }else{
@@ -246,4 +261,48 @@ int mf_finput(mt_object* x, int argc, mt_object* v){
     return 0;
   }
 }
+
+#ifdef _WIN32
+char* mf_realpath(const char* id){
+  return _fullpath(NULL,id,400);
+}
+#else
+char* mf_realpath(const char* id){
+  return realpath(id,NULL);
+}
+#endif
+
+#ifdef _WIN32
+int mf_isdir(const char* id){
+  if(_access(id,0)==0){
+    struct stat m;
+    stat(id,&m);
+    return (m.st_mode & S_IFDIR)!=0;
+  }
+  return 0;
+}
+
+int mf_isfile(const char* id){
+  if(_access(id,0)==0){
+    struct stat m;
+    stat(id,&m);
+    return (m.st_mode & S_IFREG)!=0;
+  }
+  return 0;
+}
+
+#else
+int mf_isdir(const char* id){
+  struct stat m;
+  if(stat(id,&m)) return 0;
+  return S_ISDIR(m.st_mode);
+}
+
+int mf_isfile(const char* id){
+  struct stat m;
+  if(stat(id,&m)) return 0;
+  return S_ISREG(m.st_mode);
+}
+#endif
+
 

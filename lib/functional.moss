@@ -7,17 +7,13 @@ fix = sub|F|
   end
 end
 
-first = sub|f,*a|
-  sub|*b| f.apply(null,a+b) end
-end
-
-last = sub|f,*a|
-  sub|*b| f.apply(null,b+a) end
-end
+first = |f,*a| |*b| f[a+b]
+last  = |f,*a| |*b| f[b+a]
+fun = |a| |n| a[n]
 
 curry = sub|f,n|
   a=list(0..n-1)
-  g = sub|x| a[n-1]=x; f.apply(null,a) end
+  g = sub|x| a[n-1]=x; f[a] end
   for i in 2..n
     g = sub|x| a[n-i]=x; g end
   end
@@ -25,11 +21,7 @@ curry = sub|f,n|
 end
 
 uncurry = sub|f|
-  sub|*a| a.reduce(f,sub|g,x| g(x) end) end
-end
-
-fun = sub|a|
-  sub|n| a[n] end
+  |*a| a.reduce(f,|g,x| g(x))
 end
 
 

@@ -1,3 +1,3 @@
 
-gcc -c time.c -Wall -o ../../bin/time.o\
+gcc -c time.c -Wimplicit-function-declaration -o ../../bin/time.o\
   -I../../include

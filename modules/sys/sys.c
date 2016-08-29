@@ -9,10 +9,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
+
 mt_list* sys_argv;
 extern int gv_argc;
 extern char** gv_argv;
+extern mt_list* mv_path_list;
 
 static
 int sys_exit(mt_object* x, int argc, mt_object* v){
@@ -50,6 +51,10 @@ mt_table* mf_sys_load(){
   t.type=mv_list;
   t.value.p=(mt_basic*)sys_argv;
   mf_insert_object(m,"argv",&t);
+  if(mv_path_list){
+    t.value.p=(mt_basic*)mv_path_list;
+    mf_insert_object(m,"path",&t);
+  }
   mf_insert_function(m,1,1,"exit",sys_exit);
   m->frozen=1;
   return sys;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Functions</title>
   <link rel="stylesheet" href="../css/main.css">
-  <script src = "../js/syntax.js" type="text/javascript">
+  <script src = "../js/syntax.js">
   </script>
 </head>
 <body>
@@ -378,22 +378,22 @@ self argument. Viewed this way, <code>m</code> is called
 <em>a method</em> of <code>x</code>.
 </p>
 
-<p>There is a function, called <code>call</code>, that enables us
-to choose the self argument freely. More precisely, we have
+<p>The self argument can be given explicitly:
 </p>
 
 <pre class="moss">
-  x.m(a,b) == x.m.call(x,a,b).
+  f(a,b) == f(null; a,b),
+  x.m(a,b) == x.m(x; a,b).
 </pre>
 
 <p>A simple example shows how self arguments work.
 </p>
 
 <pre class="moss">
-&gt; m = sub|a,b| [self,a,b] end
-&gt; m(1,2)
+&gt; f = |a,b| [self,a,b]
+&gt; f(1,2)
 [null, 1, 2]
-&gt; m.call(0,1,2)
+&gt; f(0; 1,2)
 [0, 1, 2]
 </pre>
 
@@ -415,7 +415,7 @@ all strings will have <code>m</code> as a method.
 &gt; "tree".upper()
 "TREE"
 &gt; upper = str.type.upper
-&gt; upper.call("tree")
+&gt; upper("tree";)
 "TREE"
 </pre>
 
@@ -469,12 +469,12 @@ end
 <code>f[t]</code> instead of <code>f(t[0],t[1])</code>.
 That is a more general way of function application,
 because one can always write
-<code>f[[t[0],t[1]]]</code>. Thus we have
+<code>f[[t[0],t[1]]]</code>. In general one has
 </p>
 
 <pre class="moss">
-  f(x,y) == f[[x,y]],
-a.m(x,y) == a.m.call(a,x,y)  == a.m[a,[x,y]].
+  f(x,y) == f(null; x,y) == f[[x,y]],
+a.m(x,y) == a.m(a; x,y)  == a.m[a,[x,y]].
 </pre>
 
 

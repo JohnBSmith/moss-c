@@ -1,0 +1,64 @@
+
+use syntax: scan, ast, ast_to_string
+use basic
+
+Tlist = list.type
+Tstr = str.type
+
+vtab={}
+
+meta_tab = {
+  sub diff(a)
+    basic.diff(a[0],a[1])
+  end,
+  sub substitute(a)
+    basic.substitute(a[0],a[1],a[2])
+  end,
+  "=": sub assignment|a|
+    vtab[a[0]]=a[1]
+  end,
+  sub simplify(a)
+    basic.simplify(a[0])
+  end,
+  sub flatten(a)
+    basic.flatten(a[0])
+  end
+}
+
+sub cas_eval(t)
+  T = type(t)
+  if T is Tstr and t in vtab
+    t=vtab[t]
+    T=type(t)
+  end
+  if T is Tlist
+    if t[0]=="="
+      a = [t[1][0],cas_eval(t[1][1])]
+    else
+      a = t[1].map(|u| cas_eval(u))
+    end
+    if t[0] in meta_tab
+      return meta_tab[t[0]](a)
+    else
+      return [t[0],a]
+    end
+  end
+  return t
+end
+
+sub main
+  while true
+    v = scan(input("> "))
+    t = ast(v)
+    syntax.ast_print(t,0)
+    t = cas_eval(t)
+    s = ast_to_string(t)
+    if not s is null
+      print(s)
+    end
+  end
+end
+
+main()
+
+

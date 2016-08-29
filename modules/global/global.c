@@ -7,16 +7,19 @@
 #include <assert.h>
 #include <moss.h>
 #include <objects/string.h>
+#include <objects/bstring.h>
 #include <objects/list.h>
 #include <objects/map.h>
 #include <objects/complex.h>
 #include <objects/long.h>
 #include <objects/set.h>
 #include <objects/function.h>
+#include <modules/la.h>
 mt_function* mf_new_function(unsigned char* address);
 mt_table* mf_load_module(const char* id);
 void mf_module_dec_refcount(mt_module* m);
 mt_tuple* mf_raw_tuple(long size);
+mt_string* mf_format(mt_string* s, mt_list* list);
 
 extern mt_table* mv_type_bool;
 extern mt_table* mv_type_int;
@@ -71,16 +74,16 @@ double mf_float(mt_object* x, int* error){
   }
 }
 
-#ifndef MV_MALLOC_MONITOR
 void* mf_malloc(size_t size){
   void* p = malloc(size);
   if(p==NULL){
-    puts("Memory error in mf_malloc.");
-    abort();
+    if(size!=0){
+      puts("Memory error in mf_malloc.");
+      abort();
+    }
   }
   return p;
 }
-#endif
 
 mt_tuple* mf_tuple_noinc(int argc, mt_object* v){
   mt_tuple* t = mf_malloc(sizeof(mt_tuple)+argc*sizeof(mt_object));
@@ -182,6 +185,7 @@ void mf_dec_refcount(mt_object* x){
     }
     return;
   case mv_string:
+  case mv_bstring:
     if(p->refcount==1){
       mf_free(p);
     }else{
@@ -191,6 +195,13 @@ void mf_dec_refcount(mt_object* x){
   case mv_long:
     if(p->refcount==1){
       mf_long_delete((mt_long*)p);
+    }else{
+      p->refcount--;
+    }
+    return;
+  case mv_array:
+    if(p->refcount==1){
+      mf_array_delete((mt_array*)p);
     }else{
       p->refcount--;
     }
@@ -434,6 +445,8 @@ const char* mf_type_to_str(mt_object* a){
     return "set";
   case mv_map:
     return "map";
+  case mv_array:
+    return "array";
   case mv_range:
     return "range";
   case mv_function:
@@ -445,6 +458,16 @@ const char* mf_type_to_str(mt_object* a){
   default:
     return "object";
   }
+}
+
+int mf_isa(mt_object* x, void* prototype){
+  if(x->type==mv_native){
+    mt_native* p = (mt_native*)x->value.p;
+    if(p->prototype.value.p==prototype){
+      return 1;
+    }
+  }
+  return 0;
 }
 
 #ifdef USE_BUILTIN_OVERFLOW
@@ -1342,6 +1365,22 @@ int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b){
       goto rmod;
     }
   }
+  case mv_string:
+    switch(b->type){
+    case mv_list:{
+      mt_string* template=(mt_string*)a->value.p;
+      mt_list* list = (mt_list*)b->value.p;
+      mt_string* s = mf_format(template,list);
+      mf_str_dec_refcount(template);
+      mf_list_dec_refcount(list);
+      if(s==NULL) return 1;
+      x->type=mv_string;
+      x->value.p=(mt_basic*)s;
+      return 0;
+    }
+    default:
+      goto rmod;
+    }
   default:
     goto mod;
   }
@@ -2421,16 +2460,21 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
   case mv_range:{
     mt_range* r = (mt_range*)b->value.p;
     if(r->a.type==mv_int){
-      if(r->b.type!=mv_int){
-        mf_type_error1("in 'x in a..b': b (type: %s) is not an integer.",&r->b);
-        return 1;
-      }
       if(a->type!=mv_int){
         mf_type_error1("in 'x in a..b': x (type: %s) is not an integer.",a);
         return 1;
       }
       long n = a->value.i;
-      int t = r->a.value.i<=n && n<=r->b.value.i;
+      int t;
+      if(r->b.type!=mv_int){
+        if(r->b.type!=mv_null){
+          mf_type_error1("in 'x in a..b': b (type: %s) is not an integer.",&r->b);
+          return 1;
+        }
+        t = r->a.value.i<=n;
+      }else{
+        t = r->a.value.i<=n && n<=r->b.value.i;
+      }
       mf_dec_refcount(b);
       x->type=mv_bool;
       x->value.b=t;
@@ -2765,17 +2809,50 @@ int mf_get(mt_object* x, int argc, mt_object* v){
     if(index<0){
       index+=list->size;
       if(index<0){
-        mf_index_error1("in a[i]: i (value: %li) is out of lower bound.",v[1].value.i);
+        mf_index_error2("in a[i]: i (value: %li) is out of lower bound (size: %li).",
+          v[1].value.i,list->size
+        );
         return 1;
       }
     }else if(index>=list->size){
-      mf_index_error1("in a[i]: i (value: %li) is out of upper bound.",index);
+      mf_index_error2("in a[i]: i (value: %li) is out of upper bound (size: %li).",
+        index,list->size
+      );
       return 1;
     }
     mf_copy_inc(x,list->a+index);
     mf_list_dec_refcount(list);
     return 0;
-  }break;
+  } break;
+  case mv_tuple:{
+    if(argc!=1){
+      mf_std_exception("Error in a[...]: expected single index.");
+      return 1;
+    }
+    mt_tuple* tuple = (mt_tuple*)v[0].value.p;
+    if(v[1].type!=mv_int){
+      mf_type_error1("in a[i]: a is a list but i (type: %s) is not an integer.",v+1);
+      return 1;
+    }
+    long index = v[1].value.i;
+    if(index<0){
+      index+=tuple->size;
+      if(index<0){
+        mf_index_error2("in a[i]: i (value: %li) is out of lower bound (size: %li).",
+          v[1].value.i,tuple->size
+        );
+        return 1;
+      }
+    }else if(index>=tuple->size){
+      mf_index_error2("in a[i]: i (value: %li) is out of upper bound (size: %li).",
+        index,tuple->size
+      );
+      return 1;
+    }
+    mf_copy_inc(x,tuple->a+index);
+    mf_tuple_dec_refcount(tuple);
+    return 0;
+  } break;
   case mv_map:{
     if(argc!=1){
       mf_std_exception("Error in d[...]: expected single key.");
@@ -2888,6 +2965,12 @@ int mf_fsize(mt_object* x, int argc, mt_object* v){
     mt_string* s = (mt_string*)a->value.p;
     x->type=mv_int;
     x->value.i=s->size;
+    return 0;
+  } break;
+  case mv_array:{
+    mt_array* p = (mt_array*)a->value.p;
+    x->type=mv_int;
+    x->value.i=mf_array_size(p);
     return 0;
   } break;
   default:
@@ -3013,6 +3096,11 @@ void mf_type(mt_object* x, mt_object* a){
     x->type=mv_table;
     x->value.p=(mt_basic*)mv_type_string;
     break;
+  case mv_bstring:
+    mv_type_bstring->refcount++;
+    x->type=mv_table;
+    x->value.p=(mt_basic*)mv_type_bstring;
+    break;
   case mv_function:
     mv_type_function->refcount++;
     x->type=mv_table;
@@ -3102,6 +3190,12 @@ void mf_insert_object(mt_map* m, const char* id, mt_object* x){
   mf_str_dec_refcount(key);
 }
 
+void mf_str_exception(mt_string* s){
+  mf_dec_refcount(&mv_exception);
+  mv_exception.type=mv_string;
+  mv_exception.value.p=(mt_basic*)s;
+}
+
 void mf_cstr_exception(const char* s){
   mf_dec_refcount(&mv_exception);
   mv_exception.type=mv_string;
@@ -3125,7 +3219,6 @@ void mf_argc_error(int argc, int min, int max, const char* s){
   mf_cstr_exception(a);
 }
 
-static
 void mf_new_traceback_list(void){
   if(mv_traceback_list){
     mf_list_dec_refcount(mv_traceback_list);
@@ -3167,9 +3260,9 @@ void mf_index_error(const char* s){
   mf_cstr_exception(s);
 }
 
-void mf_index_error1(const char* s, long index){
+void mf_index_error2(const char* s, long index, long size){
   char a[200];
-  snprintf(a,200,s,index);
+  snprintf(a,200,s,index,size);
   char b[200];
   snprintf(b,200,"Index error %s",a);
   mf_index_error(b);
@@ -3195,16 +3288,14 @@ mt_table* mf_cmath_load(void);
 mt_table* mf_na_load(void);
 mt_table* mf_sf_load(void);
 mt_table* mf_nt_load(void);
-#ifdef __linux__
 mt_table* mf_sys_load(void);
+mt_table* mf_la_load(void);
+#ifdef __linux__
 mt_table* mf_time_load(void);
 mt_table* mf_os_load(void);
 mt_table* mf_gx_load(void);
+mt_table* mf_gui_load(void);
 #else
-mt_table* mf_sys_load(void){
-  mf_std_exception("Error: module 'sys' is not implemented.");
-  return NULL;
-}
 mt_table* mf_time_load(void){
   mf_std_exception("Error: module 'time' is not implemented.");
   return NULL;
@@ -3215,6 +3306,10 @@ mt_table* mf_os_load(void){
 }
 mt_table* mf_gx_load(void){
   mf_std_exception("Error: module 'gx' is not implemented.");
+  return NULL;
+}
+mt_table* mf_gui_load(void){
+  mf_std_exception("Error: module 'gui' is not implemented.");
   return NULL;
 }
 #endif
@@ -3230,7 +3325,9 @@ typedef struct{
 static
 mt_load_tab_element load_tab[] = {
   {5, "cmath", mf_cmath_load, NULL},
+  // {3, "gui", mf_gui_load, NULL},
   {2, "gx", mf_gx_load, NULL},
+  {2, "la", mf_la_load, NULL},
   {2, "na", mf_na_load, NULL},
   {2, "nt", mf_nt_load, NULL},
   {4, "math", mf_math_load, NULL},
@@ -3260,7 +3357,7 @@ mt_table* mf_load(mt_object* x){
   }
   mt_string* s = (mt_string*)x->value.p;
   mt_bstr id;
-  mf_encode_utf8(&id,s->a,s->size);
+  mf_encode_utf8(&id,s->size,s->a);
   mt_table* t;
   mt_load_tab_element* p;
   p=load_tab_find(id.size,(char*)id.a);
@@ -3346,7 +3443,7 @@ int mf_use(mt_table* t, mt_map* d){
       if(e){
         mt_string* s = (mt_string*)key.value.p;
         mt_bstr bs;
-        mf_encode_utf8(&bs,s->a,s->size);
+        mf_encode_utf8(&bs,s->size,s->a);
         snprintf(buffer,200,"Error in import: '%s' was not found.",bs.a);
         mf_free(bs.a);
         mf_std_exception(buffer);
@@ -3356,6 +3453,20 @@ int mf_use(mt_table* t, mt_map* d){
     }
   }
   return 0;
+}
+
+static
+mt_string* get_module_id(mt_string* path){
+  long i=path->size-1;
+  while(i>=0){
+    if(path->a[i]=='/'){
+      mt_string* s = mf_str_new_u32(path->size-i-1,path->a+i+1);
+      return s;
+    }
+    i--;
+  }
+  path->refcount++;
+  return path;
 }
 
 int mf_fimport(mt_object* x, int argc, mt_object* v){
@@ -3379,21 +3490,28 @@ int mf_fimport(mt_object* x, int argc, mt_object* v){
   long i;
   mt_table* module;
   mt_object t;
+  mt_string* id;
   for(i=0; i<n; i++){
     if(a[i].taken){
+      if(a[i].key.type!=mv_string) abort();
       if(a[i].value.type==mv_string){
         module = mf_load(&a[i].value);
+        id = (mt_string*)a[i].key.value.p;
+        id->refcount++;
       }else{
         module = mf_load(&a[i].key);
+        id = get_module_id((mt_string*)a[i].key.value.p);
       }
       if(module==NULL){
+        mf_str_dec_refcount(id);
         mf_traceback("import");
         return 1;
       }
       t.type=mv_table;
       t.value.p=(mt_basic*)module;
-      mf_map_set_hash(mv_gvtab,&a[i].key,&t,a[i].hash);
+      mf_map_set_str(mv_gvtab,id,&t);
       module->refcount--;
+      mf_str_dec_refcount(id);
     }
   }
   if(argc==2 && module){
@@ -3850,6 +3968,11 @@ void print_complex(double re, double im){
   }
 }
 
+static
+int omitted(mt_range* r){
+  return r->a.type==mv_null || r->b.type==mv_null;
+}
+
 int mf_put(mt_object* x){
   mt_string* s;
   mt_range* r;
@@ -3900,28 +4023,40 @@ int mf_put(mt_object* x){
     s = (mt_string*)x->value.p;
     mf_print_string(s->size,s->a);
     break;
+  case mv_bstring:{
+    mt_bstring* bs = (mt_bstring*)x->value.p;
+    mf_print_bstring(bs->size,bs->a);
+  } break;
   case mv_function:
     printf("function");
     break;
   case mv_range:
     r = (mt_range*)x->value.p;
-    if(r->a.type==mv_null || r->b.type==mv_null){
-      printf("(");
-    }
+    if(omitted(r)) printf("(");
     if(r->a.type!=mv_null){
-      if(mf_put_repr(&r->a)) goto error;
+      if(r->a.type==mv_range && !omitted((mt_range*)r->a.value.p)){
+        printf("(");
+        if(mf_put_repr(&r->a)) goto error;
+        printf(")");
+      }else{
+        if(mf_put_repr(&r->a)) goto error;
+      }
     }
     printf("..");
     if(r->b.type!=mv_null){
-      if(mf_put_repr(&r->b)) goto error;
+      if(r->b.type==mv_range && !omitted((mt_range*)r->b.value.p)){
+        printf("(");
+        if(mf_put_repr(&r->b)) goto error;
+        printf(")");
+      }else{
+        if(mf_put_repr(&r->b)) goto error;
+      }
     }
     if(r->step.type!=mv_int || r->step.value.i!=1){
       printf(":");
       if(mf_put_repr(&r->step)) goto error;
     }
-    if(r->a.type==mv_null || r->b.type==mv_null){
-      printf(")");
-    }
+    if(omitted(r)) printf(")");
     break;
   case mv_set:{
     s = mf_set_to_string((mt_set*)x->value.p);
@@ -3986,61 +4121,129 @@ int mf_fprint(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-int mf_fixed(mt_object* x, int argc, mt_object* v){
-  if(argc!=2){
-    mf_argc_error(argc,2,2,"fixed");
+static
+char* read_file(int* fsize, const unsigned char* id){
+  FILE* file;
+  char* data;
+  int size;
+  file = fopen((const char*)id,"rb");
+  if(file==NULL) return NULL;
+  fseek(file,0,SEEK_END);
+  size = ftell(file);
+  data = mf_malloc(size);
+  fseek(file,0,SEEK_SET);
+  fread(data,1,size,file);
+  fclose(file);
+  *fsize=size;
+  return data;
+}
+
+mt_string* mf_str_decode_utf8(long size, unsigned char* a);
+int mf_fread(mt_object* x, int argc, mt_object* v){
+  if(argc==2){
+    if(v[2].type!=mv_string){
+      mf_type_error1("in read(id,mode): mode (type: %s) is not a string.",v+2);
+      return 1;
+    }
+  }else if(argc!=1){
+    mf_argc_error(argc,1,2,"read");
     return 1;
   }
-  int e=0;
-  double t=mf_float(v+1,&e);
-  if(e){
-    mf_type_error1("in fixed(x,n): cannot convert x (type: %s) to float.",v+1);
+  if(v[1].type!=mv_string){
+    mf_type_error1("in read(id): id (type: %s) is not of type string.",v+1);
+    return 0;
+  }
+  mt_string* id = (mt_string*)v[1].value.p;
+  mt_bstr bid;
+  mf_encode_utf8(&bid,id->size,id->a);
+  char* data;
+  int size;
+  data = read_file(&size,bid.a);
+  if(data==NULL){
+    char a[200];
+    snprintf(a,200,"Error: could not read file '%s'.",bid.a);
+    mf_std_exception(a);
+    mf_free(bid.a);
     return 1;
   }
-  if(v[2].type!=mv_int){
-    mf_type_error1("in fixed(x,n): n (type: %s) is not an integer.",v+2);
-    return 1;
+  mf_free(bid.a);
+
+  if(argc==2){
+    mt_string* mode = (mt_string*)v[2].value.p;
+    if(mf_str_cmpmem(mode,1,"b")==0){
+      mt_bstring* bs = mf_buffer_to_bstring(size,(unsigned char*)data);
+      mf_free(data);
+      x->type=mv_bstring;
+      x->value.p=(mt_basic*)bs;
+      return 0;
+    }
   }
-  long n = v[2].value.i;
-  if(n>30){
-    mf_value_error("Value error in fixed(x,n): n>30.");
-    return 1;
-  }
-  if(n<0) n=0;
-  char a[100];
-  snprintf(a,100,"%.*f",(int)n,t);
-  mt_string* s = mf_cstr_to_str(a);
+  mt_string* s = mf_str_decode_utf8(size,(unsigned char*)data);
+  mf_free(data);
   x->type=mv_string;
   x->value.p=(mt_basic*)s;
   return 0;
 }
 
-int mf_exponential(mt_object* x, int argc, mt_object* v){
+int mf_fassert(mt_object* x, int argc, mt_object* v){
   if(argc!=2){
-    mf_argc_error(argc,2,2,"exponential");
+    mf_argc_error(argc,2,2,"assert");
     return 1;
   }
-  int e=0;
-  double t=mf_float(v+1,&e);
-  if(e){
-    mf_type_error1("in exponential(x,n): cannot convert x (type: %s) to float.",v+1);
+  if(v[1].type!=mv_bool){
+    mf_type_error1("in assert(e,s): e (type: %s) is not a boolean.",&v[1]);
     return 1;
   }
-  if(v[2].type!=mv_int){
-    mf_type_error1("in exponential(x,n): n (type: %s) is not an integer.",v+2);
+  if(v[1].value.b!=0){
+    x->type=mv_null;
+    return 0;
+  }
+  if(v[2].type!=mv_string){
+    mf_type_error1("in assert(e,s): s (type: %s) is not a string.",&v[2]);
     return 1;
   }
-  long n = v[2].value.i;
-  if(n>30){
-    mf_value_error("Value error in exponential(x,n): n>30.");
+  mt_list* list=mf_raw_list(3);
+  mt_object* a=list->a;
+  a[0].type=mv_string;
+  a[0].value.p=(mt_basic*)mf_cstr_to_str("Assertion failed: ");
+  mf_copy_inc(&a[1],&v[2]);
+  a[2].type=mv_string;
+  a[2].value.p=(mt_basic*)mf_cstr_to_str(".");
+
+  mt_vec buffer;
+  mf_vec_init(&buffer,4);
+  if(mf_join(&buffer,list,NULL)){
+    mf_vec_delete(&buffer);
+    mf_list_dec_refcount(list);
     return 1;
   }
-  if(n<0) n=0;
-  char a[100];
-  snprintf(a,100,"%.*E",(int)n,t);
-  mt_string* s = mf_cstr_to_str(a);
-  x->type=mv_string;
-  x->value.p=(mt_basic*)s;
-  return 0;
+  mt_string* s = mf_raw_string(buffer.size);
+  memcpy(s->a,buffer.a,buffer.size*4);
+  mf_vec_delete(&buffer);
+  mf_list_dec_refcount(list);
+
+  mf_new_traceback_list();
+  mf_str_exception(s);
+  return 1;
 }
 
+int mf_fhex(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"hex");
+    return 1;
+  }
+  if(v[1].type!=mv_int){
+    mf_type_error1("in hex(n): n (type: %s) is not an integer.",&v[1]);
+    return 1;
+  }
+  long n=v[1].value.i;
+  char buffer[100];
+  if(n<0){
+    snprintf(buffer,100,"-0x%lx",-n);
+  }else{
+    snprintf(buffer,100,"0x%lx",n);
+  }
+  x->type=mv_string;
+  x->value.p=(mt_basic*)mf_cstr_to_str(buffer);
+  return 0;
+}
