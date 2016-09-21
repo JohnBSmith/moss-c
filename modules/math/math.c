@@ -435,6 +435,141 @@ int math_erf(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+static
+int math_expm1(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"expm1");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in expm1(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=expm1(t);
+  return 0;
+}
+
+static
+int math_ln1p(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"ln1p");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in ln1p(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_float;
+  x->value.f=log1p(t);
+  return 0;
+}
+
+static
+int math_isinf(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"isinf");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in isinf(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_bool;
+  x->value.b=isinf(t);
+  return 0;
+}
+
+static
+int math_isfinite(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"isfinite");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in isfinite(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_bool;
+  x->value.b=isfinite(t);
+  return 0;
+}
+
+static
+int math_isnan(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"isnan");
+    return 1;
+  }
+  int e=0;
+  double t = mf_float(v+1,&e);
+  if(e){
+    mf_type_error("Type error in isnan(x): cannot convert x to float.");
+    return 1;
+  }
+  x->type=mv_bool;
+  x->value.b=isnan(t);
+  return 0;
+}
+
+static
+int math_hypot(mt_object* x, int argc, mt_object* v){
+  int e,i;
+  double a,b;
+  if(argc==2){
+    e=0;
+    a = mf_float(v+1,&e);
+    if(e){
+      mf_type_error1("in hypot(x,y): cannot convert x (type: %s) to float.",v+1);
+      return 1;
+    }
+    b = mf_float(v+2,&e);    
+    if(e){
+      mf_type_error1("in hypot(x,y): cannot convert y (type: %s) to float.",v+2);
+      return 1;
+    }
+    x->type=mv_float;
+    x->value.f=hypot(a,b);
+    return 0;
+  }else{
+    mf_argc_error(argc,2,2,"hypot");
+    return 1;
+  }
+}
+
+static
+int math_atan2(mt_object* x, int argc, mt_object* v){
+  int e;
+  double a,b;
+  if(argc==2){
+    e=0;
+    b = mf_float(v+1,&e);
+    if(e){
+      mf_type_error("Type error in atan2(y,x): cannot convert y to float.");
+      return 1;
+    }
+    a = mf_float(v+2,&e);    
+    if(e){
+      mf_type_error("Type error in atan2(y,x): cannot convert x to float.");
+      return 1;
+    }
+    x->type=mv_float;
+    x->value.f=atan2(b,a);
+    return 0;
+  }else{
+    mf_argc_error(argc,2,2,"atan2");
+    return 1;
+  }
+}
+
 mt_table* mf_math_load(){
   mt_table* math = mf_table(NULL);
   math->name = mf_cstr_to_str("module math");
@@ -475,6 +610,16 @@ mt_table* mf_math_load(){
   mf_insert_function(m,1,1,"lgamma",math_lgamma);
   mf_insert_function(m,1,1,"sgngamma",math_sgngamma);
   mf_insert_function(m,1,1,"erf",math_erf);
+
+  mf_insert_function(m,1,1,"expm1",math_expm1);
+  mf_insert_function(m,1,1,"ln1p",math_ln1p);
+
+  mf_insert_function(m,1,1,"isnan",math_isnan);
+  mf_insert_function(m,1,1,"isinf",math_isinf);
+  mf_insert_function(m,1,1,"isfinite",math_isfinite);
+  mf_insert_function(m,2,2,"hypot",math_hypot);
+  mf_insert_function(m,2,2,"atan2",math_atan2);
+
   m->frozen=1;
   return math;
 }

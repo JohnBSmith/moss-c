@@ -20,6 +20,7 @@ cd modules
 (cd gx && sh make.sh)
 (cd module && sh make.sh)
 (cd format && sh make.sh)
+(cd crypto && sh make.sh)
 
 cd ../objects
 (cd string && sh make.sh)
@@ -27,7 +28,6 @@ cd ../objects
 (cd map && sh make.sh)
 (cd list && sh make.sh)
 (cd complex && sh make.sh)
-(cd set && sh make.sh)
 (cd function && sh make.sh)
 (cd longgmp && sh make.sh)
 (cd iterable && sh make.sh)

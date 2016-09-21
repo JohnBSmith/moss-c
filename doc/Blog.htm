@@ -20,7 +20,7 @@ buffers shall be resolved. Formatted printing to <code>stdout</code>
 shall be removed in favor of string buffers.
 </p>
 
-<h3 data-date=20160808 id="new-formatted-printing-function">
+<h3 data-date="20160808" id="new-formatted-printing-function">
 New formatted printing function</h3>
 <p>Moss gets a function and syntax for formatted printing.
 I&nbsp;will compare it with equivalents from&nbsp;C.
@@ -58,6 +58,22 @@ that return tables as HTML5, LATEX2E and plots as PNG, SVG
 as automatically as possible. Whole documents or books (libraries?)
 could be generated automatically from data. But one must say
 to this, that HTML5 is more easy to use than LATEX2E.
+</p>
+
+<h3 data-date="20160920" id="set-dict-joined">
+Joined datatypes dictionary and set</h3>
+<p>As sets are a special case of dictionaries and set operations
+do not interfere with dictionary operations, them can be joined.
+Dictionaries with values absent can be considered as sets:
+</p>
+<pre>
+  {1, 2} == {1: null, 2: null}
+</pre>
+<p>Multisets cannot be included as well, because
+they introduce problems. For example, '<code>==</code>' behaves
+differently if there are keys with <code>d[key]==0</code>.
+But it is clear that dictionaries will be used as internal data
+structures of multisets.
 </p>
 
 </body>

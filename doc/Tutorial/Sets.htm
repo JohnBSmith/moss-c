@@ -14,11 +14,12 @@
 <h2 id="toc">Table of contents
 </h2>
 <ol>
-<li><a href="#construction">Construction and representation</a>
+<li><a href="#construction">Construction</a>
 <li><a href="#operations">Basic operations</a>
 <li><a href="#products">Cartesian products</a>
 <li><a href="#powersets">Power sets</a>
 <li><a href="#equivalence">Equivalence classes</a>
+<li><a href="#functions">Sets of functions</a>
 </ol>
 
 <p>In mathematics, the concept of sets is very useful and was
@@ -36,18 +37,15 @@ reasons.
 </p>
 
 <h2 id="construction">
-Construction and representation</h2>
+Construction</h2>
 
-<p>In Moss there is no special literal for sets.
-They are constructed by the function <code>set</code> which converts
-a list or another iterable object into a set. The output
-representation is also not of much importantance. As a general
-output method, a set is converted back to a list and sorted if
-possible.
+<p>In Moss sets are noted down like in standard math notation.
+The function <code>set</code> converts an iterable object
+into a set.
 </p>
 
 <pre class="moss">
-&gt; A = set([1,2,3,4])
+&gt; A = {1,2,3,4}
 &gt; B = set(1..10)
 
 # print the set A
@@ -58,14 +56,18 @@ possible.
 # print the set A prettier
 &gt; print(list(A).sort())
 [1, 2, 3, 4]
+
+# the set of the first four even numbers
+&gt; set((1..).filter(|x| x%2==0).list(4))
+{2, 4, 6, 8}
 </pre>
 
 <h2 id="operations">
 Basic operations</h2>
 
 <pre class="moss">
-&gt; A = set(1..4)
-&gt; B = set(3..6)
+&gt; A = {1,2,3,4}
+&gt; B = {3,4,5,6}
 
 # union
 &gt; list(A|B).sort()
@@ -114,18 +116,18 @@ true
 2
 
 # set builder notation
-&gt; list(A.filter(|x| x%2==0)).sort()
-[2, 4]
+&gt; set(A.filter(|x| x%2==0))
+{2, 4}
 
 # image of a function
-&gt; list(A.map(|x| 2*x)).sort()
-[2, 4, 6, 8]
+&gt; set(A.map(|x| 2*x))
+{2, 4, 6, 8}
 
 # operations on a collection of sets
-cup = |a| a.reduce(set(),|x,y| x|y)
-cap = |a| a.reduce(set(),|x,y| x&amp;y)
+cup = |a| a.reduce({},|x,y| x|y)
+cap = |a| a.reduce({},|x,y| x&amp;y)
 
-&gt; list(cup([A,B])).sort()
+&gt; cup([A,B])
 [1, 2, 3, 4, 5, 6]
 </pre>
 
@@ -139,10 +141,10 @@ Cartesian products</h2>
 <pre class="moss">
 &gt; A = [0,1]
 &gt; B = [2,3]
-&gt; A^2
-[[0, 0], [0, 1], [1, 0], [1, 1]]
 &gt; A*B
 [[0, 2], [0, 3], [1, 2], [1, 3]]
+&gt; A^2
+[[0, 0], [0, 1], [1, 0], [1, 1]]
 </pre>
 
 <p>Currently there is no associative product,
@@ -152,12 +154,32 @@ but it can be done in the follwing way.
 <pre class="moss">
 prod = |*a| a.reduce(|x,y| (x*y).map(|t| t.chain()))
 </pre>
+<p>We will extend the functionality of the dictionary data type.
+</p>
+<pre class="moss">
+extend(dict.type,table
+  sub MPY(b)
+    set(list(self)*list(b))
+  end,
+  sub POW(n)
+    set(list(self)^n)
+  end
+end)
+
+&gt; A = {0,1}
+&gt; B = {2,3}
+&gt; A*B
+{[0, 2], [0, 3], [1, 2], [1, 3]}
+&gt; A^2
+{[0, 0], [0, 1], [1, 0], [1, 1]}
+</pre>
 
 
 <h2 id="powersets">
 Power sets</h2>
 
-<p>There is no buildin function for this purpose.
+<p>There is no built-in function for this purpose, but we
+can write one.
 </p>
 
 <pre class="moss">
@@ -166,6 +188,21 @@ powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
 &gt; powerset(1..4)
 [[], [1], [2], [1, 2], [3], [1, 3], [2, 3], [1, 2, 3], [4], [1, 4],
 [2, 4], [1, 2, 4], [3, 4], [1, 3, 4], [2, 3, 4], [1, 2, 3, 4]]
+</pre>
+
+<p>We will extend the functionality of the dictionary data type.
+</p>
+<pre class="moss">
+extend(dict.type,table
+  sub RPOW(a)
+    if self==2
+      return a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
+    end
+  end
+end)
+
+&gt; 2^{1,2}
+{{}, {1}, {2}, {1,2}}
 </pre>
 
 
@@ -222,6 +259,36 @@ partition = sub|a,p|
   end
   return d.values()
 end
+</pre>
+
+<h2 id="functions">Sets of functions</h2>
+
+<p>The set of all functions from a domain to a codomain.
+A function will be represented as a dictionary.
+</p>
+<pre class="moss">
+extend(dict.type,table
+  sub POW(n)
+    if type(n) is int.type
+      return set(list(self)^n)
+    else
+      a = list(n)
+      c = list(self)^size(a)
+      return set(c.map(|t| (0..size(t)-1).dict(|i| [a[i],t[i]])))
+    end
+  end
+end)
+
+&gt; {"a","b","c"}^{0,1}
+{{0: "a", 1: "a"},
+ {0: "a", 1: "b"},
+ {0: "a", 1: "c"},
+ {0: "b", 1: "a"},
+ {0: "b", 1: "b"},
+ {0: "b", 1: "c"},
+ {0: "c", 1: "a"},
+ {0: "c", 1: "b"},
+ {0: "c", 1: "c"}}
 </pre>
 
 </body>

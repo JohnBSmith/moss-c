@@ -1,13 +1,13 @@
 
 use na: interpolate
-use la: array
+use la: ha
 use plotlib: system
 
 sub euler(g,x0,y0,h,N)
-  x=x0; y=array(y0)
+  x=x0; y=ha(y0)
   a = [[x,y]]
   for k in 1..N
-    y = y+h*array(g(x,y))
+    y = y+h*ha(g(x,y))
     x = x0+k*h
     a.push([x,y])
   end

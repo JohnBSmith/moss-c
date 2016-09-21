@@ -584,6 +584,18 @@ void scatter_point(mt_canvas* canvas, double x, double y){
 }
 
 static
+void box(mt_canvas* canvas, double x, double y){
+  double rx=(canvas->w+canvas->w*x)/2.0;
+  double ry=(canvas->h-canvas->w*y)/2.0;
+  unsigned int px=rx;
+  unsigned int py=ry;
+  gx_fill(canvas,px-4,py-4,10,2);
+  gx_fill(canvas,px-4,py+4,10,2);
+  gx_fill(canvas,px-4,py-2,2,6);
+  gx_fill(canvas,px+4,py-2,2,6);
+}
+
+static
 int mf_gx_point(mt_object* x, int argc, mt_object* v){
   if(argc!=2){
     mf_argc_error(argc,2,2,"point");
@@ -634,6 +646,32 @@ int mf_gx_scatter(mt_object* x, int argc, mt_object* v){
   }
   if(!isnan(rx) && !isnan(ry)){
     scatter_point(canvas,rx,ry);
+  }
+  x->type=mv_null;
+  return 0;
+}
+
+static
+int canvas_box(mt_object* x, int argc, mt_object* v){
+  if(argc!=2){
+    mf_argc_error(argc,2,2,"box");
+    return 1;
+  }
+  if(!isa(v,canvas_type)){
+    mf_type_error("Type error in c.box(x,y): c is not a canvas.");
+    return 1;
+  }
+  mt_canvas* canvas=(mt_canvas*)v[0].value.p;
+  double rx,ry;
+  int error=0;
+  rx=mf_float(v+1,&error);
+  ry=mf_float(v+2,&error);
+  if(error){
+    mf_type_error("Type error in c.box(x,y): x,y must be convertible to float.");
+    return 1;
+  }
+  if(!isnan(rx) && !isnan(ry)){
+    box(canvas,rx,ry);
   }
   x->type=mv_null;
   return 0;
@@ -847,6 +885,7 @@ mt_table* mf_gx_load(){
   mf_insert_function(m,0,0,"key",mf_gx_key);
   mf_insert_function(m,2,2,"point",mf_gx_point);
   mf_insert_function(m,2,2,"scatter",mf_gx_scatter);
+  mf_insert_function(m,2,2,"box",canvas_box);
   mf_insert_function(m,4,4,"line",gx_line);
   mf_insert_function(m,4,4,"fill",mf_gx_fill);
   mf_insert_function(m,1,1,"print",mf_gx_print);

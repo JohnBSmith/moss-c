@@ -16,7 +16,7 @@
 #include <moss.h>
 // #include <gsl/gsl_sf.h>
 
-#define PI M_PI
+#define PI 3.14159265358979323846
 #define SQRT_PI 1.772453850905516027
 
 #if defined(_WIN32) || defined(__clang__)

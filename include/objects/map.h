@@ -17,5 +17,14 @@ void mf_init_type_dict(mt_table* t);
 void mf_map_extend(mt_map* m, mt_map* m2);
 void mf_map_update(mt_map* m, mt_map* m2);
 
+mt_map* mf_map_union(mt_map* x, mt_map* y);
+mt_map* mf_map_intersection(mt_map* x, mt_map* y);
+mt_map* mf_map_difference(mt_map* x, mt_map* y);
+mt_map* mf_map_symmetric_difference(mt_map* x, mt_map* y);
+
+int mf_map_subseteq(mt_map* x, mt_map* y);
+int mf_map_subset(mt_map* x, mt_map* y);
+int mf_fset(mt_object* x, int argc, mt_object* v);
+
 #endif
 

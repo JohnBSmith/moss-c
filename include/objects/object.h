@@ -12,13 +12,12 @@
 #define mv_tuple 7
 #define mv_string 8
 #define mv_bstring 9
-#define mv_set 10
-#define mv_map 11
-#define mv_array 12
-#define mv_range 13
-#define mv_function 14
-#define mv_table 15
-#define mv_native 16
+#define mv_map 10
+#define mv_array 11
+#define mv_range 12
+#define mv_function 13
+#define mv_table 14
+#define mv_native 15
 
 typedef struct mt_basic mt_basic;
 typedef struct{
@@ -60,7 +59,7 @@ typedef struct{
 } mt_list;
 
 typedef struct{
-  int taken;
+  unsigned int taken;
   uint32_t hash;
   mt_object key;
   mt_object value;
@@ -117,12 +116,6 @@ typedef struct{
   mt_tuple* context;
   mt_module* module;
 } mt_function;
-
-typedef struct{
-  long refcount;
-  mt_htab htab;
-  int frozen;
-} mt_set;
 
 typedef struct{
   long refcount;

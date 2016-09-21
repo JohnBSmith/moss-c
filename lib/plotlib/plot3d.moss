@@ -1,0 +1,209 @@
+
+use gx, time
+use math: pi, sin, cos
+
+gw=960; gw2=gw//2
+gh=640; gh2=gh//2
+
+color_table = [
+  [0, 0, 0.4],
+  [0, 0.4, 0],
+  [0.6, 0, 0.6],
+  [0, 0.4, 0.4],
+  [0.4, 0, 0],
+  [0.8, 0.6, 0],
+  [0, 0, 0]
+]
+
+sub point3d(sys,canvas,c,s,x,y,z)
+  xt = c*x-s*y
+  yt = s*x+c*y
+  xp = -xt+yt
+  yp = z-xt/2-yt/2
+  canvas.point((xp-sys.px)/sys.wx,(yp-sys.py)/sys.wy)
+end
+
+sub scatter3d(sys,canvas,c,s,x,y,z)
+  xt = c*x-s*y
+  yt = s*x+c*y
+  xp = -xt+yt
+  yp = z-xt/2-yt/2
+  canvas.scatter((xp-sys.px)/sys.wx,(yp-sys.py)/sys.wy)
+end
+
+sub box3d(sys,canvas,c,s,x,y,z)
+  xt = c*x-s*y
+  yt = s*x+c*y
+  xp = -xt+yt
+  yp = z-xt/2-yt/2
+  canvas.box((xp-sys.px)/sys.wx,(yp-sys.py)/sys.wy)
+end
+
+sub line3d(sys,canvas,c,s,x1,y1,z1,x2,y2,z2)
+  xt = c*x1-s*y1
+  yt = s*x1+c*y1
+  xp1 = -xt+yt
+  yp1 = z1-xt/2-yt/2
+  xt = c*x2-s*y2
+  yt = s*x2+c*y2
+  xp2 = -xt+yt
+  yp2 = z2-xt/2-yt/2
+  canvas.line(xp1,yp1,xp2,yp2)
+end
+
+tplot3d = table
+  sub idle
+    c = self.canvas
+    c.flush()
+    while c.key()!="q"
+      time.sleep(0.2)
+    end
+  end,
+  sub scatter(a)
+    canvas = self.canvas
+    c=cos(self.phi)
+    s=sin(self.phi)
+    for t in a
+      scatter3d(self,canvas,c,s,t[0],t[1],t[2])
+    end
+  end,
+  sub box(a)
+    canvas = self.canvas
+    c=cos(self.phi)
+    s=sin(self.phi)
+    for t in a
+      box3d(self,canvas,c,s,t[0],t[1],t[2])
+    end
+  end,
+  sub plot(f,*argv)
+    t=size(argv)!=0?argv[0]:{}
+    canvas = self.canvas
+    c=cos(self.phi)
+    s=sin(self.phi)
+    px=self.px; wx=self.wx 
+    py=self.py; wy=self.wy
+    pz=self.pz; wz=self.wz
+    mx = "mx" in t? t["mx"]: self.mx
+    my = "my" in t? t["my"]: self.my
+    nx = "nx" in t? t["nx"]: self.nx
+    ny = "ny" in t? t["ny"]: self.ny
+    m = "m" in t? t["m"]: self.m
+    canvas.cset(color_table[self.index%size(color_table)])
+    self.index++
+    for tx in -mx..mx
+      x=px+tx/mx*wx
+      for ty in -ny..ny
+        y=py+ty/ny*wy
+        z = f(x,y)
+        point3d(self,canvas,c,s,m*x,m*y,m*z)
+      end
+    end
+    for ty in -my..my
+      y=py+ty/my*wy
+      for tx in -nx..nx
+        x=px+tx/nx*wx
+        z = f(x,y)
+        point3d(self,canvas,c,s,m*x,m*y,m*z)
+      end
+    end
+  end,
+  sub pplot(f,*argv)
+    t=size(argv)!=0?argv[0]:{}
+    canvas = self.canvas
+    c=cos(self.phi)
+    s=sin(self.phi)
+    u1 = "u1" in t? t["u1"]: 0
+    u2 = "u2" in t? t["u2"]: 2*pi
+    v1 = "v1" in t? t["v1"]: 0
+    v2 = "v2" in t? t["v2"]: pi
+    mu = "mu" in t? t["mu"]: 20
+    mv = "mv" in t? t["mv"]: 20
+    nu = "nu" in t? t["nu"]: 400
+    nv = "nv" in t? t["nv"]: 400
+    m = "m" in t? t["m"]: self.m
+    du = (u2-u1)/nu; Du = (u2-u1)/mu
+    dv = (v2-v1)/nv; Dv = (v2-v1)/mv
+    canvas.cset(0.4,0.4,0.5)
+    for u in u1..u2: Du
+      for v in v1..v2: dv
+        p = f(u,v)
+        point3d(self,canvas,c,s,m*p[0],m*p[1],m*p[2])
+      end
+    end
+    canvas.cset(0.5,0.4,0.5)
+    for v in v1..v2: Dv
+      for u in u1..u2: du
+        p = f(u,v)
+        point3d(self,canvas,c,s,m*p[0],m*p[1],m*p[2])
+      end
+    end
+  end,
+  sub vplot(f,*argv)
+    t=size(argv)!=0?argv[0]:{}
+    canvas = self.canvas
+    c=cos(self.phi)
+    s=sin(self.phi)
+    px=self.px; wx=self.wx 
+    py=self.py; wy=self.wy
+    pz=self.pz; wz=self.wz
+    n = "n" in t? t["n"]: self.n
+    m = "m" in t? t["m"]: self.m
+    t1 = "t1" in t? t["t1"]: 0
+    t2 = "t2" in t? t["t2"]: 2*pi
+    d = (t2-t1)/n
+    shadow = "shadow" in t? t["shadow"]: true
+    canvas.cset(color_table[self.index%size(color_table)])
+    self.index++
+    for t in t1..t2: d
+      p = f(t)
+      point3d(self,canvas,c,s,m*p[0],m*p[1],m*p[2])
+    end
+    if shadow
+      canvas.cset(0.6,0.6,0.6)
+      for t in t1..t2: d
+        p = f(t)
+        point3d(self,canvas,c,s,m*p[0],m*p[1],0)
+      end
+    end
+  end
+end
+
+sub system(*argv)
+  t = size(argv)!=0?argv[0]:{}
+  canvas=gx.new(gw,gh,1)
+  canvas.font(16)
+  s = table[tplot3d] canvas=canvas, index=0 end
+  s.px = "px" in t? t["px"]: 0
+  s.py = "py" in t? t["py"]: 0
+  s.pz = "pz" in t? t["pz"]: 0
+  s.wx = "wx" in t? t["wx"]: 10
+  s.wy = "wy" in t? t["wy"]: 10
+  s.wz = "wz" in t? t["wz"]: 10
+  s.phi = "phi" in t? t["phi"]: 0.2
+  s.mx = 10; s.nx = 200
+  s.my = 10; s.ny = 200
+  s.m=0.6*("m" in t?t["m"]:1)
+  s.n=1000
+  canvas.clear(1,1,1)
+  canvas.mix(0)
+
+  axes = "axes" in t? t["axes"]: true
+  if axes
+    canvas.cset(0.5,0.5,0.5)
+    cphi = cos(s.phi)
+    sphi = sin(s.phi)
+    line3d(s,canvas,cphi,sphi,0,0,0,0.5,0,0)
+    line3d(s,canvas,cphi,sphi,0,0,0,0,0.5,0)
+    line3d(s,canvas,cphi,sphi,0,0,0,0,0,0.5)
+    scatter3d(s,canvas,cphi,sphi,s.m,0,0)
+    scatter3d(s,canvas,cphi,sphi,0,s.m,0)
+    scatter3d(s,canvas,cphi,sphi,0,0,s.m)
+  end
+  canvas.flush()
+  canvas.cset(0,0,0.4)
+  return s
+end
+
+
+
+

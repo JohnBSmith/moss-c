@@ -643,5 +643,6 @@ void mf_init_type_iterable(mt_table* type){
   mf_insert_function(m,1,2,"reduce",iterable_reduce);
   mf_insert_function(m,1,1,"map",iterable_map);
   mf_insert_function(m,1,1,"filter",iterable_filter);
+  mf_insert_function(m,1,1,"call",iterable_filter);
   mf_insert_function(m,1,1,"dict",iterable_dict);
 }

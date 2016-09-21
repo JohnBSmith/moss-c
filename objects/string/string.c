@@ -6,14 +6,18 @@
 #include <math.h>
 #include <moss.h>
 #include <modules/str.h>
+#include <modules/bs.h>
 #include <objects/string.h>
 
 mt_string* mf_list_to_string(mt_list* list);
 mt_string* mf_long_to_string(mt_long* x);
+mt_string* mf_map_to_string(mt_map* m);
+
 int mf_object_get_memory(mt_object* x, mt_object* a,
   long size, const char* id);
 mt_bstring* mf_buffer_to_bstring(long size, const unsigned char* a);
 double mf_float(mt_object* x, int* error);
+void mf_type(mt_object* x, mt_object* a);
 
 mt_string* mf_raw_string(long size){
   mt_string* s = mf_malloc(sizeof(mt_string)+size*sizeof(uint32_t));
@@ -94,6 +98,19 @@ char* mf_str_to_cstr(mt_string* s){
   }
   a[size]=0;
   return (char*)a;
+}
+
+mt_string* mf_bu32_move_to_string(mt_bu32* b){
+  unsigned long i,size;
+  size = b->size;
+  uint32_t* ba = mf_bu32_move(b);
+  mt_string* s = mf_raw_string(size);
+  uint32_t* a=s->a;
+  for(i=0; i<size; i++){
+    a[i]=ba[i];
+  }
+  mf_free(ba);
+  return s;
 }
 
 static
@@ -203,6 +220,7 @@ void print_complex(char* a, double re, double im){
 mt_string* mf_str(mt_object* x){
   mt_string* s;
   char a[200];
+  mt_object prototype;
   mt_object f;
   mt_table* t;
   int e;
@@ -239,6 +257,9 @@ mt_string* mf_str(mt_object* x){
   case mv_list:
     s=mf_list_to_string((mt_list*)x->value.p);
     return s;
+  case mv_map:
+    s=mf_map_to_string((mt_map*)x->value.p);
+    return s;
   case mv_function:
     s=mf_cstr_to_str("function");
     return s;
@@ -251,25 +272,32 @@ mt_string* mf_str(mt_object* x){
     }
     goto Default;
   default: Default:
-    e=mf_object_get_memory(&f,x,3,"STR");
+    mf_type(&prototype,x);
+    e=mf_object_get_memory(&f,&prototype,3,"STR");
     if(e){
       s=mf_cstr_to_str("object");
+      mf_dec_refcount(&prototype);
       return s;
     }
     if(f.type!=mv_function){
       mf_type_error("Type error in str(x): x.STR is not a function.");
-      return NULL;
+      goto error;
     }
     mt_object y;
     if(mf_call((mt_function*)f.value.p,&y,0,x)){
-      return NULL;
+      goto error;
     }
     if(y.type!=mv_string){
       mf_type_error("Type error in str(x): return value of x.STR() is not a string.");
       mf_dec_refcount(&y);
-      return NULL;
+      goto error;
     }
+    mf_dec_refcount(&prototype);
     return (mt_string*)y.value.p;
+
+    error:
+    mf_dec_refcount(&prototype);
+    return NULL;
   }
 }
 

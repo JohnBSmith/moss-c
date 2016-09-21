@@ -185,6 +185,23 @@ tplot = table
     end
   end,
 
+  sub box(a,*argv)
+    t = size(argv)==0?{}:argv[0]
+    wx=self.wx; px=self.px
+    wy=self.wy; py=self.py
+    c=self.canvas
+    if "color" in t
+      c.cset(t["color"])
+    else
+      m = size(color_table)
+      c.cset(color_table[self.index%m])
+      self.index++
+    end
+    for v in a
+      c.box((v[0]-px)/wx,(v[1]-py)/wy)
+    end
+  end,
+
   sub palette(i)
     self.index=i
   end,
@@ -305,7 +322,7 @@ sub sigmoid(x)
 end
 
 sub cplot(f,*argv)
-  t = size(argv)==1?argv[0]:{}
+  t = size(argv)!=0?argv[0]:{}
   wx = "wx" in t? t["wx"]: 10
   wy = "wy" in t? t["wy"]: 10
   px = "px" in t? t["px"]: 0
@@ -321,6 +338,38 @@ sub cplot(f,*argv)
       z = ((x-a2)/a2*wx+px)+(py-(y-b2)/a2*wy)*1i
       w = f(z)
       c.HSL(arg(w),1,sigmoid(abs(w)))
+      c.fill(4*x,4*y,4,4)
+    end
+  end
+  c.cset(0.7,0.7,0.64,0.2)
+  vline(c,gw2)
+  hline(c,gh2)
+  labels(c,wx,wy,px,py)
+  c.flush()
+  while c.key()!="q"
+    time.sleep(0.2)
+  end
+end
+
+sub contour_plot(f,*argv)
+  t = size(argv)!=0?argv[0]:{}
+  wx = "wx" in t? t["wx"]: 10
+  wy = "wy" in t? t["wy"]: 10
+  wz = "wz" in t? t["wz"]: 1
+  px = "px" in t? t["px"]: 0
+  py = "py" in t? t["py"]: 0
+  a=gw//4; b=gh//4
+  a2=gw/8; b2=gh/8
+  c=gx.new(gw,gh,1)
+  c.font(16)
+  c.clear(1,1,1)
+  c.mix(0)
+  for x in a
+    for y in b
+      ax = ((x-a2)/a2*wx+px)
+      ay = (py-(y-b2)/a2*wy)
+      w = wz*f(ax,ay)
+      c.HSL(0.8,1,sigmoid(abs(w)))
       c.fill(4*x,4*y,4,4)
     end
   end

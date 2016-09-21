@@ -5,7 +5,8 @@
 #ifdef _WIN32
   #include "blas.c"
 #else
-  #include <cblas.h>
+  #include "blas.c"
+  // #include <cblas.h>
 #endif
 #include <moss.h>
 #include <objects/string.h>
@@ -76,7 +77,12 @@ mt_array* mf_array_copy(mt_array* a){
       return b;
     }
   }else if(a->n==1){
-    abort();
+    b = mf_new_array(a->shape[0],mv_array_float);
+    b->n=1;
+    b->shape[0]=a->shape[0];
+    b->stride[0]=1;
+    cblas_dcopy(a->shape[0],(double*)a->base,a->stride[0],(double*)b->base,1);
+    return b;
   }else{
     if(a->plain) goto plain;
     abort();
@@ -135,7 +141,7 @@ void mf_ensure_plain(mt_array* a){
 }
 
 static
-mt_array* mf_array_map(mt_array* a, double(*f)(double)){
+mt_array* mf_array_map_dd(mt_array* a, double(*f)(double)){
   mt_array* b;
   if(a->n==2){
     if(a->plain){
@@ -421,7 +427,7 @@ int array_ADD(mt_object* x, int argc, mt_object* v){
       mf_type_error1("in a+r: cannot convert r (type: %s) to float.",&v[1]);
       return 1;
     }
-    c = mf_array_map(a,add);
+    c = mf_array_map_dd(a,add);
     if(c==NULL) return 1;
     x->type=mv_array;
     x->value.p=(mt_basic*)c;
@@ -476,7 +482,7 @@ int array_SUB(mt_object* x, int argc, mt_object* v){
       mf_type_error1("in a-r: cannot convert r (type: %s) to float.",&v[1]);
       return 1;
     }
-    c = mf_array_map(a,sub);
+    c = mf_array_map_dd(a,sub);
     if(c==NULL) return 1;
     x->type=mv_array;
     x->value.p=(mt_basic*)c;
@@ -876,8 +882,42 @@ int array_copy(mt_object* x, int argc, mt_object* v){
 }
 
 static
+mt_array* vector_slice(mt_array* a, mt_range* r){
+  long i,j;
+  if(r->a.type!=mv_int || r->b.type!=mv_int){
+    mf_type_error("Type error in a[r]: r is not an integer range.");
+    return NULL;
+  }
+  i=r->a.value.i;
+  j=r->b.value.i;
+  unsigned long n=a->shape[0];
+  if(i<0 || j<0){
+    mf_value_error("Value error in a[r]: range with negative values.");
+    return NULL;
+  }
+  if(i>=n || j>=n){
+    mf_value_error("Value error in a[r]: range is out of bounds.");
+    return NULL;
+  }
+  mt_array* b = mf_malloc(sizeof(mt_array));
+  b->refcount=1;
+  b->size=a->size;
+  a->data->refcount++;
+  b->data=a->data;
+  a->data=b->data;
+  b->n=1;
+  b->base=(char*)((double*)a->base+a->stride[0]*i);
+  b->shape[0]=j-i+1;
+  b->stride[0]=a->stride[0];
+  return b;
+}
+
+static
 int array_GET(mt_object* x, int argc, mt_object* v){
-  if(v[0].type!=mv_array) abort();
+  if(v[0].type!=mv_array){
+    mf_type_error1("in a[i]: a (type: %s) is not an array.",&v[0]);
+    return 1;
+  }
   mt_array* a = (mt_array*)v[0].value.p;
   if(argc==1){
     if(a->n!=1){
@@ -885,6 +925,13 @@ int array_GET(mt_object* x, int argc, mt_object* v){
       return 1;
     }
     if(v[1].type!=mv_int){
+      if(v[1].type==mv_range){
+         mt_array* b = vector_slice(a,(mt_range*)v[1].value.p);
+         if(b==NULL) return 1;
+         x->type=mv_array;
+         x->value.p=(mt_basic*)b;
+         return 0;
+      }
       mf_type_error1("in a[i]: i (type: %s) is not an integer.",&v[1]);
       return 1;
     }
@@ -900,7 +947,8 @@ int array_GET(mt_object* x, int argc, mt_object* v){
     x->value.f=t;
     return 0;
   }else{
-    abort();
+    mf_argc_error(argc,1,1,"array.GET");
+    return 1;
   }
 }
 
@@ -920,6 +968,167 @@ int la_idm(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+static
+mt_array* diag(mt_array* v){
+  if(v->n!=1){
+    mf_value_error("Value error in diag(v): v is not a vector.");
+    return NULL;
+  }
+  long n = v->shape[0];
+  mt_array* a = mf_new_array(n*n,mv_array_float);
+  a->n=2; a->plain=1;
+  a->shape[0]=n; a->shape[1]=n;
+  a->stride[0]=1; a->stride[1]=n;
+  double* b = (double*)a->base;
+  double* vb = (double*)v->base;
+  long vs = v->stride[0];
+  unsigned long i,j,nj;
+  for(j=0; j<n; j++){
+    nj=n*j;
+    for(i=0; i<n; i++){
+      b[i+nj] = i==j? vb[i*vs]: 0;
+    }
+  }
+  return a;
+}
+
+static
+int la_diag(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"diag");
+    return 1;
+  }
+  if(v[1].type!=mv_array){
+    mf_type_error1("in diag(a): a is not an array.",v+1);
+    return 1;
+  }
+  mt_array* u = (mt_array*)v[1].value.p;
+  mt_array* a = diag(u);
+  if(a==NULL) return 1;
+  x->type=mv_array;
+  x->value.p=(mt_basic*)a;
+  return 0;
+}
+
+static
+mt_array* diag_slice(mt_array* a){
+  if(a->n!=2 || a->shape[0]!=a->shape[1]){
+    mf_value_error("Value error in a.diag(): a is not an quadratic matrix.");
+    return NULL;
+  }
+  if(a->stride[1]!=1){
+    mf_ensure_plain(a);
+  }
+  mt_array* v = mf_malloc(sizeof(mt_array));
+  v->refcount=1;
+  v->n=1;
+  a->data->refcount++;
+  v->data=a->data;
+  v->base=a->base;
+  v->shape[0]=a->shape[0];
+  v->stride[0]=(a->shape[0]+1)*a->stride[0];
+  return v;
+}
+
+static
+int array_diag(mt_object* x, int argc, mt_object* v){
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"diag");
+    return 1;
+  }
+  if(v[0].type!=mv_array){
+    mf_type_error1("in a.diag(): a (type: %s) is not an array.",&v[0]);
+    return 1;
+  }
+  mt_array* a = (mt_array*)v[0].value.p;
+  mt_array* u = diag_slice(a);
+  if(u==NULL) return 1;
+  x->type=mv_array;
+  x->value.p=(mt_basic*)u;
+  return 0;
+}
+
+int mf_array_map(mt_array* a, mt_function* f){
+  mt_object argv[2];
+  argv[0].type=mv_null;
+  double* ba = (double*)a->base;
+  long size = a->size;
+  long i;
+  mt_object x;
+  int e=0;
+  for(i=0; i<size; i++){
+    argv[1].type=mv_float;
+    argv[1].value.f=ba[i];
+    if(mf_call(f,&x,1,argv)){
+      mf_traceback("map");
+      return 1;
+    }
+    ba[i]=mf_float(&x,&e);
+    if(e){
+      mf_type_error1("in a.map(f): cannot convert f(a[k]) (type: %s) to float.",&x);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static
+int array_map(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"map");
+    return 1;
+  }
+  if(v[0].type!=mv_array){
+    mf_type_error1("in a.map(f): a (type: %s) is not an array.",&v[0]);
+    return 1;
+  }
+  if(v[1].type!=mv_function){
+    mf_type_error1("in a.map(f): f (type: %s) is not a function.",&v[1]);
+    return 1;
+  }
+  mt_array* a = (mt_array*)v[0].value.p;
+  mt_function* f = (mt_function*)v[1].value.p;
+  mt_array* b = mf_array_copy(a);
+  if(mf_array_map(b,f)) return 1;
+  x->type=mv_array;
+  x->value.p=(mt_basic*)b;
+  return 0;
+}
+
+static
+int mf_trace(mt_object* x, mt_array* a){
+  if(a->n!=2 || a->shape[0]!=a->shape[1]){
+    mf_value_error("Value error in trace(a): a is not a quadratic matrix.");
+    return 1;
+  }
+  double s=0;
+  long n=a->shape[0];
+  double* ba=(double*)a->base;
+  long i,m;
+  m=a->stride[0]+a->stride[1];
+  for(i=0; i<n; i++){
+    s+=ba[i*m];
+  }
+  x->type=mv_float;
+  x->value.f=s;
+  return 0;
+}
+
+static
+int la_trace(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"trace");
+    return 1;
+  }
+  if(v[1].type!=mv_array){
+    mf_type_error1("in la.trace(a): a (type: %s) is not an array.",&v[1]);
+    return 1;
+  }
+  mt_array* a = (mt_array*)v[1].value.p;
+  if(mf_trace(x,a)) return 1;
+  return 0;
+}
+
 mt_table* mf_la_load(){
   mt_map* m = mv_type_array->m;
   mf_insert_function(m,0,0,"STR",array_STR);
@@ -935,6 +1144,8 @@ mt_table* mf_la_load(){
   mf_insert_function(m,0,0,"T",array_T);
   mf_insert_function(m,0,0,"plain",array_plain);
   mf_insert_function(m,0,0,"copy",array_copy);
+  mf_insert_function(m,0,0,"diag",array_diag);
+  mf_insert_function(m,1,1,"map",array_map);
 
   mt_table* la = mf_table(NULL);
   la->name = mf_cstr_to_str("module la");
@@ -944,6 +1155,8 @@ mt_table* mf_la_load(){
   mf_insert_function(m,1,1,"hv",la_vector);
   mf_insert_function(m,1,1,"hm",la_matrix);
   mf_insert_function(m,1,1,"idm",la_idm);
+  mf_insert_function(m,1,1,"diag",la_diag);
+  mf_insert_function(m,1,1,"trace",la_trace);
   m->frozen=1;
   return la;
   return mf_table(NULL);

@@ -1,17 +1,6 @@
 
 use math: sqrt
 
-sample_type = table
-  sub STR
-    ["mean: "+str(self.mean),
-     "sigma: {E1}"%[self.sigma],
-     "max: "+str(self.max),
-     "min: "+str(self.min),
-     "range: "+str(self.range),
-     "median: "+str(self.median)].join("\n")
-  end
-end
-
 sub sample(a)
   n = size(a)
   m = a.sum()/n
@@ -24,10 +13,21 @@ sub sample(a)
   end
   max=a.max()
   min=a.min()
-  return table[sample_type]
+  return table[sample.type]
     mean=m, sigma=sigma,
     max=max, min=min, range=max-min,
     median=median
+  end
+end
+
+sample.type = table
+  sub STR
+    ["mean: "+str(self.mean),
+     "sigma: {E1}"%[self.sigma],
+     "max: "+str(self.max),
+     "min: "+str(self.min),
+     "range: "+str(self.range),
+     "median: "+str(self.median)].join("\n")
   end
 end
 
@@ -54,12 +54,6 @@ sub product_sum(a,b,mx,my)
   map(a,b,sub|x,y| (x-mx)*(y-my) end).sum()
 end
 
-linear_regression_type = table
-  sub STR
-    ["rxy: "+str(self.r)].join("\n")
-  end
-end
-
 sub linear_regression(a)
   x,y = unzip(a)
   mx = mean(x)
@@ -74,7 +68,7 @@ sub linear_regression(a)
   fy = |y| ay*y+by
   gx = |y| (y-bx)/ax
   gy = |x| (x-by)/ay
-  return table[linear_regression_type]
+  return table[linear_regression.type]
     mx=mx, my=my, r=rxy, c=[mx,my],
     sx=sx, sy=sy, sxy=sxy,
     ax=ax, ay=ay, bx=bx, by=by,
@@ -82,4 +76,9 @@ sub linear_regression(a)
   end
 end
 
+linear_regression.type = table
+  sub STR
+    ["rxy: "+str(self.r)].join("\n")
+  end
+end
 

@@ -12,7 +12,6 @@ cc -c objects/long/long.c -o make/win/bin/longobject.o -I./include
 cc -c objects/map/map.c -o make/win/bin/mapobject.o -I./include
 cc -c objects/string/string.c -o make/win/bin/stringobject.o -I./include
 cc -c objects/bstring/bstring.c -o make/win/bin/bstringobject.o -I./include
-cc -c objects/set/set.c -o make/win/bin/setobject.o -I./include
 cc -c objects/iterable/iterable.c -o make/win/bin/iterable.o -I./include
 cc -c modules/system/system.c -o make/win/bin/system.o -I./include
 cc -c modules/global/global.c -o make/win/bin/global.o -I./include
@@ -26,6 +25,7 @@ cc -c modules/module/module.c -o make/win/bin/module.o -I./include
 cc -c modules/sys/sys.c -o make/win/bin/sys.o -I./include
 cc -c modules/format/format.c -o make/win/bin/format.o -I./include
 cc -c modules/la/la.c -o make/win/bin/la.o -I./include
+cc -c modules/crypto/crypto.c -o make/win/bin/crypto.o -I./include
 cc -c main/main.c -o make/win/bin/main.o -I./include
 cc -c vm/vm.c -o make/win/bin/vm.o -I./include
 
@@ -36,9 +36,9 @@ cc -o ../moss.exe -lm\
   compiler.o main.o vm.o module.o str.o vec.o bs.o random.o\
   tk.o iterable.o stringobject.o bstringobject.o\
   listobject.o mapobject.o longobject.o\
-  functionobject.o complexobject.o setobject.o\
+  functionobject.o complexobject.o\
   system.o global.o math.o cmath.o sf.o na.o nt.o\
-  format.o sys.o la.o
+  format.o sys.o la.o crypto.o
 
 
 

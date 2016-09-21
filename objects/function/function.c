@@ -217,18 +217,14 @@ int crange_next(mt_object* x, int argc, mt_object* v){
 }
 
 static
-int dict_next(mt_object* x, int argc, mt_object* v){
+int dict_next_key(mt_object* x, int argc, mt_object* v){
   mt_object* a=function_self->context->a;
   mt_htab* t=&((mt_map*)a[0].value.p)->htab;
   long i=a[1].value.i;
   while(i<t->capacity){
-    if(t->a[i].taken){
-      mt_list* list = mf_raw_list(2);
-      mf_copy_inc(list->a+0,&t->a[i].key);
-      mf_copy_inc(list->a+1,&t->a[i].value);
+    if(t->a[i].taken==2){
+      mf_copy_inc(x,&t->a[i].key);
       a[1].value.i=i+1;
-      x->type=mv_list;
-      x->value.p=(mt_basic*)list;
       return 0;
     }
     i++;
@@ -239,14 +235,36 @@ int dict_next(mt_object* x, int argc, mt_object* v){
 }
 
 static
-int set_next(mt_object* x, int argc, mt_object* v){
+int dict_next_value(mt_object* x, int argc, mt_object* v){
   mt_object* a=function_self->context->a;
-  mt_htab* t = &((mt_set*)a[0].value.p)->htab;  
-  long i = a[1].value.i;
+  mt_htab* t=&((mt_map*)a[0].value.p)->htab;
+  long i=a[1].value.i;
   while(i<t->capacity){
-    if(t->a[i].taken){
+    if(t->a[i].taken==2){
+      mf_copy_inc(x,&t->a[i].value);
       a[1].value.i=i+1;
-      mf_copy_inc(x,&t->a[i].key);
+      return 0;
+    }
+    i++;
+  }
+  a[1].value.i=i;
+  mf_raise_empty();
+  return 1;
+}
+
+static
+int dict_next_item(mt_object* x, int argc, mt_object* v){
+  mt_object* a=function_self->context->a;
+  mt_htab* t=&((mt_map*)a[0].value.p)->htab;
+  long i=a[1].value.i;
+  while(i<t->capacity){
+    if(t->a[i].taken==2){
+      mt_list* list = mf_raw_list(2);
+      mf_copy_inc(list->a+0,&t->a[i].key);
+      mf_copy_inc(list->a+1,&t->a[i].value);
+      a[1].value.i=i+1;
+      x->type=mv_list;
+      x->value.p=(mt_basic*)list;
       return 0;
     }
     i++;
@@ -424,18 +442,7 @@ mt_function* mf_iter(mt_object* x){
     mf_copy_inc(a,x);
     a[1].type=mv_int;
     a[1].value.i=0;
-    f->fp=dict_next;
-    return f;
-  }
-  case mv_set:{
-    f = mf_new_function(NULL);
-    f->argc=0;
-    f->context=mf_raw_tuple(2);
-    mt_object* a=f->context->a;
-    mf_copy_inc(a,x);
-    a[1].type=mv_int;
-    a[1].value.i=0;
-    f->fp=set_next;
+    f->fp=dict_next_key;
     return f;
   }
   case mv_function:{
@@ -464,6 +471,75 @@ int mf_fiter(mt_object* x, int argc, mt_object* v){
   }
 }
 
+int mf_map_items(mt_object* x, int argc, mt_object* v){
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"items");
+    return 1;
+  }
+  if(v[0].type!=mv_map){
+    mf_type_error1("in d.items(): d (type: %s) is not a dictionary.",&v[0]);
+    return 1;
+  }
+  mt_function* f = mf_new_function(NULL);
+  f->argc=0;
+  f->context=mf_raw_tuple(2);
+  mt_object* a=f->context->a;
+  mf_copy_inc(&a[0],&v[0]);
+  a[1].type=mv_int;
+  a[1].value.i=0;
+  f->fp=dict_next_item;
+  x->type=mv_function;
+  x->value.p=(mt_basic*)f;
+  return 0;
+}
+
+int mf_map_values(mt_object* x, int argc, mt_object* v){
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"values");
+    return 1;
+  }
+  if(v[0].type!=mv_map){
+    mf_type_error1("in d.values(): d (type: %s) is not a dictionary.",&v[0]);
+    return 1;
+  }
+  mt_function* f = mf_new_function(NULL);
+  f->argc=0;
+  f->context=mf_raw_tuple(2);
+  mt_object* a=f->context->a;
+  mf_copy_inc(&a[0],&v[0]);
+  a[1].type=mv_int;
+  a[1].value.i=0;
+  f->fp=dict_next_value;
+  x->type=mv_function;
+  x->value.p=(mt_basic*)f;
+  return 0;
+}
+
+mt_list* mf_iterator_to_list(mt_function* f, long max){
+  mt_list* list = mf_raw_list(0);
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y;
+  long k=0;
+  while(1){
+    if(max>=0){
+      if(k>=max){
+        return list;
+      }
+    }
+    if(mf_call(f,&y,0,argv)){
+      if(mf_empty()){
+        return list;
+      }
+      mf_traceback("list");
+      return NULL;
+    }
+    mf_list_push(list,&y);
+    k++;
+  }
+}
+
+static
 int function_list(mt_object* x, int argc, mt_object* v){
   long max;
   if(argc==1){
@@ -483,31 +559,11 @@ int function_list(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
-  mt_list* list = mf_raw_list(0);
-  mt_object argv[1];
-  argv[0].type=mv_null;
-  mt_object y;
-  long k=0;
-  while(1){
-    if(max>=0){
-      if(k>=max){
-        x->type=mv_list;
-        x->value.p=(mt_basic*)list;
-        return 0;
-      }
-    }
-    if(mf_call(f,&y,0,argv)){
-      if(mf_empty()){
-        x->type=mv_list;
-        x->value.p=(mt_basic*)list;
-        return 0;
-      }
-      mf_traceback("list");
-      return 1;
-    }
-    mf_list_push(list,&y);
-    k++;
-  }
+  mt_list* list = mf_iterator_to_list(f,max);
+  if(list==NULL) return 1;
+  x->type=mv_list;
+  x->value.p=(mt_basic*)list;
+  return 0;
 }
 
 static
@@ -1255,48 +1311,6 @@ int function_orbit(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-static
-int function_call(mt_object* x, int argc, mt_object* v){
-  if(argc<1){
-    mf_argc_error(argc,1,-1,"call");
-    return 1;
-  }
-  if(v[0].type!=mv_function){
-    mf_type_error1("in f.call(self,...): f (type: %s) is not a function.",v);
-    return 1;
-  }
-  mt_function* f = (mt_function*)v[0].value.p;
-  int i;
-  if(f->argc==-1){
-    mt_list* list = mf_raw_list(argc-1);
-    for(i=2; i<=argc; i++){
-      mf_copy_inc(list->a+i-2,v+i);
-    }
-    mt_object argv[2];
-    argv[0].type=mv_null;
-    argv[1].type=mv_list;
-    argv[1].value.p=(mt_basic*)list;
-    if(mf_call(f,x,2,argv)){
-      mf_traceback("call");
-      return 1;
-    }
-    mf_list_dec_refcount(list);
-    return 0;
-  }else{
-    mt_object* args = mf_malloc(argc*sizeof(mt_object));
-    for(i=0; i<argc; i++){
-      mf_copy(args+i,v+i+1);
-    }
-    if(mf_call(f,x,argc-1,args)){
-      mf_traceback("call");
-      mf_free(args);
-      return 1;
-    }
-    mf_free(args);
-    return 0;
-  }
-}
-
 int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
   if(a->type!=mv_list){
     mf_type_error1("in f[a]: a (type: %s) is not a list.",a);
@@ -1305,8 +1319,15 @@ int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
   mt_list* list = (mt_list*)a->value.p;
   mt_object y;
   if(f->argc==-1){
-    // todo
-    abort();
+    mt_object argv[2];
+    argv[0].type=mv_null;
+    argv[1].type=mv_list;
+    argv[1].value.p=(mt_basic*)list;
+    if(mf_call(f,x,1,argv)){
+      mf_traceback("apply");
+      return 1;
+    }
+    return 0;
   }else{
     mt_object* args = mf_malloc((list->size+1)*sizeof(mt_object));
     if(self){
@@ -1328,27 +1349,11 @@ int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
   }
 }
 
-static
-int function_apply(mt_object* x, int argc, mt_object* v){
-  if(argc!=2){
-    mf_argc_error(argc,2,2,"apply");
-    return 1;
-  }
-  if(v[0].type!=mv_function){
-    mf_type_error1("in f.apply(self,a): f (type: %s) is not a function.",v);
-    return 1;
-  }
-  mt_function* f = (mt_function*)v[0].value.p;
-  return mf_apply(f,x,v+1,v+2);
-}
-
 void mf_init_type_function(mt_table* type){
   type->name = mf_cstr_to_str("function");
   type->m= mf_empty_map();
   mt_map* m = type->m;
 
-  mf_insert_function(m,1,-1,"call",function_call);
-  mf_insert_function(m,2,2,"apply",function_apply);
   mf_insert_function(m,0,0,"argc",function_argc);
   mf_insert_function(m,0,0,"id",function_id);
   mf_insert_function(m,0,1,"list",function_list);

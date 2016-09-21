@@ -62,7 +62,7 @@ We will define one.
 </p>
 
 <pre class="moss">
-Bristol.move = begin
+Bristol.move = sub||
   print(self.id, " moves at ", self.vmax//2, " kn.")
 end
 
@@ -104,7 +104,7 @@ end
 ship.type = table
   color = "gray blue",
   engine = "diesel",
-  move = begin
+  move = sub||
     print(self.id, " moves at ", self.vmax//2 " kn.")
   end
 end of table
@@ -132,6 +132,11 @@ Hermes.vmax = 25
 Hermes = object(Bristol,{
   id = "HMS Hermes",
   vmax = 24
+})
+
+Hermes = object(Bristol,{
+  "id": "HMS Hermes",
+  "vmax": 24
 })
 
 Hermes = table[Bristol]
@@ -237,15 +242,15 @@ true
 
 <pre class="moss">
 plane_type = table
-  take_off = begin
+  take_off = sub||
     print(self.id, " is in the sky.")
   end
 end
 
-sea_duck = object([ship.type, plane_type],{
+sea_duck = table[[ship.type, plane_type]]
   id="Sea duck",
   vmax = 40
-})
+end
 
 sea_duck.move()
 # Sea duck moves at 20 kn.
@@ -285,8 +290,12 @@ Bristol = table x: "gray blue", y: "diesel" end
 &gt; Bristol.move()
 
 # reflection
-&gt; record(Bristol)["move"].call(Bristol)
+&gt; record(Bristol)["move"](Bristol;)
 </pre>
+
+<p>That argument before the semicolon is the
+<a href="Functions.htm#methods">self</a> argument.
+</p>
 
 <h2 id="Monkey">
 Monkey patching</h2>
@@ -301,7 +310,7 @@ converts a string of numbers into the list of these numbers.
 </p>
 
 <pre class="moss">
-str.type.numbers = begin
+str.type.numbers = sub||
   self.split(",").map(int)
 end
 

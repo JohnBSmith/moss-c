@@ -79,7 +79,7 @@ and so on. The program can choose which subprogram is called
 by using if-statements, but <i>knows</i> already what subprograms
 are avaiable. What if the program <i>does not</i> know about
 the subprograms it can call? Not that the number of possible
-subprograms is to great, but that the
+subprograms is too large, but that the
 program really does not know the subprogram in before.
 </p>
 
@@ -180,8 +180,8 @@ that <code>f(i)==a[i]</code> for all indices of <code>a</code>.
 </p>
 
 <pre class="moss">
-&gt; g = |a| |i| a[i]
-&gt; f = g([4,2,3,1])
+&gt; fn = |a| |i| a[i]
+&gt; f = fn([4,2,3,1])
 </pre>
 
 <p>Furthermore, the bound data can itself be a function, because data,
@@ -221,7 +221,8 @@ print(city[0])
 # *London*
 </pre>
 
-<p>If performance does not matter, an object can be used instead.
+<p>An object can be used instead of a list.
+If there are many arguments, this has better readability.
 </p>
 
 <pre class="moss">

@@ -5,6 +5,7 @@ typedef enum {CblasUpper=0, CblasLower=1} CBLAS_UPLO;
 typedef enum {CblasNonUnit=0, CblasUnit=1} CBLAS_DIAG;
 typedef enum {CblasLeft=0, CblasRight=1} CBLAS_SIDE;
 
+// y:=x
 void cblas_dcopy(int N, const double* x, int incx, double* y, int incy){
   int i,ix,iy;
   ix=0; iy=0;
@@ -14,6 +15,7 @@ void cblas_dcopy(int N, const double* x, int incx, double* y, int incy){
   }
 }
 
+// y:=alpha*x+y
 void cblas_daxpy(int N, double alpha, const double* x, int incx, double* y, int incy){
   int i,ix,iy;
   ix=0; iy=0;
@@ -23,6 +25,7 @@ void cblas_daxpy(int N, double alpha, const double* x, int incx, double* y, int 
   }
 }
 
+// x:=alpha*x
 void cblas_dscal(int N, double alpha, double* x, int incx){
   int i,ix;
   ix=0;
@@ -32,6 +35,7 @@ void cblas_dscal(int N, double alpha, double* x, int incx){
   }
 }
 
+// y:=x*y
 double cblas_ddot(int N,
   const double* x, int incx,
   const double* y, int incy
@@ -46,17 +50,29 @@ double cblas_ddot(int N,
   return r;
 }
 
+// y:=alpha*A*x+beta*y
 void cblas_dgemv(CBLAS_LAYOUT layout, CBLAS_TRANSPOSE TransA,
   int M, int N, double alpha, const double *A, int lda,
-  const double *X, int incX, double beta,
-  double *Y, int incY
+  const double *x, int incx, double beta,
+  double *y, int incy
 ){
+  int i;
+  for(i=0; i<M; i++){
+    y[i*incy]=alpha*cblas_ddot(N,A+i,lda,x,incx)+beta*y[i*incy];
+  }
 }
 
+// C:=alpha*A*B+beta*C
+// A: M*K, B: K*N, C: M*N
 void cblas_dgemm(CBLAS_LAYOUT layout, CBLAS_TRANSPOSE TransA,
   CBLAS_TRANSPOSE TransB, int M, int N, int K,
   double alpha, const double *A, int lda, const double *B, int ldb,
   double beta, double *C, int ldc
 ){
+  int j;
+  for(j=0; j<N; j++){
+    cblas_dgemv(CblasColMajor,CblasNoTrans,
+      M,K,alpha,A,lda,B+j*ldb,1,beta,C+j*ldc,1);
+  }
 }
 

@@ -12,7 +12,6 @@
 #include <objects/map.h>
 #include <objects/complex.h>
 #include <objects/long.h>
-#include <objects/set.h>
 #include <objects/function.h>
 #include <modules/la.h>
 mt_function* mf_new_function(unsigned char* address);
@@ -30,7 +29,6 @@ extern mt_table* mv_type_bstring;
 extern mt_table* mv_type_list;
 extern mt_table* mv_type_function;
 extern mt_table* mv_type_dict;
-extern mt_table* mv_type_set;
 extern mt_table* mv_type_long;
 
 extern mt_list* mv_traceback_list;
@@ -173,13 +171,6 @@ void mf_dec_refcount(mt_object* x){
   case mv_map:
     if(p->refcount==1){
       mf_map_delete((mt_map*)p);
-    }else{
-      p->refcount--;
-    }
-    return;
-  case mv_set:
-    if(p->refcount==1){
-      mf_set_delete((mt_set*)p);
     }else{
       p->refcount--;
     }
@@ -441,8 +432,6 @@ const char* mf_type_to_str(mt_object* a){
     return "str";
   case mv_bstring:
     return "bstr";
-  case mv_set:
-    return "set";
   case mv_map:
     return "map";
   case mv_array:
@@ -908,14 +897,14 @@ int mf_sub_dec(mt_object* x, mt_object* a, mt_object* b){
       goto rsub;
     }
   }
-  case mv_set:
-    if(b->type==mv_set){
-      mt_set* seta = (mt_set*)a->value.p;
-      mt_set* setb = (mt_set*)b->value.p;
-      x->type=mv_set;
-      x->value.p=(mt_basic*)mf_set_difference(seta,setb);
-      mf_set_dec_refcount(seta);
-      mf_set_dec_refcount(setb);
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* ma = (mt_map*)a->value.p;
+      mt_map* mb = (mt_map*)b->value.p;
+      x->type=mv_map;
+      x->value.p=(mt_basic*)mf_map_difference(ma,mb);
+      mf_map_dec_refcount(ma);
+      mf_map_dec_refcount(mb);
       return 0;
     }else{
       goto rsub;
@@ -1705,6 +1694,18 @@ int mf_lt_dec(mt_object* x, mt_object* a, mt_object* b){
     }else{
       goto rlt;
     }
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* m1 = (mt_map*)a->value.p;
+      mt_map* m2 = (mt_map*)b->value.p;
+      x->type=mv_bool;
+      x->value.b=mf_map_subset(m1,m2);
+      mf_map_dec_refcount(m1);
+      mf_map_dec_refcount(m2);
+      return 0;
+    }else{
+      goto rlt;
+    }
   default:
     goto lt;
   }
@@ -1797,6 +1798,18 @@ int mf_gt_dec(mt_object* x, mt_object* a, mt_object* b){
       x->value.b=mf_str_cmp(s1,s2)>0;
       mf_str_dec_refcount(s1);
       mf_str_dec_refcount(s2);
+      return 0;
+    }else{
+      goto rgt;
+    }
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* m1 = (mt_map*)a->value.p;
+      mt_map* m2 = (mt_map*)b->value.p;
+      x->type=mv_bool;
+      x->value.b=mf_map_subset(m2,m1);
+      mf_map_dec_refcount(m1);
+      mf_map_dec_refcount(m2);
       return 0;
     }else{
       goto rgt;
@@ -1897,6 +1910,18 @@ int mf_le_dec(mt_object* x, mt_object* a, mt_object* b){
     }else{
       goto rle;
     }
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* m1 = (mt_map*)a->value.p;
+      mt_map* m2 = (mt_map*)b->value.p;
+      x->type=mv_bool;
+      x->value.b=mf_map_subseteq(m1,m2);
+      mf_map_dec_refcount(m1);
+      mf_map_dec_refcount(m2);
+      return 0;
+    }else{
+      goto rle;
+    }
   default:
     goto le;
   }
@@ -1989,6 +2014,18 @@ int mf_ge_dec(mt_object* x, mt_object* a, mt_object* b){
       x->value.b=mf_str_cmp(s1,s2)>=0;
       mf_str_dec_refcount(s1);
       mf_str_dec_refcount(s2);
+      return 0;
+    }else{
+      goto rge;
+    }
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* m1 = (mt_map*)a->value.p;
+      mt_map* m2 = (mt_map*)b->value.p;
+      x->type=mv_bool;
+      x->value.b=mf_map_subseteq(m2,m1);
+      mf_map_dec_refcount(m1);
+      mf_map_dec_refcount(m2);
       return 0;
     }else{
       goto rge;
@@ -2172,24 +2209,6 @@ int mf_eq_dec(mt_object* x, mt_object* a, mt_object* b){
       x->type=mv_bool;
       x->value.b=t;
       return 0;
-    case mv_table:
-      goto req;
-    default:
-      mf_dec_refcount(a);
-      mf_dec_refcount(b);
-      x->type=mv_bool;
-      x->value.b=0;
-      return 0;
-    }
-  case mv_set:
-    switch(b->type){
-    case mv_set:
-       t = mf_set_eq((mt_set*)a->value.p,(mt_set*)b->value.p);
-       mf_set_dec_refcount((mt_set*)a->value.p);
-       mf_set_dec_refcount((mt_set*)b->value.p);
-       x->type=mv_bool;
-       x->value.b=t;
-       return 0;
     case mv_table:
       goto req;
     default:
@@ -2431,19 +2450,6 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
     x->value.b=1;
     return 0;
   }
-  case mv_set:{
-    mt_set* m = (mt_set*)b->value.p;
-    int t = mf_set_in(a,m);
-    if(t<0){
-      mf_traceback("'in'");
-      return 1;
-    }
-    mf_dec_refcount(a);
-    mf_set_dec_refcount((mt_set*)b->value.p);
-    x->type=mv_bool;
-    x->value.b=t;
-    return 0;
-  }
   case mv_string:{
     if(a->type!=mv_string){
       mf_type_error1("in 'a in b': a (type: %s) is not a string.",a);
@@ -2638,14 +2644,14 @@ int mf_bit_and_dec(mt_object* x, mt_object* a, mt_object* b){
     }else{
       goto rbit_and;
     }
-  case mv_set:
-    if(b->type==mv_set){
-      mt_set* seta = (mt_set*)a->value.p;
-      mt_set* setb = (mt_set*)b->value.p;
-      x->type=mv_set;
-      x->value.p=(mt_basic*)mf_set_intersection(seta,setb);
-      mf_set_dec_refcount(seta);
-      mf_set_dec_refcount(setb);
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* ma = (mt_map*)a->value.p;
+      mt_map* mb = (mt_map*)b->value.p;
+      x->type=mv_map;
+      x->value.p=(mt_basic*)mf_map_intersection(ma,mb);
+      mf_map_dec_refcount(ma);
+      mf_map_dec_refcount(mb);
       return 0;
     }else{
       goto rbit_and;
@@ -2692,14 +2698,14 @@ int mf_bit_or_dec(mt_object* x, mt_object* a, mt_object* b){
     }else{
       goto rbit_or;
     }
-  case mv_set:
-    if(b->type==mv_set){
-      mt_set* seta = (mt_set*)a->value.p;
-      mt_set* setb = (mt_set*)b->value.p;
-      x->type=mv_set;
-      x->value.p=(mt_basic*)mf_set_union(seta,setb);
-      mf_set_dec_refcount(seta);
-      mf_set_dec_refcount(setb);
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* ma = (mt_map*)a->value.p;
+      mt_map* mb = (mt_map*)b->value.p;
+      x->type=mv_map;
+      x->value.p=(mt_basic*)mf_map_union(ma,mb);
+      mf_map_dec_refcount(ma);
+      mf_map_dec_refcount(mb);
       return 0;
     }else{
       goto rbit_or;
@@ -2746,14 +2752,14 @@ int mf_bit_xor_dec(mt_object* x, mt_object* a, mt_object* b){
     }else{
       goto rbit_xor;
     }
-  case mv_set:
-    if(b->type==mv_set){
-      mt_set* seta = (mt_set*)a->value.p;
-      mt_set* setb = (mt_set*)b->value.p;
-      x->type=mv_set;
-      x->value.p=(mt_basic*)mf_set_symmetric_difference(seta,setb);
-      mf_set_dec_refcount(seta);
-      mf_set_dec_refcount(setb);
+  case mv_map:
+    if(b->type==mv_map){
+      mt_map* ma = (mt_map*)a->value.p;
+      mt_map* mb = (mt_map*)b->value.p;
+      x->type=mv_map;
+      x->value.p=(mt_basic*)mf_map_symmetric_difference(ma,mb);
+      mf_map_dec_refcount(ma);
+      mf_map_dec_refcount(mb);
       return 0;
     }else{
       goto rbit_xor;
@@ -2955,12 +2961,6 @@ int mf_fsize(mt_object* x, int argc, mt_object* v){
     x->value.i=m->htab.size;
     return 0;
   } break;
-  case mv_set:{
-    mt_set* m = (mt_set*)a->value.p;
-    x->type=mv_int;
-    x->value.i=m->htab.size;
-    return 0;
-  } break;
   case mv_string:{
     mt_string* s = (mt_string*)a->value.p;
     x->type=mv_int;
@@ -3110,11 +3110,6 @@ void mf_type(mt_object* x, mt_object* a){
     mv_type_dict->refcount++;
     x->type=mv_table;
     x->value.p=(mt_basic*)mv_type_dict;
-    break;
-  case mv_set:
-    mv_type_set->refcount++;
-    x->type=mv_table;
-    x->value.p=(mt_basic*)mv_type_set;
     break;
   case mv_table:{
     mt_table* t=(mt_table*)a->value.p;
@@ -3290,6 +3285,7 @@ mt_table* mf_sf_load(void);
 mt_table* mf_nt_load(void);
 mt_table* mf_sys_load(void);
 mt_table* mf_la_load(void);
+mt_table* mf_crypto_load(void);
 #ifdef __linux__
 mt_table* mf_time_load(void);
 mt_table* mf_os_load(void);
@@ -3325,6 +3321,7 @@ typedef struct{
 static
 mt_load_tab_element load_tab[] = {
   {5, "cmath", mf_cmath_load, NULL},
+  {6, "crypto", mf_crypto_load, NULL},
   // {3, "gui", mf_gui_load, NULL},
   {2, "gx", mf_gx_load, NULL},
   {2, "la", mf_la_load, NULL},
@@ -3429,7 +3426,7 @@ int mf_use(mt_table* t, mt_map* d){
   int e;
   long i;
   for(i=0; i<n; i++){
-    if(a[i].taken){
+    if(a[i].taken==2){
       if(a[i].key.type!=mv_string){
         mf_type_error("Type error in import: some key is not of type string.");
         return 1;
@@ -3492,7 +3489,7 @@ int mf_fimport(mt_object* x, int argc, mt_object* v){
   mt_object t;
   mt_string* id;
   for(i=0; i<n; i++){
-    if(a[i].taken){
+    if(a[i].taken==2){
       if(a[i].key.type!=mv_string) abort();
       if(a[i].value.type==mv_string){
         module = mf_load(&a[i].value);
@@ -3599,12 +3596,21 @@ int mf_fmax(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+double mf_string_to_float(mt_string* s, int* error){
+  mt_bstr bs;
+  mf_encode_utf8(&bs,s->size,s->a);
+  double x = atof(bs.a);
+  free(bs.a);
+  return x;
+}
+
 int mf_ffloat(mt_object* x, int argc, mt_object* v){
   if(argc!=1){
     mf_argc_error(argc,1,1,"float");
     return 1;
   }
   double t;
+  int error;
   switch(v[1].type){
   case mv_bool:
     t=v[1].value.b;
@@ -3616,6 +3622,10 @@ int mf_ffloat(mt_object* x, int argc, mt_object* v){
     break;
   case mv_long:
     t=mf_long_float((mt_long*)v[1].value.p);
+    break;
+  case mv_string:
+    error=0;
+    t = mf_string_to_float((mt_string*)v[1].value.p,&error);
     break;
   default:
     mf_type_error1("in float(x): cannot convert x (type: %s) to float.",v+1);
@@ -3693,18 +3703,13 @@ int mf_const(long n, mt_object* x){
     long capacity = m->htab.capacity;
     long i;
     for(i=0; i<capacity; i++){
-      if(a[i].taken){
+      if(a[i].taken==2){
         if(mf_const(n-1,&a[i].value)){
           mf_traceback("const(x: dict)");
           return 1;
         }
       }
     }
-    return 0;
-  }
-  case mv_set:{
-    mt_set* m = (mt_set*)x->value.p;
-    m->frozen=1;
     return 0;
   }
   default:
@@ -4058,11 +4063,6 @@ int mf_put(mt_object* x){
     }
     if(omitted(r)) printf(")");
     break;
-  case mv_set:{
-    s = mf_set_to_string((mt_set*)x->value.p);
-    mf_print_string(s->size,s->a);
-    mf_str_dec_refcount(s);
-  } break;
   default:
     s = mf_str(x);
     if(s){

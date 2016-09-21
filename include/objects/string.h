@@ -1,5 +1,6 @@
 #ifndef STRING_H
 #define STRING_H
+#include <modules/bs.h>
 
 mt_string* mf_raw_string(long size);
 mt_string* mf_str_new(long size, const char* a);
@@ -9,6 +10,7 @@ int mf_str_eq(mt_string* a, mt_string* b);
 mt_string* mf_str_add(mt_string* a, mt_string* b);
 mt_string* mf_str_mpy(mt_string* a, long n);
 mt_string* mf_cstr_to_str(const char* a);
+mt_string* mf_bu32_move_to_string(mt_bu32* b);
 mt_string* mf_str(mt_object* x);
 mt_string* mf_repr(mt_object* x);
 int mf_fstr(mt_object* x, int argc, mt_object* v);

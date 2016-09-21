@@ -434,24 +434,34 @@ until a character is found, that is not contained in
 <h2 id="dict">Type dictionary  (<a href="#iterable">iterable</a>)</h2>
 
 <dl class="code">
-<dt>d.keys()</dt>
+<dt>d.list()</dt>
 <dd>Return the list of keys.</dd>
 
 <dt>d.values()</dt>
-<dd>Return the list of values.</dd>
+<dd>Return an iterator of the values.</dd>
+
+<dt>d.items()</dt>
+<dd>Return an iterator of the key-value pairs.</dd>
 
 <dt>d.update(d2)</dt>
-<dd>Insert all entrys of <code>d2</code> into
-<code>d</code>. Already in <code>d</code> contained entrys
+<dd>Insert all items of <code>d2</code> into
+<code>d</code>. Already in <code>d</code> contained items
 are overwritten.</dd>
 
 <dt>d.extend(d2)</dt>
-<dd>Insert all entrys of <code>d2</code> into
+<dd>Insert all items of <code>d2</code> into
 <code>d</code>, but do not overwrite already in <code>d</code>
-contained entrys.</dd>
+contained items.</dd>
+
+<dt>d.add(key)</dt>
+<dd>Add a key to the dictionary.</dd>
+
+<dt>d.remove(key)</dt>
+<dd>Remove an item from the dictionary. Raise an exception
+if the key is not found.</dd>
 
 <dt>d.clear()</dt>
-<dd>Remove all entrys of <code>d</code>.
+<dd>Remove all items of <code>d</code>.
 </dd>
 </dl>
 

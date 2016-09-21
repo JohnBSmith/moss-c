@@ -12,10 +12,11 @@
 #include <objects/bstring.h>
 #include <objects/map.h>
 #include <objects/long.h>
-#include <objects/set.h>
 #include <objects/function.h>
 #include <modules/global.h>
 
+// TODO: max,min for iterators
+// TODO: reverse iterator
 // TODO: command line type only "use", segfault
 // TODO: no weak references for
 // mf_call: argv. This is a major bug. See list_map.
@@ -26,7 +27,6 @@
 // TODO: list.type.sort: second argument
 // TODO: compiler: f()=x
 // TODO: str.type.isrange
-// TODO: iterkeys, itervalues
 // TODO: "end of" interactive
 // TODO: f->data refcount?
 // TODO: type bstr, convert from and to list
@@ -103,7 +103,6 @@ mt_table* mv_type_long;
 mt_table* mv_type_dict;
 mt_table* mv_type_iterable;
 mt_table* mv_type_range;
-mt_table* mv_type_set;
 mt_table* mv_type_array;
 
 int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
@@ -138,9 +137,6 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
     return mf_map_get(x,mv_type_array->m,key);
   case mv_range:
     m = mv_type_range->m;
-    goto iterable_get;
-  case mv_set:
-    m = mv_type_set->m;
     goto iterable_get;
   case mv_function:
     f = (mt_function*)a->value.p;
@@ -397,9 +393,6 @@ void mf_vm_init_gvtab(void){
   f->m=mf_empty_map();
   mf_insert_table(f->m,"type",mv_type_string);
 
-  f=mf_insert_function(m,1,1,"set",mf_fset);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_set);
 
   mt_table* function = mf_table(NULL);
   function->m=mf_empty_map();
@@ -453,6 +446,7 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,1,2,"read",mf_fread);
   mf_insert_function(m,2,2,"assert",mf_fassert);
   mf_insert_function(m,1,1,"hex",mf_fhex);
+  mf_insert_function(m,1,1,"set",mf_fset);
 
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
 }
@@ -512,10 +506,6 @@ void mf_vm_init(void){
   mv_type_range = mf_table(&iterable);
   mv_type_range->name = mf_cstr_to_str("range");
   mv_type_range->m = mf_empty_map();
-
-  mv_type_set = mf_table(&iterable);
-  mv_type_set->name = mf_cstr_to_str("set");
-  mv_type_set->m = mf_empty_map();
   
   mv_type_array = mf_table(NULL);
   mv_type_array->m = mf_empty_map();
@@ -537,7 +527,6 @@ void mf_vm_delete(void){
   mf_table_dec_refcount(mv_type_function);
   mf_table_dec_refcount(mv_type_dict);
   mf_table_dec_refcount(mv_type_range);
-  mf_table_dec_refcount(mv_type_set);
 
   mf_table_dec_refcount(mv_type_iterable);
   mf_table_dec_refcount((mt_table*)mv_empty);
@@ -1212,8 +1201,18 @@ int mf_vm_eval(unsigned char* a, long ip){
       // [..., function, self, arg1, arg2, ..., argn, ...]
       // stack[sp]....................................^
       if(p1->type!=mv_function){
-        mf_type_error1("in f(...): f (type: %s) is not a function.",p1);
-        goto error;
+        if(mf_object_get_memory(&x1,p1,4,"call")){
+          mf_type_error1("in f(...): f (type: %s) is not a function.",p1);
+          goto error;
+        }
+        if(x1.type!=mv_function){
+          mf_type_error1("in x.call: call (type: %s) is not a function.",&x1);
+          goto error;
+        }
+        f = (mt_function*)x1.value.p;
+        if((p1+1)->type==mv_null){
+          mf_copy_inc(p1+1,p1);
+        }
       }else{
         f = (mt_function*)p1->value.p;
       }

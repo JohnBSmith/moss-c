@@ -1125,9 +1125,6 @@ ast_node* map_literal(token_iterator* i){
       }else if((t->type==Tsep && t->value==',')
         || (t->type==Tbright && t->value=='}')
       ){
-        if(p1->type==Tid){
-          p1->type=Tstring;
-        }
         p2 = ast_new(0,t->line,t->col);
         p2->type=Tnull;
         mf_vec_push(&v,&p2);
@@ -1249,6 +1246,7 @@ ast_node* object_literal(token_iterator* i){
 
 static
 ast_node* function_application(ast_node* p1, token_iterator* i){
+  int self=0;
   mt_token* t1;
   if(i->index<i->size){
     t1=i->a+i->index;
@@ -1278,7 +1276,6 @@ ast_node* function_application(ast_node* p1, token_iterator* i){
       goto end_of_loop;
     }
   }
-  int self=0;
   while(1){
     p = expression(i);
     if(p==NULL) goto error;

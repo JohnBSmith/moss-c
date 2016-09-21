@@ -1,0 +1,58 @@
+
+extend(dict.type,table
+  sub MPY(b)
+    set(list(self)*list(b))
+  end,
+  sub ADD(b)
+    set(self.map(|x| [0,x])) | set(b.map(|x| [1,x])) 
+  end,
+  sub POW(n)
+    if type(n) is int.type
+      return set(list(self)^n)
+    else
+      a = list(n)
+      c = list(self)^size(a)
+      return set(c.map(|t| (0..size(t)-1).dict(|i| [a[i],t[i]])))
+    end
+  end,
+  sub RPOW(a)
+    if self==2
+      return a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
+    else
+      return set(self)^a
+    end
+  end,
+  sub DIV(p)
+    if p.argc()==2
+      return set((list(self)/p).map(set))
+    end
+    d={}
+    for x in self
+      y = p(x)
+      if y in d
+        d[y][x]=null
+      else
+        d[y]={x}
+      end
+    end
+    return set(d.values())
+  end,
+  sub cup
+    self.reduce({},|x,y| x|y)
+  end,
+  sub cap
+    self.reduce({},|x,y| x&y)
+  end
+end)
+
+extend(type(list.type),table
+  sub uniq(*argv)
+    if size(argv)==0
+      return list(set(self))
+    else
+      p=argv[0]
+      return list(self.dict(|x| [p(x),x]).values())
+    end
+  end
+end)
+

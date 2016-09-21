@@ -31,7 +31,7 @@ data type.
 </p>
 
 <pre class="moss">
-List = sub|a|
+sub List(a)
   y = table[List.type]
     first=null, last=null
   end
@@ -42,7 +42,7 @@ List = sub|a|
 end
 
 List.type = table
-  list = begin
+  sub list
     t=self.first
     a=[]
     while not t is null
@@ -52,11 +52,11 @@ List.type = table
     return a
   end,
   
-  str = begin
+  sub STR
     return "List(["+self.list().join(", ")+"])"
   end,
 
-  push = sub|x|
+  sub push(x)
     if self.first is null
       self.last = table value=x, next=null end
       self.first=self.last
@@ -66,12 +66,12 @@ List.type = table
     end
   end,
 
-  shift = sub|x|
+  sub shift(x)
     t = table value=x, next=self.first end
     self.first=t
   end,
 
-  unshift = begin
+  sub unshift
     if self.first is null
       return null
     else
@@ -81,6 +81,19 @@ List.type = table
     end
   end
 end of table
+</pre>
+
+<p>It can be used as a queue data type.
+</p>
+<pre class="moss">
+&gt; q = List([])
+&gt; q.push(1)
+&gt; q.push(2)
+&gt; q.push(3)
+&gt; q.unshift()
+1
+&gt; q.unshift()
+2
 </pre>
 
 </body>

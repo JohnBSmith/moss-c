@@ -10,17 +10,18 @@ use(cmath: re, im, conj, arg, exp, ln,
 use sf: B, gamma, digamma, zeta
 use cf: fac, bc
 use na: diff, inv, integral
-use la: hv, hm, ha, idm
+use la: hv, hm, ha, idm, diag, trace
 use sys: argv, path
 use time: sleep
 use nt: isprime, gcd, lcm
 use os: cd, ls, wd, isdir, isfile
 use plotlib: plot, cplot, fractal
 use fraction: u
-use statistics: sample
+use stat: sample
 use functional: fix, curry, uncurry
 use elib.pc
 use elib.unit
+use elib.emath
 
 grad = pi/180
 gon = pi/200

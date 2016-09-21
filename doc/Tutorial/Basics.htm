@@ -247,10 +247,6 @@ in the following way.</p>
   <td><code>{}, {a=1, b=2}</code>
   <td>dictionarys of key-value pairs
 <tr>
-  <td>set
-  <td><code>set([]), set([1,2])</code>
-  <td>sets of elements
-<tr>
   <td>range
   <td><code>1..10, (1..)</code>
   <td>ranges of elements
@@ -625,26 +621,27 @@ is contained in a dictionary or not.
 [false, false, true]
 </pre>
 
-<p>The method <code>"list"</code> constructs the list of key-value
-pairs. The pairs can be in any order, because a dictionary
+<p>The function call <code>list(d)</code> returns the list
+of keys contained in <code>d</code>.
+The keys can be in any order, because a dictionary
 is not (explicitly) ordered.
 </p>
 
 <pre class="moss">
-&gt; d.list()
-[[0, "a"], [1, "b"], ["alpha", "c"]]
+&gt; list(d)
+[0, 1, "alpha"]
 </pre>
 
-<p>If you are only interested in the keys or values, simply
+<p>If you are interested in the values or key-value pairs, simply
 express this by methods.
 </p>
 
 <pre class="moss">
-&gt; d.keys()
-[0, 1, "alpha"]
-
-&gt; d.values()
+&gt; list(d.values())
 ["a", "b", "c"]
+
+&gt; list(d.items())
+[[0, "a"], [1, "b"], ["alpha", "c"]]
 </pre>
 
 <p>If the key is an identifier, there is a short notation.
@@ -662,8 +659,35 @@ Instead of
 Before a colon <code>x,y</code> are itself variables that should contain keys.
 </p>
 <pre class="moss">
-> x="u"; y="v"
-> {x:4,y:3} == {u=4,v=3}
+&gt; x="u"; y="v"
+&gt; {x:4,y:3} == {u=4,v=3}
+true
+</pre>
+<p>If the value of some key is omitted, <code>null</code> is
+taken as value.
+A dictionary with all values omitted can be used as a set.
+All set operations are supported (e.g. union, intersection,
+subset relation, universal quantifier).
+</p>
+<pre class="moss">
+&gt; {1,2} == {1:null, 2:null}
+true
+&gt; A = {1,2,3}
+&gt; B = {2,3,4}
+&gt; [A|B, A&amp;B, A-B, A$B]
+[{1, 2, 3, 4}, {2, 3}, {1}, {1, 4}]
+</pre>
+<p>One can use <code>set(a)</code> to convert an iterable
+object <code>a</code> into a set. A set is itself iterable.
+For any iterable object things like <code>map</code>
+and universal quantifier <code>all</code> are defined.
+</p>
+<pre class="moss">
+&gt; set(1..4)
+{1, 2, 3, 4}
+&gt; set((1..4).map(|x| 2*x))
+{2, 4, 6, 8}
+&gt; {2,4,6,8}.all(|x| x%2==0)
 true
 </pre>
 
@@ -816,7 +840,7 @@ for i in [4,2,1,9]
 end
 </pre>
 
-<p>It is also possible to iterate over strings and dictionarys.
+<p>It is also possible to iterate over the characters of a string.
 </p>
 <pre class="moss">
 for i in "abc"
@@ -826,8 +850,19 @@ end
 # a
 # b
 # c
+</pre>
+<p>Dictionarys are iterable.
+</p>
+<pre class="moss">
+for key in {a=1,b=2}
+  print(key)
+end
 
-for t in {a=1,b=2}
+for value in {a=1,b=2}.values()
+  print(value)
+end
+
+for t in {a=1,b=2}.items()
   print(t)
 end
 # Output:
@@ -837,7 +872,7 @@ end
 # ["b", 2]
 # ["a", 1]
 
-for key,value in {a=1,b=2}
+for key,value in {a=1,b=2}.items()
   print(key,"|",value)
 end
 # Output:
@@ -849,7 +884,7 @@ end
 </pre>
 
 <p>One can iterate over cartesian products.
-</o>
+</p>
 
 <pre class="moss">
 for i,j in ["a","b"]*[0,1]

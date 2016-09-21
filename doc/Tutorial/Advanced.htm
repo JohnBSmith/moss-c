@@ -117,7 +117,8 @@ fib = fix(|f,n| if n==1 or n==2 then 1 else f(n-1)+f(n-2) end)
 
 <p>Uniq(ue) is an operation that removes duplicates from a list.
 Sets and dictionarys provide a simple way to state this operation.
-It can be stated in the following way.
+The first way is, to convert the list into a set and
+then back into a list.
 </p>
 
 <pre class="moss">
@@ -131,7 +132,7 @@ we can use a dictionary construction instead of a set construction.
 
 <pre class="moss">
 # (2)
-uniq = |a| a.dict(|x| [str(x),x]).values()
+uniq = |a| list(a.dict(|x| [str(x),x]).values())
 </pre>
 
 <p>What should be equal and what not, is abstracted by
@@ -139,7 +140,7 @@ a projection function&nbsp;<code>p</code>.
 </p>
 
 <pre class="moss">
-uniq = |a,p| a.dict(|x| [p(x),x]).values()
+uniq = |a,p| list(a.dict(|x| [p(x),x]).values())
 </pre>
 
 <p>The last one is very general, with <code>uniq(a,|x|x)</code>

@@ -6,15 +6,17 @@
 #include <string.h>
 #include <objects/string.h>
 
+#define GROWTH_FACTOR 2
+
 long mf_floor_mod(long x, long m);
 int mf_add_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_eq(mt_object* x, mt_object* a, mt_object* b);
 int mf_lt(mt_object* x, mt_object* a, mt_object* b);
 int mf_gt(mt_object* x, mt_object* a, mt_object* b);
-mt_list* mf_set_to_list(mt_set* m);
 mt_list* mf_map_to_list(mt_map* m);
 static mt_list* mf_list_filter_map(mt_list* a, mt_function* f);
+mt_list* mf_iterator_to_list(mt_function* f, long max);
 
 mt_list* mf_raw_list(long size){
   mt_list* list = mf_malloc(sizeof(mt_list));
@@ -104,7 +106,7 @@ void mf_list_push(mt_list* list, mt_object* x){
     if(n==0){
       capacity=10;
     }else{
-      capacity=2*list->capacity;
+      capacity=GROWTH_FACTOR*list->capacity;
     }
     mt_object* a = mf_malloc(capacity*sizeof(mt_object));
     long i;
@@ -310,10 +312,6 @@ mt_list* mf_list(mt_object* a){
     list = (mt_list*)a->value.p;
     list->refcount++;
     return list;
-  case mv_set:{
-    mt_set* m = (mt_set*)a->value.p;
-    return mf_set_to_list(m);
-  }
   case mv_string:{
     mt_string* s = (mt_string*)a->value.p;
     list = mf_raw_list(s->size);
@@ -326,6 +324,10 @@ mt_list* mf_list(mt_object* a){
   case mv_map:{
     mt_map* m = (mt_map*)a->value.p;
     return mf_map_to_list(m);
+  }
+  case mv_function:{
+    mt_function* f = (mt_function*)a->value.p;
+    return mf_iterator_to_list(f,-1);
   }
   default:
     mf_type_error1("in list(x): cannot convert x (type: %s) into a list.",a);
@@ -1108,16 +1110,17 @@ int mf_funzip(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,1,1,"unzip");
     return 1;
   }
-  if(v[1].type!=mv_list){
-    mf_type_error1("in unzip(a): a (type: %s) is not a list.",v+1);
+  mt_list* a = mf_list(v+1);
+  if(a==NULL){
+    mf_type_error1("in unzip(a): cannot convert a (type: %s) into a list.",v+1);
     return 1;
   }
-  mt_list* a = (mt_list*)v[1].value.p;
   mt_list* t;
   int i,j;
   for(i=0; i<a->size; i++){
     if(a->a[i].type!=mv_list){
       mf_type_error1("in unzip(a): a[k] (type: %s) is not a list.",a->a+i);
+      mf_list_dec_refcount(a);
       return 1;
     }
   }
@@ -1125,6 +1128,7 @@ int mf_funzip(mt_object* x, int argc, mt_object* v){
   if(a->size==0){
     x->type=mv_list;
     x->value.p=(mt_basic*)r;
+    mf_list_dec_refcount(a);
     return 0;
   }
   t=(mt_list*)a->a[0].value.p;
@@ -1142,6 +1146,7 @@ int mf_funzip(mt_object* x, int argc, mt_object* v){
       mf_list_push((mt_list*)r->a[j].value.p,&y);
     }
   }
+  mf_list_dec_refcount(a);
   x->type=mv_list;
   x->value.p=(mt_basic*)r;
   return 0;
@@ -1258,7 +1263,7 @@ mt_pair* decorate(mt_list* list, mt_function* f){
     mf_copy(argv+1,list->a+i);
     if(mf_call(f,&y,1,argv)){
       for(j=0; j<i; j++){
-        mf_dec_refcount(&a[i].key);
+        mf_dec_refcount(&a[j].key);
       }
       mf_free(a);
       return NULL;
@@ -1811,7 +1816,7 @@ int list_insert(mt_object* x, int argc, mt_object* v){
     x->type=mv_null;
     return 0;
   }
-  long size2=size*2;
+  long size2=size*GROWTH_FACTOR;
   a = mf_malloc(size2*sizeof(mt_object));
   for(i=0; i<index; i++){
     mf_copy(a+i,list->a+i);
@@ -2097,6 +2102,7 @@ void mf_init_type_list(mt_table* type){
   mf_insert_function(m,0,0,"rot",list_rot);
   mf_insert_function(m,1,1,"map",list_map);
   mf_insert_function(m,1,1,"filter",list_filter);
+  mf_insert_function(m,1,1,"call",list_filter);
   mf_insert_function(m,0,0,"shuffle",list_shuffle);
   mf_insert_function(m,2,2,"swap",list_swap);
   mf_insert_function(m,1,1,"extend",list_extend);
