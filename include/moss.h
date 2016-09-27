@@ -3,6 +3,13 @@
 #include "objects/object.h"
 #include <stddef.h>
 // #define BIG_ENDIAN
+// #define MOSS_LEVEL2
+// #define MOSS_LEVEL1
+// #define MOSS_LEVEL0
+
+// MOSS_LEVEL2: no BLAS, no SDL, no SDL-TTF
+// MOSS_LEVEL1: no MOSS_LEVEL2, no GNU readline, no LibGMP
+// MOSS_LEVEL0: no MOSS_LEVEL1, no POSIX
 
 void* mf_malloc(size_t size);
 #define mf_free free

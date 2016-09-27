@@ -15,6 +15,8 @@
 #include <objects/function.h>
 #include <modules/global.h>
 
+// BUG: hash values of integers and corresponding
+// long integers are different
 // TODO: max,min for iterators
 // TODO: reverse iterator
 // TODO: command line type only "use", segfault
@@ -430,7 +432,7 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,1,1,"type",mf_ftype);
   mf_insert_function(m,1,1,"load",mf_fload);
   mf_insert_function(m,1,2,"__import__",mf_fimport);
-  mf_insert_function(m,1,1,"eval",mf_feval);
+  mf_insert_function(m,1,2,"eval",mf_feval);
   mf_insert_function(m,0,1,"input",mf_finput);
   mf_insert_function(m,0,1,"gtab",mf_fgtab);
   mf_insert_function(m,2,2,"max",mf_fmax);
@@ -446,6 +448,7 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,1,2,"read",mf_fread);
   mf_insert_function(m,2,2,"assert",mf_fassert);
   mf_insert_function(m,1,1,"hex",mf_fhex);
+  mf_insert_function(m,1,1,"bin",mf_fbin);
   mf_insert_function(m,1,1,"set",mf_fset);
 
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
@@ -1644,6 +1647,9 @@ int mf_vm_eval_global(mt_module* module, long ip){
   }else{
     if(stack_pointer>0){
       if((vm_stack+stack_pointer-1)->type!=mv_null){
+        mt_string* ans = mf_cstr_to_str("ans");
+        mf_map_set_str(mv_gvtab,ans,vm_stack+stack_pointer-1);
+        mf_str_dec_refcount(ans);
         if(mf_put_repr(vm_stack+stack_pointer-1)){
           mf_traceback("command-line print");
           goto error;
@@ -1699,7 +1705,11 @@ int mf_eval_fiber(mt_fiber* fiber, mt_module* module, long ip){
   stack_pointer = fiber->stack_pointer;
   base_pointer = fiber->base_pointer;
   function_self = mf_new_function(NULL);
-  function_self->gtab=mv_gvtab;
+  if(module->gtab){
+    function_self->gtab=module->gtab;
+  }else{
+    function_self->gtab=mv_gvtab;
+  }
   module->refcount++;
   function_self->module=module;
   module->string_pool=mf_load_data(module->data);

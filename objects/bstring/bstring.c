@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <moss.h>
+#include <objects/list.h>
 
 mt_string* mf_str_decode_utf8(long size, unsigned char* a);
 int mf_str_cmpmem(mt_string* s, long size, const char* a);
@@ -71,6 +72,18 @@ int bstring_decode(mt_object* x, int argc, mt_object* v){
     mf_std_exception("Error in bs.decode(endcoding): unknown encoding.");
     return 1;
   }
+}
+
+mt_list* mf_bstring_to_list(mt_bstring* bs){
+  mt_list* list = mf_raw_list(bs->size);
+  long i;
+  mt_object* a=list->a;
+  const char* b=bs->a;
+  for(i=0; i<bs->size; i++){
+    a[i].type=mv_int;
+    a[i].value.i=b[i];
+  }
+  return list;
 }
 
 void mf_init_type_bstring(mt_table* type){

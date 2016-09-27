@@ -797,67 +797,6 @@ int function_count(mt_object* x, int argc, mt_object* v){
 }
 
 static
-int until_next(mt_object* x, int argc, mt_object* v){
-  mt_object* a = function_self->context->a;
-  mt_function* f = (mt_function*)a[0].value.p;
-  mt_function* p = (mt_function*)a[1].value.p;
-  mt_object y,c;
-  mt_object argv[2];
-  argv[0].type=mv_null;
-
-  if(mf_call(f,&y,0,argv)){
-    mf_traceback("iterator from until");
-    return 1;
-  }
-  mf_copy(argv+1,&y);
-  if(mf_call(p,&c,1,argv)){
-    mf_dec_refcount(&y);
-    mf_traceback("iterator from until");
-    return 1;
-  }
-  if(c.type!=mv_bool){
-    mf_dec_refcount(&y);
-    mf_type_error1("in i.until(p): return value (type: %s) of p is not a boolean.",&c);
-    mf_dec_refcount(&c);
-    return 1;
-  }
-  if(c.value.b==0){
-    mf_copy(x,&y);
-    return 0;
-  }else{
-    mf_dec_refcount(&y);
-    mf_raise_empty();
-    return 1;
-  }
-}
-
-static
-int function_until(mt_object* x, int argc, mt_object* v){
-  if(argc!=1){
-    mf_argc_error(argc,1,1,"until");
-    return 1;
-  }
-  if(v[0].type!=mv_function){
-    mf_type_error1("in i.until(f): i (type: %s) is not a function.",v);
-    return 1;
-  }
-  if(v[1].type!=mv_function){
-    mf_type_error1("in i.until(f): f (type: %s) is not a function.",v+1);
-    return 1;
-  }
-  mt_function* f = mf_new_function(NULL);
-  f->context=mf_raw_tuple(2);
-  mt_object* a=f->context->a;
-  mf_copy_inc(a,v);
-  mf_copy_inc(a+1,v+1);
-  f->argc=0;
-  f->fp=until_next;
-  x->type=mv_function;
-  x->value.p=(mt_basic*)f;
-  return 0;
-}
-
-static
 int function_each(mt_object* x, int argc, mt_object* v){
   if(argc!=1){
     mf_argc_error(argc,1,1,"each");
@@ -1349,6 +1288,70 @@ int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
   }
 }
 
+static
+int function_omit(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"omit");
+    return 1;
+  }
+  if(v[0].type!=mv_function){
+    mf_type_error1("in i.omit(n): i (type: %s) is not a function.",&v[0]);
+    return 1;
+  }
+  if(v[1].type!=mv_int){
+    mf_type_error1("in i.omit(n): n (type: %s) is not an integer.",&v[1]);
+    return 1;
+  }
+  mt_function* f = (mt_function*)v[0].value.p;
+  long n = v[1].value.i;
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y;
+  long i;
+  for(i=0; i<n; i++){
+    if(mf_call(f,&y,0,argv)){
+      if(mf_empty()) break;
+      mf_traceback("omit");
+      return 1;
+    }
+    mf_dec_refcount(&y);
+  }
+  mf_copy_inc(x,&v[0]);
+  return 0;
+}
+
+int mf_ncall(mt_function* f, mt_object* x, mt_object* t){
+  if(f->argc>1){
+    if(t->type!=mv_list){
+      mf_type_error1("in unpacking call of t: t (type %s) is not a list.",t);
+      return 1;
+    }
+    mt_list* list = (mt_list*)t->value.p;
+    if(f->argc>10) abort();
+    mt_object argv[10];
+    argv[0].type=mv_null;
+    long i;
+    for(i=0; i<f->argc; i++){
+      if(i<list->size){
+        mf_copy(argv+i+1,list->a+i);
+      }else{
+        argv[i+1].type=mv_null;
+      }
+    }
+    return mf_call(f,x,f->argc,argv);
+  }else{
+    mt_object argv[1];
+    argv[0].type=mv_null;
+    mf_copy_inc(&argv[1],t);
+    int e = mf_call(f,x,1,argv);
+    if(argv[0].type!=mv_null){
+      mf_dec_refcount(&argv[0]);
+    }
+    mf_dec_refcount(&argv[1]);
+    return e;
+  }
+}
+
 void mf_init_type_function(mt_table* type){
   type->name = mf_cstr_to_str("function");
   type->m= mf_empty_map();
@@ -1357,17 +1360,18 @@ void mf_init_type_function(mt_table* type){
   mf_insert_function(m,0,0,"argc",function_argc);
   mf_insert_function(m,0,0,"id",function_id);
   mf_insert_function(m,0,1,"list",function_list);
+  mf_insert_function(m,1,1,"POW",function_pow);
+  mf_insert_function(m,1,1,"orbit",function_orbit);
+  mf_insert_function(m,0,0,"omit",function_omit);
+
   mf_insert_function(m,0,1,"all",function_all);
   mf_insert_function(m,0,1,"any",function_any);
   mf_insert_function(m,0,1,"count",function_count);
-  mf_insert_function(m,1,1,"until",function_until);
   mf_insert_function(m,1,1,"each",function_each);
   mf_insert_function(m,0,1,"sum",function_sum);
   mf_insert_function(m,0,1,"prod",function_prod);
   mf_insert_function(m,1,2,"acuu",function_accu);
   mf_insert_function(m,0,1,"join",function_join);
-  mf_insert_function(m,1,1,"POW",function_pow);
-  mf_insert_function(m,1,1,"orbit",function_orbit);
 }
 
 

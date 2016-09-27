@@ -100,6 +100,8 @@ typedef struct{
   unsigned char* program;
   unsigned char* data;
   mt_list* string_pool;
+  int gtab_owner;
+  mt_map* gtab;
 } mt_module;
 
 typedef struct{

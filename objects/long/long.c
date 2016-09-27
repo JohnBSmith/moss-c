@@ -1167,8 +1167,12 @@ void mf_long_print(mt_long* x){
   mf_str_dec_refcount(s);
 }
 
-mt_string* mf_long_to_string(mt_long* x){
-  return bint_to_string_fast(&x->value);
+mt_string* mf_long_to_string(mt_long* x, int base){
+  if(base==10){
+    return bint_to_string_fast(&x->value);
+  }else{
+    abort();
+  }
 }
 
 mt_long* mf_long_powmod(mt_long* x, mt_long* n, mt_long* m){

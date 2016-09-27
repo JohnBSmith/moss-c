@@ -70,29 +70,31 @@ Basic operations</h2>
 &gt; B = {3,4,5,6}
 
 # union
-&gt; list(A|B).sort()
-[1, 2, 3, 4, 5, 6]
+&gt; A|B
+{1, 2, 3, 4, 5, 6}
 
 # intersection
-&gt; list(A&amp;B).sort()
-[3, 4]
+&gt; A&amp;B
+{3, 4}
 
 # difference set
-&gt; list(A-B).sort()
-[1, 2]
-&gt; list(B-A).sort()
-[5, 6]
+&gt; A-B
+{1, 2}
+&gt; B-A
+{5, 6}
 
 # symmetric difference
-&gt; list(A$B).sort()
-[1, 2, 5, 6]
+&gt; A$B
+{1, 2, 5, 6}
 
 # cardinality
 &gt; size(A)
 4
 
 # disjoint?
-&gt; size(A&amp;B)==0
+&gt; A&amp;B=={}
+false
+&gt; not A.any(|x| x in B)
 false
 
 # membership
@@ -128,7 +130,10 @@ cup = |a| a.reduce({},|x,y| x|y)
 cap = |a| a.reduce({},|x,y| x&amp;y)
 
 &gt; cup([A,B])
-[1, 2, 3, 4, 5, 6]
+{1, 2, 3, 4, 5, 6}
+
+&gt; cup((1..100).map(|x| {x^2%7,x^3%7}))
+{0, 1, 2, 4, 6}
 </pre>
 
 

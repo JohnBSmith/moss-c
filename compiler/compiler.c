@@ -566,10 +566,50 @@ int mf_scan(mt_vec* v, unsigned char* s, long n, int line){
           i++; col++;
         }
         break;
-      case '0': case '1': case '2': case '3': case '4':
+      case '0':
+        if(i+1<n && isalpha(s[i+1])){
+          if(s[i+1]=='x'){
+            j=i; hcol=col;
+            col+=2; i+=2;
+            while(i<n){
+              if(isdigit(s[i])||isxdigit(s[i])){
+                i++; col++;
+              }else{
+                break;
+              }
+            }
+            push_token_string(v,line,hcol,Tint,i-j,(char*)s+j);
+            break;
+          }else if(s[i+1]=='b'){
+            j=i; hcol=col;
+            col+=2; i+=2;
+            while(i<n){
+              if(s[i]=='0' || s[i]=='1'){
+                i++; col++;
+              }else{
+                break;
+              }
+            }
+            push_token_string(v,line,hcol,Tint,i-j,(char*)s+j);
+            break;
+          }else if(s[i+1]=='o'){
+            j=i; hcol=col;
+            col+=2; i+=2;
+            while(i<n){
+              if(isdigit(s[i]) && s[i]!='9' && s[i]!='8'){
+                i++; col++;
+              }else{
+                break;
+              }
+            }
+            push_token_string(v,line,hcol,Tint,i-j,(char*)s+j);
+            break;
+          }
+        }
+      case '1': case '2': case '3': case '4':
       case '5': case '6': case '7': case '8': case '9':
-        floatsep=0; imag=0;
         j=i; hcol=col;
+        floatsep=0; imag=0;
         while(i<n){
           if(s[i]=='.'){
             if(i+1<n && s[i+1]=='.'){
@@ -4035,6 +4075,21 @@ void ast_compile_try(mt_vec* bv, ast_node* t){
 }
 
 static
+long string_to_long(long size, const char* s){
+  if(size>2 && isalpha(s[1])){
+    if(s[1]=='x'){
+      return strtol(s+2,NULL,16);
+    }else if(s[1]=='b'){
+      return strtol(s+2,NULL,2);
+    }else if(s[1]=='o'){
+      return strtol(s+2,NULL,8);
+    }
+  }else{
+    return strtol(s,NULL,10);
+  }
+}
+
+static
 void ast_compile(mt_vec* bv, ast_node* t){
   int type=t->type;
   if(type==Tstatement){
@@ -4053,7 +4108,7 @@ void ast_compile(mt_vec* bv, ast_node* t){
     push_u32(bv,t->value);
   }else if(type==Tint){
     errno=0;
-    long value = strtol(t->s,NULL,10);
+    long value = string_to_long(t->size,t->s);
     if(errno){
       compile_string(bv,t);
       push_bc(bv,LONG,t);

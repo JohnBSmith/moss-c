@@ -517,7 +517,7 @@ is a fundamental, albeit easy to understand, data structure.
 </p>
 
 <pre class="moss">
-# Construct the list of the elements 4,9,2,6.
+# Construction of a list with elements 4,9,2,6.
 &gt; [4,9,2,6]
 [4, 9, 2, 6]
 
@@ -656,7 +656,7 @@ Instead of
   {x=4,y=3}
 </pre>
 <p>But note that this is not the same as <code>{x:4,y:3}.</code>
-Before a colon <code>x,y</code> are itself variables that should contain keys.
+Before a colon, <code>x,y</code> are itself variables that should contain keys.
 </p>
 <pre class="moss">
 &gt; x="u"; y="v"
@@ -676,6 +676,7 @@ true
 &gt; B = {2,3,4}
 &gt; [A|B, A&amp;B, A-B, A$B]
 [{1, 2, 3, 4}, {2, 3}, {1}, {1, 4}]
+# union, intersection, difference, symmetric difference
 </pre>
 <p>One can use <code>set(a)</code> to convert an iterable
 object <code>a</code> into a set. A set is itself iterable.
@@ -925,6 +926,34 @@ end
 #  9 18 27 36 45 54 63 72 81
 </pre>
 
+<p>A for-loop can include the index for each element.
+Let <code>i</code> be the index, and <code>x</code> the element.
+</p>
+
+<pre class="moss">
+for i,x in "abc".enum()
+  print(i,"|",x)
+end
+# Output:
+# 0|a
+# 1|b
+# 2|c
+
+a = [1,2,3,4]
+for i,x in a.enum()
+  for y in a[i+1..]
+    print([x,y])
+  end
+end
+# Output:
+# [1, 2]
+# [1, 3]
+# [1, 4]
+# [2, 3]
+# [2, 4]
+# [3, 4]
+</pre>
+
 <h3 id="if">Conditional statements</h3>
 <p>In a program we often have to make a branch. Depending on a
 condition the program has to perform either in one way or in
@@ -1051,7 +1080,7 @@ use math:*
 f = |x| sin(pi*x)
 
 # show what is contained in math
-expose = |m| print(record(m).keys().sort().join(", "))
+expose = |m| print(list(record(m)).sort().join(", "))
 expose(math)
 </pre>
 

@@ -4,6 +4,7 @@
 #include <objects/function.h>
 #include <objects/map.h>
 
+int mf_ncall(mt_function* f, mt_object* x, mt_object* t);
 int mf_list_sum0(mt_object* x, mt_list* a);
 int mf_list_sum1(mt_object* x, mt_list* a, mt_function* f);
 int mf_list_prod0(mt_object* x, mt_list* a);
@@ -153,18 +154,15 @@ int list_all(mt_object* x, mt_list* list, mt_function* f){
     x->value.b=1;
     return 0;
   }
-  mt_object argv[2];
-  argv[0].type=mv_null;
   mt_object y;
   for(i=0; i<size; i++){
-    mf_copy(argv+1,a+i);
-    if(mf_call(f,&y,1,argv)){
+    if(mf_ncall(f,&y,a+i)){
       mf_traceback("all");
       return 1;
     }
     if(y.type!=mv_bool){
       mf_dec_refcount(&y);
-      mf_type_error("Type error in a.all(f): return value of f is not of type bool.");
+      mf_type_error("Type error in a.all(p): return value of p is not of type bool.");
       return 1;
     }
     if(!y.value.b){
@@ -199,18 +197,15 @@ int list_any(mt_object* x, mt_list* list, mt_function* f){
     x->value.b=0;
     return 0;
   }
-  mt_object argv[2];
-  argv[0].type=mv_null;
   mt_object y;
   for(i=0; i<size; i++){
-    mf_copy(argv+1,a+i);
-    if(mf_call(f,&y,1,argv)){
+    if(mf_ncall(f,&y,a+i)){
       mf_traceback("any");
       return 1;
     }
     if(y.type!=mv_bool){
       mf_dec_refcount(&y);
-      mf_type_error("Type error in a.any(f): return value of f is not of type bool.");
+      mf_type_error("Type error in a.any(p): return value of p is not of type bool.");
       return 1;
     }
     if(y.value.b){
@@ -294,13 +289,8 @@ static
 int list_each(mt_object* x, mt_list* a, mt_function* f){
   mt_object y;
   long i;
-  mt_object argv[2];
-  argv[0].type=mv_null;
-  int e;
   for(i=0; i<a->size; i++){
-    mf_copy(argv+1,a->a+i);
-    e=mf_call(f,&y,1,argv);
-    if(e){
+    if(mf_ncall(f,&y,a->a+i)){
       mf_traceback("each");
       return 1;
     }
@@ -405,13 +395,12 @@ int map_next(mt_object* x, int argc, mt_object* v){
   mt_function* g=(mt_function*)a[0].value.p;
   mt_function* f=(mt_function*)a[1].value.p;
   mt_object y;
-  mt_object argv[2];
+  mt_object argv[1];
   argv[0].type=mv_null;
   if(mf_call(g,&y,0,argv)){
     return 1;
   }
-  mf_copy(argv+1,&y);
-  int e=mf_call(f,x,1,argv);
+  int e=mf_ncall(f,x,&y);
   mf_dec_refcount(&y);
   return e;
 }
@@ -454,14 +443,14 @@ int filter_next(mt_object* x, int argc, mt_object* v){
   argv[0].type=mv_null;
   while(1){
     if(mf_call(f,&y,0,argv)){
+      if(mf_empty()) return 1;
       mf_traceback("iterator from filter");
       return 1;
     }
-    mf_copy(argv+1,&y);
-    if(mf_call(p,&c,1,argv)){
+    if(mf_ncall(p,&c,&y)){
       mf_dec_refcount(&y);
       mf_traceback("iterator from filter");
-      return 0;
+      return 1;
     }
     if(c.type!=mv_bool){
       mf_dec_refcount(&c);
@@ -489,7 +478,7 @@ int iterable_filter(mt_object* x, int argc, mt_object* v){
   }
   mt_function* i = mf_iter(v);
   if(i==NULL){
-    mf_traceback("map");
+    mf_traceback("filter");
     return 1;
   }
   mt_function* f=mf_new_function(NULL);
@@ -503,6 +492,54 @@ int iterable_filter(mt_object* x, int argc, mt_object* v){
   x->type=mv_function;
   x->value.p=(mt_basic*)f;
   return 0;
+}
+
+static
+int iterable_find(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"find");
+    return 1;
+  }
+  if(v[1].type!=mv_function){
+    mf_type_error("Type error in i.find(p): p is not a function.");
+    return 1;
+  }
+  mt_function* p = (mt_function*)v[1].value.p;
+  mt_function* i = mf_iter(&v[0]);
+  if(i==NULL){
+    mf_traceback("find");
+    return 1;
+  }
+  mt_object y,c;
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()){
+        x->type=mv_null;
+        return 0;
+      }
+      mf_traceback("find");
+      return 1;
+    }
+    if(mf_ncall(p,&c,&y)){
+      mf_dec_refcount(&y);
+      mf_traceback("find");
+      return 1;
+    }
+    if(c.type!=mv_bool){
+      mf_dec_refcount(&y);
+      mf_dec_refcount(&c);
+      mf_type_error("Type error in i.find(p): return value of p is not a boolean.");
+      return 1;
+    }
+    if(c.value.b==1){
+      mf_copy(x,&y);
+      return 0;
+    }else{
+      mf_dec_refcount(&y);   
+    }
+  }
 }
 
 static
@@ -561,22 +598,20 @@ int iterable_dict1(mt_object* x, mt_object* a, mt_function* f){
   mt_object y,u;
   mt_object argv[1];
   argv[0].type=mv_null;
-  mt_object args[2];
-  args[0].type=mv_null;
   mt_map* m = mf_empty_map();
   long k=0;
   while(1){
-    if(mf_call(i,&args[1],0,argv)){
+    if(mf_call(i,&u,0,argv)){
       if(mf_empty()) break;
       mf_traceback("dict");
       goto error;
     }
-    if(mf_call(f,&y,1,args)){
-      mf_dec_refcount(&args[1]);
+    if(mf_ncall(f,&y,&u)){
+      mf_dec_refcount(&u);
       mf_traceback("dict");
       goto error;
     }
-    mf_dec_refcount(&args[1]);
+    mf_dec_refcount(&u);
     if(y.type!=mv_list){
       mf_dec_refcount(&y);
       mf_type_error("Type error in a.dict(f): return value of f is not a list.");
@@ -630,6 +665,117 @@ int mf_fdict(mt_object* x, int argc, mt_object* v){
   return iterable_dict0(x,v+1);
 }
 
+static
+int until_next(mt_object* x, int argc, mt_object* v){
+  mt_object* a = function_self->context->a;
+  mt_function* f = (mt_function*)a[0].value.p;
+  mt_function* p = (mt_function*)a[1].value.p;
+  mt_object y,c;
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  if(mf_call(f,&y,0,argv)){
+    if(mf_empty()){
+      return 1;
+    }
+    mf_traceback("iterator from until");
+    return 1;
+  }
+  if(mf_ncall(p,&c,&y)){
+    mf_dec_refcount(&y);
+    mf_traceback("iterator from until");
+    return 1;
+  }
+  if(c.type!=mv_bool){
+    mf_dec_refcount(&y);
+    mf_type_error1("in i.until(p): return value (type: %s) of p is not a boolean.",&c);
+    mf_dec_refcount(&c);
+    return 1;
+  }
+  if(c.value.b==0){
+    mf_copy(x,&y);
+    return 0;
+  }else{
+    mf_dec_refcount(&y);
+    mf_raise_empty();
+    return 1;
+  }
+}
+
+static
+int iterable_until(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"until");
+    return 1;
+  }
+  mt_function* i = mf_iter(v);
+  if(i==NULL){
+    mf_traceback("until");
+    return 1;
+  }
+  if(v[1].type!=mv_function){
+    mf_type_error1("in i.until(f): f (type: %s) is not a function.",v+1);
+    return 1;
+  }
+  mt_function* f = mf_new_function(NULL);
+  f->context=mf_raw_tuple(2);
+  mt_object* a=f->context->a;
+  a[0].type=mv_function;
+  a[0].value.p=(mt_basic*)i;
+  mf_copy_inc(a+1,v+1);
+  f->argc=0;
+  f->fp=until_next;
+  x->type=mv_function;
+  x->value.p=(mt_basic*)f;
+  return 0;
+}
+
+static
+int enum_next(mt_object* x, int argc, mt_object* v){
+  mt_object* a = function_self->context->a;
+  mt_function* f = (mt_function*)a[1].value.p;
+  mt_object y;
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  if(mf_call(f,&y,0,argv)){
+    if(mf_empty()) return 1;
+    mf_traceback("iterator from until");
+    return 1;
+  }
+  mt_list* list = mf_raw_list(2);
+  mf_copy(list->a+1,&y);
+  list->a[0].type=mv_int;
+  list->a[0].value.i=a[0].value.i;
+  a[0].value.i++;
+  x->type=mv_list;
+  x->value.p=(mt_basic*)list;
+  return 0;
+}
+
+static
+int iterable_enum(mt_object* x, int argc, mt_object* v){
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"enum");
+    return 1;
+  }
+  mt_function* i = mf_iter(v);
+  if(i==NULL){
+    mf_traceback("enum");
+    return 1;
+  }
+  mt_function* f = mf_new_function(NULL);
+  f->context=mf_raw_tuple(2);
+  mt_object* a=f->context->a;
+  a[0].type=mv_int;
+  a[0].value.i=0;
+  a[1].type=mv_function;
+  a[1].value.p=(mt_basic*)i;
+  f->argc=0;
+  f->fp=enum_next;
+  x->type=mv_function;
+  x->value.p=(mt_basic*)f;
+  return 0;
+}
+
 void mf_init_type_iterable(mt_table* type){
   type->name=mf_cstr_to_str("iterable");
   type->m=mf_empty_map();
@@ -645,4 +791,7 @@ void mf_init_type_iterable(mt_table* type){
   mf_insert_function(m,1,1,"filter",iterable_filter);
   mf_insert_function(m,1,1,"call",iterable_filter);
   mf_insert_function(m,1,1,"dict",iterable_dict);
+  mf_insert_function(m,1,1,"find",iterable_find);
+  mf_insert_function(m,1,1,"until",iterable_until);
+  mf_insert_function(m,0,0,"enum",iterable_enum);
 }

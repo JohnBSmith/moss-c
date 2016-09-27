@@ -19,7 +19,7 @@
 #define PI 3.14159265358979323846
 #define SQRT_PI 1.772453850905516027
 
-#if defined(_WIN32) || defined(__clang__)
+#ifndef CMPLX
   #define CMPLX(x,y) ((x)+(y)*I)
 #endif
 

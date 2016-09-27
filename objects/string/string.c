@@ -10,7 +10,7 @@
 #include <objects/string.h>
 
 mt_string* mf_list_to_string(mt_list* list);
-mt_string* mf_long_to_string(mt_long* x);
+mt_string* mf_long_to_string(mt_long* x, int base);
 mt_string* mf_map_to_string(mt_map* m);
 
 int mf_object_get_memory(mt_object* x, mt_object* a,
@@ -245,7 +245,7 @@ mt_string* mf_str(mt_object* x){
     s=mf_cstr_to_str(a);
     return s;
   case mv_long:
-    s=mf_long_to_string((mt_long*)x->value.p);
+    s=mf_long_to_string((mt_long*)x->value.p,10);
     return s;
   case mv_string:
     s=(mt_string*)x->value.p;
@@ -985,14 +985,14 @@ mt_string* mf_str_slice(mt_string* s, mt_range* r){
     a+=size;
     if(a<0) a=0;
   }else if(a>=size){
-    a=size-1;
+    a=size;
   }
   if(b<0){
     if(b==-1){
       return mf_raw_string(0);
     }
     b+=size;
-    if(b<0) b=0;
+    if(b<0) b=-1;
   }else if(b>=size){
     b=size-1;
   }

@@ -94,9 +94,9 @@ print(d(100))
 # we can see that the 6th prime is 13. What is the 10001st prime
 # number?
 
-use nt: isprime
-index = |m| (1..).filter(isprime).list(m)[m-1]
-print(index(10001))
+prime = |n| n&gt;1 and (2..).until(|i| i*i&gt;n).all(|i| n%i!=0)
+p = |m| (1..).filter(prime).omit(m-1)()
+print(p(10001))
 
 
 # Problem 8: Largest product in a series
@@ -144,6 +144,40 @@ print(adjacent_prod_max(13,digits))
 # There exists exactly one Pythagorean triplet for which
 # a + b + c = 1000. Find the product a*b*c.
 
+sub partitions(n,k,max)
+  if n==0
+    return [[]]
+  elif n&gt;k*max
+    return []
+  elif n==k*max
+    return [[max]*k]
+  elif k==1
+    return [[n]]
+  else
+    a=[]
+    for x in 1..min(max,n-1)
+      for t in partitions(n-x,k-1,x)
+        a.push(t+[x])
+      end
+    end
+    return a
+  end
+end
+
+sub triplets(n)
+  partitions(n,3,n).filter(|x,y,z| x^2+y^2==z^2)
+end
+
+triplets(1000).each(print)
+
+
+# Problem 10: Summation of primes
+# The sum of the primes below 10 is 2+3+5+7 = 17.
+# Find the sum of all the primes below two million.
+
+use nt: isprime
+s = (1..2000000).filter(isprime).sum()
+print(s)
 </pre>
 
 </body>

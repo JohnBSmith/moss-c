@@ -36,12 +36,6 @@ extend(dict.type,table
       end
     end
     return set(d.values())
-  end,
-  sub cup
-    self.reduce({},|x,y| x|y)
-  end,
-  sub cap
-    self.reduce({},|x,y| x&y)
   end
 end)
 
@@ -53,6 +47,12 @@ extend(type(list.type),table
       p=argv[0]
       return list(self.dict(|x| [p(x),x]).values())
     end
+  end,
+  sub cup
+    self.reduce({},|x,y| x|y)
+  end,
+  sub cap
+    self.reduce(|x,y| x&y)
   end
 end)
 

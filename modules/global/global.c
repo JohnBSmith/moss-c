@@ -19,6 +19,7 @@ mt_table* mf_load_module(const char* id);
 void mf_module_dec_refcount(mt_module* m);
 mt_tuple* mf_raw_tuple(long size);
 mt_string* mf_format(mt_string* s, mt_list* list);
+mt_string* mf_long_to_string(mt_long* x, int base);
 
 extern mt_table* mv_type_bool;
 extern mt_table* mv_type_int;
@@ -573,15 +574,19 @@ int binary_op_method(mt_object* x, mt_object* a, mt_object* b,
     return 1;
   }
   mt_object argv[2];
-  mf_copy(argv,a);
-  mf_copy(argv+1,b);
+  mf_copy_inc(&argv[0],a);
+  mf_copy_inc(&argv[1],b);
   mt_object y;
   if(mf_call((mt_function*)f.value.p,&y,1,argv)){
+    mf_dec_refcount(&argv[0]);
+    mf_dec_refcount(&argv[1]);
     mf_dec_refcount(a);
     mf_dec_refcount(b);
     op_method_error=1;
     return 1;
   }
+  mf_dec_refcount(&argv[0]);
+  mf_dec_refcount(&argv[1]);
   mf_dec_refcount(a);
   mf_dec_refcount(b);
   mf_copy(x,&y);
@@ -1245,6 +1250,11 @@ int mf_idiv_dec(mt_object* x, mt_object* a, mt_object* b){
     switch(b->type){
     case mv_int:
       aL=(mt_long*)a->value.p;
+      if(b->value.i==0){
+        mf_long_dec_refcount(aL);
+        mf_value_error("Value error in a//b: b==0.");
+        return 1;
+      }
       bL=mf_int_to_long(b->value.i);
       xL=mf_long_div(aL,bL);
       mf_long_dec_refcount(aL);
@@ -1295,6 +1305,10 @@ int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b){
   case mv_int:
     switch(b->type){
     case mv_int:
+      if(b->value.i==0){
+        mf_value_error("Value error in a%b: b==0.");
+        return 1;
+      }
       x->type=mv_int;
       x->value.i=mf_floor_mod(a->value.i,b->value.i);
       return 0;
@@ -1334,6 +1348,11 @@ int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b){
     switch(b->type){
     case mv_int:
       aL=(mt_long*)a->value.p;
+      if(b->value.i==0){
+        mf_long_dec_refcount(aL);
+        mf_value_error("Value error in a%b: b==0.");
+        return 1;
+      }
       bL=mf_int_to_long(b->value.i);
       xL=mf_long_mod(aL,bL);
       mf_long_dec_refcount(aL);
@@ -1710,13 +1729,13 @@ int mf_lt_dec(mt_object* x, mt_object* a, mt_object* b){
     goto lt;
   }
   lt:
-  if(binary_op_method(x,a,b,a,3,"LT")){
+  if(binary_op_method(x,a,b,a,2,"LT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rlt:
-  if(binary_op_method(x,a,b,b,4,"RLT")){
+  if(binary_op_method(x,a,b,b,3,"RLT")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -1818,13 +1837,13 @@ int mf_gt_dec(mt_object* x, mt_object* a, mt_object* b){
     goto gt;
   }
   gt:
-  if(binary_op_method(x,a,b,a,3,"GT")){
+  if(binary_op_method(x,a,b,a,2,"GT")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rgt:
-  if(binary_op_method(x,a,b,b,4,"RGT")){
+  if(binary_op_method(x,a,b,b,3,"RGT")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -1926,13 +1945,13 @@ int mf_le_dec(mt_object* x, mt_object* a, mt_object* b){
     goto le;
   }
   le:
-  if(binary_op_method(x,a,b,a,3,"LE")){
+  if(binary_op_method(x,a,b,a,2,"LE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rle:
-  if(binary_op_method(x,a,b,b,4,"RLE")){
+  if(binary_op_method(x,a,b,b,3,"RLE")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2034,13 +2053,13 @@ int mf_ge_dec(mt_object* x, mt_object* a, mt_object* b){
     goto ge;
   }
   ge:
-  if(binary_op_method(x,a,b,a,3,"GE")){
+  if(binary_op_method(x,a,b,a,2,"GE")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rge:
-  if(binary_op_method(x,a,b,b,4,"RGE")){
+  if(binary_op_method(x,a,b,b,3,"RGE")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2264,13 +2283,13 @@ int mf_eq_dec(mt_object* x, mt_object* a, mt_object* b){
     }
   }
   eq:
-  if(binary_op_method(x,a,b,a,3,"EQ")){
+  if(binary_op_method(x,a,b,a,2,"EQ")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   req:
-  if(binary_op_method(x,a,b,b,4,"REQ")){
+  if(binary_op_method(x,a,b,b,3,"REQ")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2509,12 +2528,12 @@ int mf_in_dec(mt_object* x, mt_object* a, mt_object* b){
     goto in;
   }
   in:
-  if(binary_op_method(x,a,b,a,3,"IN")){
+  if(binary_op_method(x,a,b,a,2,"IN")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
-  if(binary_op_method(x,a,b,b,4,"RIN")){
+  if(binary_op_method(x,a,b,b,3,"RIN")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2660,13 +2679,13 @@ int mf_bit_and_dec(mt_object* x, mt_object* a, mt_object* b){
     goto bit_and;
   }
   bit_and:
-  if(binary_op_method(x,a,b,a,3,"BAND")){
+  if(binary_op_method(x,a,b,a,4,"BAND")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rbit_and:
-  if(binary_op_method(x,a,b,b,4,"RBAND")){
+  if(binary_op_method(x,a,b,b,5,"RBAND")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -2768,13 +2787,13 @@ int mf_bit_xor_dec(mt_object* x, mt_object* a, mt_object* b){
     goto bit_xor;
   }
   bit_xor:
-  if(binary_op_method(x,a,b,a,3,"BXOR")){
+  if(binary_op_method(x,a,b,a,4,"BXOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
   }
   rbit_xor:
-  if(binary_op_method(x,a,b,b,4,"RBXOR")){
+  if(binary_op_method(x,a,b,b,5,"RBXOR")){
     if(op_method_error) return 1;
   }else{
     return 0;
@@ -3323,15 +3342,21 @@ mt_load_tab_element load_tab[] = {
   {5, "cmath", mf_cmath_load, NULL},
   {6, "crypto", mf_crypto_load, NULL},
   // {3, "gui", mf_gui_load, NULL},
+#ifndef MOSS_LEVEL2
   {2, "gx", mf_gx_load, NULL},
   {2, "la", mf_la_load, NULL},
+#endif
   {2, "na", mf_na_load, NULL},
   {2, "nt", mf_nt_load, NULL},
   {4, "math", mf_math_load, NULL},
+#ifndef MOSS_LEVEL0
   {2, "os", mf_os_load, NULL},
+#endif
   {2, "sf", mf_sf_load, NULL},
-  {3, "sys", mf_sys_load, NULL},
-  {4, "time", mf_time_load, NULL}
+  {3, "sys", mf_sys_load, NULL}
+#ifndef MOSS_LEVEL0
+  ,{4, "time", mf_time_load, NULL}
+#endif
 };
 
 static
@@ -3520,18 +3545,27 @@ int mf_fimport(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-int mf_eval_string(mt_object* x, mt_string* s);
+int mf_eval_string(mt_object* x, mt_string* s, mt_map* d);
 int mf_feval(mt_object* x, int argc, mt_object* v){
-  if(argc!=1){
-    mf_argc_error(argc,1,1,"eval");
-    return 0;
+  mt_map* d;
+  if(argc==2){
+    if(v[2].type!=mv_map){
+      mf_type_error1("in eval(s,d): d (type: %s) is not a dictionary.",&v[0]);
+      return 1;
+    }
+    d=(mt_map*)v[2].value.p;
+  }else if(argc==1){
+    d=NULL;
+  }else{
+    mf_argc_error(argc,1,2,"eval");
+    return 1;
   }
   if(v[1].type!=mv_string){
     mf_type_error1("in eval(s): s (type: %s) is not a string.",v+1);
     return 1;
   }
   mt_string* s = (mt_string*)v[1].value.p;
-  return mf_eval_string(x,s);
+  return mf_eval_string(x,s,d);
 }
 
 int mf_fgtab(mt_object* x, int argc, mt_object* v){
@@ -4227,12 +4261,41 @@ int mf_fassert(mt_object* x, int argc, mt_object* v){
   return 1;
 }
 
+static
+mt_string* prefix(long size, const char* pf, mt_string* s){
+  mt_string* y = mf_raw_string(size+s->size);
+  uint32_t* ya=y->a;
+  uint32_t* a=s->a;
+  long i,j;
+  int neg;
+  if(s->size>0 && a[0]=='-'){
+    ya[0]='-';
+    j=1; neg=1;
+  }else{
+    j=0; neg=0;
+  }
+  for(i=0; i<size; i++){
+    ya[j]=pf[i];
+    j++;
+  }
+  i=neg?1:0;
+  while(i<s->size){
+    ya[j]=a[i];
+    i++; j++;
+  }
+  return y;
+}
+
 int mf_fhex(mt_object* x, int argc, mt_object* v){
   if(argc!=1){
     mf_argc_error(argc,1,1,"hex");
     return 1;
   }
-  if(v[1].type!=mv_int){
+  if(v[1].type==mv_long){
+    x->type=mv_string;
+    x->value.p=(mt_basic*)prefix(2,"0x",mf_long_to_string((mt_long*)v[1].value.p,16));
+    return 0;
+  }else if(v[1].type!=mv_int){
     mf_type_error1("in hex(n): n (type: %s) is not an integer.",&v[1]);
     return 1;
   }
@@ -4247,3 +4310,54 @@ int mf_fhex(mt_object* x, int argc, mt_object* v){
   x->value.p=(mt_basic*)mf_cstr_to_str(buffer);
   return 0;
 }
+
+static
+char* binary(long x, int size, char* buffer){
+  char* a = buffer+size-1;
+  *a--=0;
+  if(x<0){
+    if(x==-x){
+      strcpy(buffer+10,"0b10000000000000000000000000000000");
+      return buffer+10;
+    }
+    x=-x;
+  }
+  if(x==0){
+    *a--='0';
+  }
+  while(x!=0){
+    *a-- = (x&1)+'0';
+    x >>= 1;
+  }
+  *a--='b';
+  *a--='0';
+  return a+1;
+}
+
+int mf_fbin(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"bin");
+    return 1;
+  }
+  if(v[1].type==mv_long){
+    x->type=mv_string;
+    x->value.p=(mt_basic*)prefix(2,"0b",mf_long_to_string((mt_long*)v[1].value.p,2));
+    return 0;
+  }else if(v[1].type!=mv_int){
+    mf_type_error1("in bin(n): n (type: %s) is not an integer.",&v[1]);
+    return 1;
+  }
+  long n=v[1].value.i;
+  char buffer[100];
+  char* a;
+  if(n<0){
+    a = binary(n,100,buffer);
+    a--; *a='-';
+  }else{
+    a = binary(n,100,buffer);
+  }
+  x->type=mv_string;
+  x->value.p=(mt_basic*)mf_cstr_to_str(a);
+  return 0;
+}
+

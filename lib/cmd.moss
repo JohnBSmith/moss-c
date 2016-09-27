@@ -13,7 +13,7 @@ use na: diff, inv, integral
 use la: hv, hm, ha, idm, diag, trace
 use sys: argv, path
 use time: sleep
-use nt: isprime, gcd, lcm
+use nt: isprime, gcd, lcm, factor
 use os: cd, ls, wd, isdir, isfile
 use plotlib: plot, cplot, fractal
 use fraction: u

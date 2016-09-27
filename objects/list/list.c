@@ -17,6 +17,8 @@ int mf_gt(mt_object* x, mt_object* a, mt_object* b);
 mt_list* mf_map_to_list(mt_map* m);
 static mt_list* mf_list_filter_map(mt_list* a, mt_function* f);
 mt_list* mf_iterator_to_list(mt_function* f, long max);
+mt_list* mf_bstring_to_list(mt_bstring* bs);
+int mf_ncall(mt_function* f, mt_object* x, mt_object* t);
 
 mt_list* mf_raw_list(long size){
   mt_list* list = mf_malloc(sizeof(mt_list));
@@ -321,6 +323,8 @@ mt_list* mf_list(mt_object* a){
     }
     return list;
   }
+  case mv_bstring:
+    return mf_bstring_to_list((mt_bstring*)a->value.p);
   case mv_map:{
     mt_map* m = (mt_map*)a->value.p;
     return mf_map_to_list(m);
@@ -562,13 +566,15 @@ int list_map(mt_object* x, int argc, mt_object* v){
   long i;
   mt_object argv[2];
   argv[0].type=mv_null;
+  mt_object t;
   int e;
   for(i=0; i<a->size; i++){
-    mf_copy_inc(argv+1,a->a+i);
-    e = mf_call(f,b->a+i,1,argv);
-    mf_dec_refcount(&argv[1]);
+    // mf_copy_inc(argv+1,a->a+i);
+    // e = mf_call(f,b->a+i,1,argv);
+    // mf_dec_refcount(&argv[1]);
+    e = mf_ncall(f,b->a+i,a->a+i);
     if(e){
-      mf_dec_refcount(&argv[0]);
+      // mf_dec_refcount(&argv[0]);
       mf_traceback("map");
       mf_dec_refcounts(i,b->a);
       mf_free(b->a);
@@ -576,7 +582,7 @@ int list_map(mt_object* x, int argc, mt_object* v){
       return 1;
     }
   }
-  mf_dec_refcount(&argv[0]);
+  // mf_dec_refcount(&argv[0]);
   x->type=mv_list;
   x->value.p=(mt_basic*)b;
   return 0;
@@ -601,13 +607,8 @@ int list_filter(mt_object* x, int argc, mt_object* v){
   mt_list* list2 = mf_raw_list(0);
   mt_object y;
   long i;
-  mt_object argv[2];
-  argv[0].type=mv_null;
-  int e;
   for(i=0; i<list->size; i++){
-    mf_copy(argv+1,list->a+i);
-    e=mf_call(f,&y,1,argv);
-    if(e){
+    if(mf_ncall(f,&y,list->a+i)){
       mf_traceback("filter");
       mf_list_dec_refcount(list2);
       return 1;
@@ -635,13 +636,8 @@ mt_list* mf_list_filter_map(mt_list* a, mt_function* f){
   mt_list* list = mf_raw_list(0);
   mt_object y;
   long i;
-  int e;
-  mt_object argv[2];
-  argv[0].type=mv_null;
   for(i=0; i<a->size; i++){
-    mf_copy(argv+1,a->a+i);
-    e=mf_call(f,&y,1,argv);
-    if(e){
+    if(mf_ncall(f,&y,a->a+i)){
       mf_traceback("list");
       mf_list_dec_refcount(list);
       return NULL;
@@ -730,17 +726,13 @@ int mf_list_sum1(mt_object* x, mt_list* a, mt_function* f){
     return 0;
   }
   long i;
-  mt_object argv[2];
-  argv[0].type=mv_null;
   mt_object t,y;
-  mf_copy(argv+1,a->a);
-  if(mf_call(f,&y,1,argv)){
+  if(mf_ncall(f,&y,&a->a[0])){
     mf_traceback("sum");
     return 1;
   }
   for(i=1; i<size; i++){
-    mf_copy(argv+1,a->a+i);
-    if(mf_call(f,&t,1,argv)){
+    if(mf_ncall(f,&t,a->a+i)){
       mf_dec_refcount(&y);
       mf_traceback("sum");
       return 1;
@@ -805,17 +797,13 @@ int mf_list_prod1(mt_object* x, mt_list* a, mt_function* f){
     return 0;
   }
   long i;
-  mt_object argv[2];
-  argv[0].type=mv_null;
   mt_object t,y;
-  mf_copy(argv+1,a->a);
-  if(mf_call(f,&y,1,argv)){
+  if(mf_ncall(f,&y,&a->a[0])){
     mf_traceback("prod");
     return 1;
   }
   for(i=1; i<size; i++){
-    mf_copy(argv+1,a->a+i);
-    if(mf_call(f,&t,1,argv)){
+    if(mf_ncall(f,&t,a->a+i)){
       mf_dec_refcount(&y);
       mf_traceback("prod");
       return 1;
@@ -875,13 +863,10 @@ int mf_count_element(mt_object* x, mt_list* list, mt_object* t){
 
 int mf_list_count(mt_object* x, mt_list* list, mt_function* p){
   mt_object y;
-  mt_object argv[2];
-  argv[0].type=mv_null;
   long counter=0;
   long i;
   for(i=0; i<list->size; i++){
-    mf_copy(argv+1,list->a+i);
-    if(mf_call(p,&y,1,argv)){
+    if(mf_ncall(p,&y,list->a+i)){
       mf_traceback("count(a,p)");
       return 1;
     }

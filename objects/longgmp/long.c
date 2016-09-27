@@ -39,15 +39,28 @@ mt_long* mf_long_new(){
 }
 
 mt_long* mf_string_to_long(mt_string* x){
+  long n = x->size;
   char* buffer = mf_str_to_cstr(x);
   mt_long* y = mf_long_new();
-  mpz_set_str(y->value,buffer,10);
+  if(n>2 && isalpha(buffer[1])){
+    if(buffer[1]=='x'){
+      mpz_set_str(y->value,buffer+2,16);
+    }else if(buffer[1]=='b'){
+      mpz_set_str(y->value,buffer+2,2);
+    }else if(buffer[1]=='o'){
+      mpz_set_str(y->value,buffer+2,8);
+    }else{
+      abort();
+    }
+  }else{
+    mpz_set_str(y->value,buffer,10);
+  }
   mf_free(buffer);
   return y;
 }
 
-mt_string* mf_long_to_string(mt_long* x){
-  char* buffer = mpz_get_str(NULL,10,x->value);
+mt_string* mf_long_to_string(mt_long* x, int base){
+  char* buffer = mpz_get_str(NULL,base,x->value);
   mt_string* s = mf_cstr_to_str(buffer);
   mf_free(buffer);
   return s;

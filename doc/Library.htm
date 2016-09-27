@@ -148,7 +148,9 @@ the file is read as a binary file.
 <dt>load(id)</dt>
 <dd>Load the module with filename <code>id</code> and
   return the module object. The function <code>load</code>
-  can be used in a more general way than the import statement.
+  can be used in a more general way than import statements
+  (keyword <code>use</code>). One can achieve dynamic loading
+  this way.
 <pre class="moss">
 &gt; math = load("math")
 &gt; math.floor(2.4)
@@ -185,8 +187,12 @@ tree. Note that <code>const(x)</code> is equivalent to
 <code>const(1,x)</code>.
 </dd>
 
-<dt>copy(x)</dt>
-<dd>Construct a shallow copy of the object <code>x</code>.
+<dt>copy(x), copy(n,x)</dt>
+<dd>Construct a shallow copy of the object <code>x</code>
+and return it. If <code>n</code> is given, return a deep copy
+by depth <code>n</code>. If <code>n</code> is <code>null</code>,
+return a complete deep copy. Note that <code>copy(x)</code>
+is equivalent to <code>copy(1,x)</code>.
 </dd>
 
 <dt>object(), object(p), object(p,d)</dt>
@@ -230,8 +236,11 @@ lists <code>[a1[i],...,an[i]]</code>.
 </pre>
 </dd>
 
-<dt>eval(s)</dt>
-<dd>Execute a string as a program.
+<dt>eval(s), evals(s,d)</dt>
+<dd>Execute a string as a program. Free variables are from
+the current environment (only global variables).
+If the dictionary <code>d</code>
+is given, use it as an environment for free variables.
 <pre class="moss">
 &gt; x=12
 &gt; eval("2*x")
@@ -239,6 +248,8 @@ lists <code>[a1[i],...,an[i]]</code>.
 &gt; eval("a=[1,2]")
 &gt; a
 [1, 2]
+&gt; eval("x*y",{x=360,y=240})
+86400
 </pre>
 </dd>
 </dl>
@@ -468,18 +479,6 @@ if the key is not found.</dd>
 <h2 id="function">Type function (<a href="#iterable">iterable</a>)</h2>
 
 <dl class="code">
-<dt>f.call(self,x1,...,xn)</dt>
-<dd>Apply the function <code>f</code> to the
-arguments <code>x1,...,xn</code> and self argument
-<code>self</code>.
-</dd>
-
-<dt>f.apply(self,a)</dt>
-<dd>Apply the function <code>f</code> to the arguments
-<code>a[0],...,a[-1]</code>. If there is no self-argument,
-the application shall be written <code>f.apply(null,a)</code>.
-</dd>
-
 <dt>f.orbit(x)</dt>
 <dd>Return an iterator that produces
 <code>[x,f(x),f(f(x)),...]</code>.
@@ -499,11 +498,10 @@ as a list. If <code>n</code> is given, a maximum number of
 </pre>
 </dd>
 
-<dt>i.until(p)</dt>
-<dd>Take elements from the iterator&nbsp;<code>i</code>
-as long as the predicate&nbsp;<code>p</code> is false and return
-a new iterator.
-</dd>
+<dt>i.omit(n)</dt>
+<dd>Leave out the next <code>n</code> elements of the iterator
+<code>i</code>.</dd>
+
 </dl>
 
 <h2 id="iterable">Type iterable</h2>
@@ -535,6 +533,14 @@ total number of elements will be returned.
 <pre class="moss">
 &gt; [1,2,3,4].count(|x| x%2==0)
 2
+</pre>
+</dd>
+
+<dt>a.until(p)</dt>
+<dd>Return a new iterator that takes elements from <code>a</code>
+as long as the predicate&nbsp;<code>p</code> is false.
+<pre class="moss">
+isprime = |n| n&gt;1 and (2..).until(|i| i*i&gt;n).all(|i| n%i!=0)
 </pre>
 </dd>
 
@@ -992,6 +998,15 @@ The bisection method is used.
 <dd>Linear piecewise interpolation: Take an ordered (by <code>x</code>)
 list of pairs <code>[x,y]</code> and return a function.
 </dd>
+
+<dt>interpolate(x..:d,ay)</dt>
+<dd>Linear piecewise interpolation, using equidistant nodes.
+That means:
+<pre class="moss">
+a = list(0..size(ay)-1).map(|k| [x+k*d,ay[k]])
+interpolate(x..:d,ay) == interpolate(a)
+</pre>
+</dd>
 </dl>
 
 <h2 id="nt">Module nt</h2>
@@ -1065,6 +1080,11 @@ in the list <code>a</code>).</dd>
 <dt>mc([k1,...,kn])</dt>
 <dd>Multinomial coefficient.
 </dd>
+
+<dt>pf(n), pf(n,k)</dt>
+<dd>Partition function: number of partitions of <code>n</code>.
+If <code>k</code> is given: number of partitions of <code>n</code>
+into <code>k</code> parts.</dd>
 
 <dt>Stirling1(n,k)</dt>
 <dd>Stirling numbers of the first kind.

@@ -9,6 +9,7 @@
 #include <modules/str.h>
 #include <modules/system.h>
 #include <objects/list.h>
+#include <objects/map.h>
 #include <vm.h>
 #include <compiler.h>
 
@@ -37,6 +38,9 @@ void module_delete(mt_module* m){
   if(m->string_pool){
     mf_list_dec_refcount(m->string_pool);
   }
+  if(m->gtab_owner){
+    mf_map_dec_refcount(m->gtab);
+  }
   mf_free(m);
 }
 
@@ -50,6 +54,8 @@ mt_module* mf_new_module(void){
   m->program=NULL;
   m->data=NULL;
   m->string_pool=NULL;
+  m->gtab_owner=0;
+  m->gtab=NULL;
   return m;
 }
 
@@ -236,7 +242,7 @@ mt_table* mf_load_module(const char* id){
 }
 
 int mf_eval_bytecode(mt_object* x, mt_module* module);
-int mf_eval_string(mt_object* x, mt_string* s){
+int mf_eval_string(mt_object* x, mt_string* s, mt_map* d){
   mt_compiler_context context;
   mf_compiler_context_save(&context);
   compiler_context.mode_cmd=1;
@@ -256,6 +262,11 @@ int mf_eval_string(mt_object* x, mt_string* s){
   }
   mf_vtoken_delete(&v);
   mt_object y;
+  if(d){
+    d->refcount++;
+    module->gtab_owner=1;
+    module->gtab=d;
+  }
   e = mf_eval_bytecode(&y,module);
   mf_compiler_context_restore(&context);
   mf_module_dec_refcount(module);

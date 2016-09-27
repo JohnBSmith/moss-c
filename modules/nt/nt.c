@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <moss.h>
 #include <objects/list.h>
 int mf_eq(mt_object* x, mt_object* a, mt_object* b);
@@ -127,6 +129,77 @@ int nt_divisors(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+static
+long next_prime(long p){
+  while(1){
+    p++;
+    if(isprime(p)) return p;
+  }
+}
+
+static
+void push_pe(mt_list* list, long p, long e){
+  mt_object x;
+  x.type=mv_list;
+  mt_list* t = mf_raw_list(2);
+  t->a[0].type=mv_int;
+  t->a[0].value.i=p;
+  t->a[1].type=mv_int;
+  t->a[1].value.i=e;
+  x.value.p=(mt_basic*)t;
+  mf_list_push(list,&x);
+}
+
+static
+mt_list* factor(long n){
+  mt_list* list = mf_raw_list(0);
+  mt_list* t;
+  mt_object x;
+  x.type=mv_list;
+  if(n<0){
+    n=-n;
+    push_pe(list,-1,1);
+  }
+  long e;
+  long p=2;
+  while(n!=1){
+    if(p*p>n) break;
+    e=0;
+    while(n%p==0){
+      n/=p;
+      e++;
+    }
+    if(e>0){
+      push_pe(list,p,e);
+    }
+    p=next_prime(p);
+  }
+  if(n>1){
+    push_pe(list,n,1);
+  }
+  return list;
+}
+
+static
+int nt_factor(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"factor");
+    return 1;
+  }
+  if(v[1].type!=mv_int){
+    mf_type_error1("in factor(n): n (type: %s) is not an integer.",v+1);
+    return 1;
+  }
+  if(v[1].value.i==0){
+    mf_value_error("Value error in factor(n): n==0.");
+    return 1;
+  }
+  mt_list* list = factor(v[1].value.i);
+  x->type=mv_list;
+  x->value.p=(mt_basic*)list;
+  return 0;
+}
+
 mt_table* mf_nt_load(){
   mt_table* nt = mf_table(NULL);
   nt->name = mf_cstr_to_str("module nt");
@@ -136,6 +209,7 @@ mt_table* mf_nt_load(){
   mf_insert_function(m,2,2,"lcm",nt_lcm);
   mf_insert_function(m,1,1,"isprime",nt_isprime);
   mf_insert_function(m,1,1,"divisors",nt_divisors);
+  mf_insert_function(m,1,1,"factor",nt_factor);
   m->frozen=1;
   return nt;
 }
