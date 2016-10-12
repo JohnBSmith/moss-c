@@ -1,7 +1,0 @@
-
-use plotlib.plot3d: system
-
-s = system()
-s.box([[0,0,0],[2,0,0],[0,2,0],[0,0,2]])
-s.idle()
-
