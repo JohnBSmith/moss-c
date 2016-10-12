@@ -7,7 +7,7 @@ sub q(s)
 end
 
 symbolic = table
-  sub STR
+  sub str
     syntax.ast_to_string(self.t)
   end
 end

@@ -6,7 +6,7 @@ sub mod(m)
 end
 
 mod_type = table
-  sub STR
+  sub str
     [self.a," mod ",self.m].join()
   end,
   sub ADD(b)

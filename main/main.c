@@ -69,7 +69,7 @@ void mf_module_dec_refcount(mt_module* m){
 
 static
 int mf_get_path(char* buffer, size_t maxsize, size_t size, const char* id){
-  size_t i=size-1;
+  long i=(long)size-1;
   while(i>=0){
     if(id[i]=='/') break;
     i--;
@@ -379,6 +379,7 @@ void eval_cmd(void){
     free(input);
     int line_counter=0;
     while(e==0 && input_nesting>0){
+      if(v.size>0) v.size--;
       mf_push_newline(&v,line_counter,-1);
       input = mf_getline_hist("| ");
       e = mf_scan(&v,(unsigned char*)input,strlen(input),line_counter);
@@ -416,7 +417,7 @@ int main(int argc, char** argv){
   char* s;
   int size;
   int error=0;
-
+  
   mf_vm_init();
   mf_vm_init_gvtab();
 

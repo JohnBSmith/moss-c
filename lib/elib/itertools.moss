@@ -1,0 +1,38 @@
+
+sub cat(*argv)
+  g = iter(argv)
+  i=null
+  return sub||
+    while true
+      x=g.next()
+      if x is empty then break end
+      i=iter(x)
+      while true
+        x = i.next()
+        if x is empty then break end
+        yield x
+      end
+    end
+    raise empty
+  end
+end
+
+sub cycle(a)
+  list = list(a)
+  i=0; n=size(list)
+  return sub||
+    while true
+      yield list[i]
+      i=(i+1)%n
+    end
+  end
+end
+
+sub izip(*argv)
+  a = argv.map(iter)
+  return sub||
+    return a.map(|i| i())
+  end
+end
+
+

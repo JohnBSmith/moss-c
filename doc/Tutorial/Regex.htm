@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Regular expressions</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/syntax.js">
+  </script>
+</head>
+<body>
+
+<h1>Regular expressions</h1>
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#Overview">Overview</a>
+<li><a href="#Basics">Basics</a>
+<li><a href="#Classes">Character classes</a>
+<li><a href="#All">Finding all</a>
+<li><a href="#Groups">Groups</a>
+</ol>
+
+<h2 id="Overview">Overview</h2>
+
+<h3>Table of meta characters</h3>
+<table class="bt">
+<tr><th>Meta <th>Meaning
+<tr><th><code>.</code>
+  <td>Matches any character.
+<tr><th><code>pq</code>
+  <td> Matches the concatenation of
+  the patterns <code>p</code> and <code>q</code>.
+  This is an invisible infix operator, there is no meta character.
+<tr><th><code>p*</code>
+  <td>Matches the preceding pattern <code>p</code> zero or more times.
+  (Kleene star)
+<tr><th><code>p+</code>
+  <td>Matches the preceding pattern <code>p</code> one or more times.
+  (Kleene plus)
+<tr><th><code>p?</code>
+  <td>Matches the preceding pattern <code>p</code>
+  zero times or one time.
+<tr><th><code>p|q</code>
+  <td>An infix operator. Matches if at least one operand
+  pattern <code>p</code> or <code>q</code> matches.
+  This is called alternation.
+<tr><th><code>p{m}</code>
+  <td>Matches the preceding pattern
+  exactly <code>m</code> times.
+<tr><th><code>p{m,}</code>
+  <td>Matches the preceding pattern <code>m</code> or more times.
+<tr><th><code>p{m,n}</code>
+  <td>Matches the preceding pattern from <code>m</code>
+  upto <code>n</code> times.
+<tr><th><code>()</code>
+  <td>Grouping (undermine operator precedence).
+<tr><th><code>{}</code>
+  <td>Escape sequences.
+<tr><th><code>[]</code>
+  <td>Character classes.
+</table>
+
+<h3>Table of escape sequences</h3>
+<table class="bt">
+<tr><th>Escape<br>sequence
+  <th>Meaning
+<tr><th><code>{s}</code>
+  <td><code>"\s"</code> (space)
+<tr><th><code>{t}</code>
+  <td><code>"\t"</code> (tabulator)
+<tr><th><code>{n}</code>
+  <td><code>"\n"</code> (newline)
+<tr><th><code>{r}</code>
+  <td><code>"\r"</code> (carriage return)
+<tr><th><code>{.}</code>
+  <td><code>"."</code> (dot)
+<tr><th><code>{*}</code>
+  <td><code>"*"</code> (asterisk)
+<tr><th><code>{+}</code>
+  <td><code>"+"</code> (plus)
+<tr><th><code>{(}</code>
+  <td><code>"("</code> (left parenthesis)
+<tr><th><code>{L}</code>
+  <td><code>"{"</code> (left curly bracket)
+<tr><th><code>{R}</code>
+  <td><code>"}"</code> (right curly bracket)
+<tr><th><code>{au}</code>
+  <td>Alphabetic Unicode characters
+<tr><th><code>{du}</code>
+  <td>Unicode digits
+<tr><th><code>{a}</code>
+  <td><code>[A-Za-z]</code> (alphabetic ASCII characters)
+<tr><th><code>{d}</code>
+  <td><code>[0-9]</code> (ASCII digits)
+<tr><th><code>{x}</code>
+  <td><code>[0-9A-Fa-f]</code> (hexadecimal ASCII digits)
+<tr><th><code>{l}</code>
+  <td>Lowercase unicode letters
+<tr><th><code>{u}</code>
+  <td>Uppercase unicode letters
+<tr><th><code>{g}</code>
+  <td><code>[\0x21-\0x7e]</code> (graphical: visible ASCII)
+<tr><th><code>{B}</code>
+  <td>Beginning of the string
+<tr><th><code>{E}</code>
+  <td>End of the string
+<tr><th><code>{LB}</code>
+  <td>Beginning of a line
+<tr><th><code>{LE}</code>
+  <td>End of a line
+</table>
+
+<h2 id="Basics">Basics</h2>
+<pre class="moss">
+use re: R=compile
+
+# Some string matches itself
+&gt; r = R("café")
+&gt; r.match("café")
+true
+
+# Matches if any of two alternatives occur:
+&gt; r = R("moon|soon")
+&gt; [r.match("moon"), r.match("soon")]
+[true, true]
+
+# Character concatenation has a higher binding than '|',
+# but we can undermine this by grouping.
+&gt; r = R("(m|s)oon")
+&gt; [r.match("moon"), r.match("soon")]
+[true, true]
+
+# A digit
+R("0|1|2|3|4|5|6|8|9")
+
+# A digit, using character classes
+R("[0-9]")
+
+# A digit, shortest variant
+R("{d}")
+
+# A binary literal
+R("(0|1)+")
+
+# A binary literal, using character classes
+R("[01]+")
+
+# A date (year-month-day)
+R("{d}{d}{d}{d}-{d}{d}-{d}{d}")
+
+# A date, leading zeros not needed
+R("{d}{d}?{d}?{d}?-{d}{d}?-{d}{d}?")
+
+# A date, using advanced quantifiers
+R("{d}{4}-{d}{2}-{d}{2}")
+R("{d}{1,4}-{d}{1,2}-{d}{1,2}")
+
+# Muhkuh (moo(ing)? cow)
+&gt; r = R("Mu+h+")
+&gt; r.match("Muuuuuhhh")
+true
+
+# Kleene star
+&gt; r = R("(x|y)*")
+&gt; ["", "x", "y", "xx", "xy", "yx", "yy",
+  "xxx", "xxy", "xxyxxxyyx"].all(|s| r.match(s))
+true
+
+# Integer literals
+&gt; r = R("[+-]?{d}+")
+&gt; r.match("-12")
+true
+
+# Simple floating point literals
+R("[+-]?{d}+{.}{d}+")
+
+# Full floating point literals
+R("[+-]?({d}+({.}{d}*)?|{.}{d}+)([Ee][+-]?{d}+)?")
+
+# Whitespace has no meaning inside of a regular expression
+R("""
+  [+-]?
+  (   {d}+ ({.} {d}*)?
+    | {.} {d}+
+  )
+  ([Ee] [+-]? {d}+)?
+""")
+
+# Whitespace has to be stated explicitly
+&gt; r = R("a{s}*b")
+&gt; r.match("a\s\s\s\s\sb")
+true
+&gt; r.match("a\s\tb")
+false
+</pre>
+
+<p>Task to the reader: How to state a pattern for full
+floating point literals that excludes integer literals?
+</p>
+
+
+<h2 id="Classes">Character classes</h2>
+<pre class="moss">
+# Some alternation of single characters.
+R("(a|b|c|d|1|2)")
+
+# Such an alternation can be written briefer
+# as a character class.
+R("[abcd12]")
+
+# And ranges of characters can be stated,
+# using range notation.
+R("[a-d12]")
+
+# Any range from unicode code point uxxxx upto
+# unicode code point uyyyy can be such an range.
+# For example, the greek alphabet is:
+R("[\u0391-\u03a9\u03b1-\u03C9]")
+# That is:
+R("[&#x0391;-&#x03a9;&#x03b1;-&#x03C9;]")
+
+# Escape sequences can occour inside of character classes.
+R("[{d}{a}]")
+# This is the same as:
+R("[0-9A-Za-z]")
+</pre>
+
+
+<h2 id="All">Finding all</h2>
+<p>Often one wants to find all non-overlapping patterns
+in a string. If&nbsp;<code>r</code> is some regex,
+then <code>r.list(s)</code> returns the list of
+all non-overlapping occurences of&nbsp;<code>r</code> in&nbsp;<code>s</code>.
+</p>
+<pre class="moss">
+use re
+text = "The quick brown fox jumps over the lazy dog."
+word = re.compile("{a}+")
+print(word.list(text))
+# Output:
+# ["The", "quick", "brown", "fox",
+# "jumps", "over", "the", "lazy", "dog"]
+</pre>
+
+
+<h2 id="Groups">Groups</h2>
+<p>Groups can be extracted from a string, according to a
+regular expression. A group is formed by a pair of parentheses on
+the top nesting level. There is a method <code>groups</code>
+that returns <code>null</code> if the regex does not match,
+otherwise a list of groups.
+</p>
+
+<pre class="moss">
+use re
+regex = re.compile("({d}{d}{d}{d})-({d}{d})-({d}{d})")
+
+while true
+  s = input("Date: ")
+  t = regex.groups(s)
+  if t is null
+    print("A well formed date please!")
+  else
+    print(t)
+  end
+end
+
+# Date: 2016-10-14
+# ["2016", "10", "14"]
+</pre>
+
+</body>
+</html>
+
+

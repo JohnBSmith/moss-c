@@ -16,6 +16,9 @@ void mf_tuple_dec_refcount(mt_tuple* t);
 void mf_map_dec_refcount(mt_map* m);
 void mf_module_dec_refcount(mt_module* m);
 
+int mf_object_get_memory(mt_object* x, mt_object* a,
+  long size, const char* id);
+
 mt_tuple* mf_raw_tuple(long size){
   mt_tuple* t = mf_malloc(sizeof(mt_tuple)+size*sizeof(mt_object));
   t->size=size;
@@ -116,11 +119,11 @@ int function_id(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(v[0].type!=mv_function){
-    mf_type_error1("in f.id(): f (type: %s) is not a function.",v);
+    mf_type_error1("in f.id(): f (type: %s) is not a function.",&v[0]);
     return 1;
   }
   mt_function* f = (mt_function*)v[0].value.p;
-  if(f->name==0){
+  if(f->name==NULL){
     char a[200];
     snprintf(a,200,"%p",f);
     mt_string* s = mf_cstr_to_str(a);
@@ -131,6 +134,31 @@ int function_id(mt_object* x, int argc, mt_object* v){
     x->type=mv_string;
     x->value.p=(mt_basic*)f->name;
   }
+  return 0;
+}
+
+static
+int function_set_id(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"set_id");
+    return 1;
+  }
+  if(v[0].type!=mv_function){
+    mf_type_error1("in f.id()=value: f (type: %s) is not a function.",&v[0]);
+    return 1;
+  }
+  mt_function* f = (mt_function*)v[0].value.p;
+  if(v[1].type!=mv_string){
+    mf_type_error1("in f.id()=s: s (type: %s) is not a string.",&v[1]);
+    return 1;
+  }
+  mt_string* s = (mt_string*)v[1].value.p;
+  if(f->name){
+    mf_str_dec_refcount(f->name);
+  }
+  s->refcount++;
+  f->name = s;
+  x->type=mv_null;
   return 0;
 }
 
@@ -381,6 +409,20 @@ mt_function* mf_iter_range(mt_range* r){
   return f;
 }
 
+static
+int mf_call_method(mt_object* x, int size, const char* id, int argc, mt_object* v){
+  mt_object f;
+  int e = mf_object_get_memory(&f,&v[0],size,id);
+  if(e) return 2;
+  if(f.type!=mv_function){
+    char buffer[100];
+    snprintf(buffer,100,"in method call: %s (type %%s) is not a function.",id);
+    mf_type_error1(buffer,&f);
+    return 1;
+  }
+  return mf_call((mt_function*)f.value.p,x,argc,v);
+}
+
 mt_function* mf_iter(mt_object* x){
   mt_function* f;
   switch(x->type){
@@ -451,9 +493,25 @@ mt_function* mf_iter(mt_object* x){
     return f;
   }
   default:
+    break;
+  }
+  mt_object y;
+  mt_object argv[1];
+  mf_copy(&argv[0],x);
+  int e = mf_call_method(&y,4,"iter",0,argv);
+  if(e==2){
     mf_type_error1("in iter(x): x (type: %s) is not iterable.",x);
     return NULL;
+  }else if(e==1){
+    mf_traceback("iter");
+    return 0;
   }
+  if(y.type!=mv_function){
+    mf_type_error1("in iter(x): return value (type: %s) is not a function.",&y);
+    mf_dec_refcount(&y);
+    return NULL;
+  }
+  return (mt_function*)y.value.p;
 }
 
 int mf_fiter(mt_object* x, int argc, mt_object* v){
@@ -1352,6 +1410,31 @@ int mf_ncall(mt_function* f, mt_object* x, mt_object* t){
   }
 }
 
+static
+int function_next(mt_object* x, int argc, mt_object* v){
+  if(argc!=0){
+    mf_argc_error(argc,0,0,"next");
+    return 1;
+  }
+  if(v[0].type!=mv_function){
+    mf_type_error1("in i.next(): i (type: %s) is not a function.",&v[0]);
+    return 1;
+  }
+  mt_function* f = (mt_function*)v[0].value.p;
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  if(mf_call(f,x,0,argv)){
+    if(mf_empty()){
+      mf_copy(x,&mv_exception);
+      mv_exception.type=mv_null;
+      return 0;
+    }
+    mf_traceback("next");
+    return 1;
+  }
+  return 0;
+}
+
 void mf_init_type_function(mt_table* type){
   type->name = mf_cstr_to_str("function");
   type->m= mf_empty_map();
@@ -1359,10 +1442,12 @@ void mf_init_type_function(mt_table* type){
 
   mf_insert_function(m,0,0,"argc",function_argc);
   mf_insert_function(m,0,0,"id",function_id);
+  mf_insert_function(m,1,1,"set_id",function_set_id);
   mf_insert_function(m,0,1,"list",function_list);
   mf_insert_function(m,1,1,"POW",function_pow);
   mf_insert_function(m,1,1,"orbit",function_orbit);
   mf_insert_function(m,0,0,"omit",function_omit);
+  mf_insert_function(m,0,0,"next",function_next);
 
   mf_insert_function(m,0,1,"all",function_all);
   mf_insert_function(m,0,1,"any",function_any);

@@ -636,7 +636,7 @@ In this case, lazy expressions should have their own data type.
 
 <pre class="moss">
 lazy_type = table
-  STR = || "lazy expression"
+  str = || "lazy expression"
 end
 sub delay(f)
   table[lazy_type] call=f end

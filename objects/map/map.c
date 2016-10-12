@@ -598,7 +598,7 @@ int map_remove(mt_object* x, int argc, mt_object* v){
 mt_string* mf_map_to_string(mt_map* m){
   mt_bu32 bs;
   mf_bu32_init(&bs,20);
-  mf_bu32_append_u8(&bs,1,"{");
+  mf_bu32_append_u8(&bs,1,(const unsigned char*)"{");
 
   unsigned long i,n;
   mt_htab_element* a = m->htab.a;
@@ -610,7 +610,7 @@ mt_string* mf_map_to_string(mt_map* m){
       if(first){
         first=0;
       }else{
-        mf_bu32_append_u8(&bs,2,", ");
+        mf_bu32_append_u8(&bs,2,(const unsigned char*)", ");
       }
       es = mf_str(&a[i].key);
       if(es==NULL){
@@ -619,7 +619,7 @@ mt_string* mf_map_to_string(mt_map* m){
       }
       mf_bu32_append(&bs,es->size,es->a);
       if(a[i].value.type!=mv_null){
-        mf_bu32_append_u8(&bs,2,": ");
+        mf_bu32_append_u8(&bs,2,(const unsigned char*)": ");
         es = mf_str(&a[i].value);
         if(es==NULL){
           mf_traceback("dictionary to string");
@@ -629,7 +629,7 @@ mt_string* mf_map_to_string(mt_map* m){
       }
     }
   }
-  mf_bu32_append_u8(&bs,1,"}");
+  mf_bu32_append_u8(&bs,1,(const unsigned char*)"}");
   mt_string* s = mf_bu32_move_to_string(&bs);
   return s;
   

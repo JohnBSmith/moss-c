@@ -134,16 +134,28 @@ void mf_range_dec_refcount(mt_range* r){
   }
 }
 
+void mf_table_delete(mt_table* t){
+  if(t->del){
+    mt_object argv[1];
+    argv[0].type=mv_null;
+    mt_object y;
+    mf_call(t->del,&y,0,argv);
+    mf_dec_refcount(&y);
+    mf_function_dec_refcount(t->del);
+  }
+  mf_dec_refcount(&t->prototype);
+  if(t->m){
+    mf_map_dec_refcount(t->m);
+  }
+  if(t->name){
+    mf_str_dec_refcount(t->name);
+  }
+  mf_free(t);
+}
+
 void mf_table_dec_refcount(mt_table* t){
   if(t->refcount==1){
-    mf_dec_refcount(&t->prototype);
-    if(t->m){
-      mf_map_dec_refcount(t->m);
-    }
-    if(t->name){
-      mf_str_dec_refcount(t->name);
-    }
-    mf_free(t);
+    mf_table_delete(t);
   }else{
     t->refcount--;
   }
@@ -223,15 +235,7 @@ void mf_dec_refcount(mt_object* x){
   }
   case mv_table:{
     if(p->refcount==1){
-      mt_table* t=(mt_table*)p;
-      mf_dec_refcount(&t->prototype);
-      if(t->m){
-        mf_map_dec_refcount(t->m);
-      }
-      if(t->name){
-        mf_str_dec_refcount(t->name);
-      }
-      mf_free(t);
+      mf_table_delete((mt_table*)p);
     }else{
       p->refcount--;
     }
@@ -3030,6 +3034,7 @@ mt_table* mf_table(mt_object* prototype){
   }
   t->m=NULL;
   t->name=NULL;
+  t->del=NULL;
   return t;
 }
 
@@ -3043,6 +3048,7 @@ int mf_table_literal(mt_object* x, mt_object* prototype, mt_object* m){
   mf_copy(&t->prototype,prototype);
   t->m=(mt_map*)m->value.p;
   t->name=NULL;
+  t->del=NULL;
   x->type=mv_table;
   x->value.p=(mt_basic*)t;
   return 0;
@@ -3305,10 +3311,12 @@ mt_table* mf_nt_load(void);
 mt_table* mf_sys_load(void);
 mt_table* mf_la_load(void);
 mt_table* mf_crypto_load(void);
+mt_table* mf_regex_load(void);
 #ifdef __linux__
 mt_table* mf_time_load(void);
 mt_table* mf_os_load(void);
 mt_table* mf_gx_load(void);
+mt_table* mf_socket_load(void);
 mt_table* mf_gui_load(void);
 #else
 mt_table* mf_time_load(void){
@@ -3321,6 +3329,10 @@ mt_table* mf_os_load(void){
 }
 mt_table* mf_gx_load(void){
   mf_std_exception("Error: module 'gx' is not implemented.");
+  return NULL;
+}
+mt_table* mf_socket_load(void){
+  mf_std_exception("Error: module 'socket' is not implemented.");
   return NULL;
 }
 mt_table* mf_gui_load(void){
@@ -3352,7 +3364,11 @@ mt_load_tab_element load_tab[] = {
 #ifndef MOSS_LEVEL0
   {2, "os", mf_os_load, NULL},
 #endif
+  {2, "re", mf_regex_load, NULL},
   {2, "sf", mf_sf_load, NULL},
+#ifndef MOSS_LEVEL0
+  {6, "socket", mf_socket_load, NULL},
+#endif
   {3, "sys", mf_sys_load, NULL}
 #ifndef MOSS_LEVEL0
   ,{4, "time", mf_time_load, NULL}
@@ -3411,11 +3427,6 @@ int mf_fload(mt_object* x, int argc, mt_object* v){
   x->type=mv_table;
   x->value.p=(mt_basic*)t;
   return 0;
-}
-
-static
-int mf_use_all(mt_map* m){
-  mf_map_update(mv_gvtab,m);
 }
 
 static
@@ -3633,7 +3644,7 @@ int mf_fmax(mt_object* x, int argc, mt_object* v){
 double mf_string_to_float(mt_string* s, int* error){
   mt_bstr bs;
   mf_encode_utf8(&bs,s->size,s->a);
-  double x = atof(bs.a);
+  double x = atof((char*)bs.a);
   free(bs.a);
   return x;
 }
@@ -3987,7 +3998,7 @@ void mf_print_string_lit(long size, uint32_t* a);
 static
 void print_float(double x){
   char buffer[100];
-  snprintf(buffer,100,"%.16g",x);
+  snprintf(buffer,100,"%.14g",x);
   printf("%s",buffer);
   if(isfinite(x) && strchr(buffer,'.')==NULL && strchr(buffer,'e')==NULL){
     printf(".0");
@@ -3997,12 +4008,12 @@ void print_float(double x){
 static
 void print_complex(double re, double im){
   if(re==0){
-    printf("%.16gi",im);
+    printf("%.14gi",im);
   }else{
     if(im<0){
-      printf("%.16g-%.16gi",re,-im);
+      printf("%.14g-%.14gi",re,-im);
     }else{
-      printf("%.16g+%.16gi",re,im);
+      printf("%.14g+%.14gi",re,im);
     }
   }
 }
@@ -4358,6 +4369,27 @@ int mf_fbin(mt_object* x, int argc, mt_object* v){
   }
   x->type=mv_string;
   x->value.p=(mt_basic*)mf_cstr_to_str(a);
+  return 0;
+}
+
+int mf_set_destructor(mt_object* x, int argc, mt_object* v){
+  if(argc!=2){
+    mf_argc_error(argc,2,2,"set_destructor");
+    return 1;
+  }
+  if(v[1].type!=mv_table){
+    mf_type_error1("in set_destructor(t,d): t is not a table.",&v[1]);
+    return 1;
+  }
+  if(v[2].type!=mv_function){
+    mf_type_error1("in set_destructor(t,d): d is not a function.",&v[2]);
+    return 1;
+  }
+  mt_table* t = (mt_table*)v[1].value.p;
+  mt_function* f = (mt_function*)v[2].value.p;
+  f->refcount++;
+  t->del=f;
+  x->type=mv_null;
   return 0;
 }
 

@@ -24,6 +24,7 @@ int mf_str_in_range(mt_string* s, mt_string* a, mt_string* b);
 
 int mf_uisspace(unsigned long n);
 int mf_uisdigit(unsigned long n);
+int mf_uisalpha(unsigned long n);
 
 #endif
 

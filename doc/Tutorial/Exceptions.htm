@@ -10,21 +10,27 @@
 <body>
 
 <h1>Exception handling</h1>
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#Formalism">Handling of exceptions</a>
+<li><a href="#pcall">Protected calls</a>
+</ol>
 
-<p>In the following an exception of type <code>Ea</code>
+<h2 id="Formalism">Handling of exceptions</h2>
+<p>In the following an exception of type <code>E</code>
 is thrown an then catched.
 </p>
 <pre class="moss">
-Ea = object()
+E = object()
 
 try
-  raise table[Ea] value="Some message" end
-catch e: Ea
+  raise table[E] value="Some message" end
+catch e: E
   print(e.value)
 end
 </pre>
 <p>The catch-part is only reached if the exception is of
-type <code>Ea</code>. There are two kinds of catch.
+type <code>E</code>. There are two kinds of catch.
 </p>
 <pre class="moss">
 # conditional catch:
@@ -33,21 +39,53 @@ catch e: exception_type
 # unconditional catch:
 catch e
 </pre>
-<p>The behavior of the conditional catch is described by the
+<p>The behavior of a conditional catch is described by the
 following algorithm.
 </p>
 <pre class="moss">
 try
   # ...
 catch e
-  if e is in Ea
-    print(e.value)
+  if e is in exception_type
+    # ...
   else
     raise e
   end
 end
 </pre>
 
+<h2 id="pcall">Protected calls</h2>
+<p>In programming languages without exception handling one
+has to return additional information about the success of
+a function call. We will write a protected call function
+<code>pcall</code> that will convert exceptions into
+additional information.
+</p>
+<pre class="moss">
+sub pcall(f,*argv)
+  try
+    y = f[argv]
+    success = true
+  catch e
+    y = e
+    sucess = false
+  end
+  return [success,y]
+end
+</pre>
+<p>We can also do it the other way around and turn
+information about failed success into an exception.
+</p>
+<pre class="moss">
+sub may_except(block)
+  success,y = block()
+  if not success
+    raise y
+  else
+    return y
+  end
+end
+</pre>
 
 </body>
 </html>

@@ -51,6 +51,7 @@ int mf_fread(mt_object* x, int argc, mt_object* v);
 int mf_fassert(mt_object* x, int argc, mt_object* v);
 int mf_fhex(mt_object* x, int argc, mt_object* v);
 int mf_fbin(mt_object* x, int argc, mt_object* v);
+int mf_set_destructor(mt_object* x, int argc, mt_object* v);
 
 int mf_print(mt_object* x);
 int mf_put_repr(mt_object* x);

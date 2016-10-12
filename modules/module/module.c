@@ -97,6 +97,7 @@ mt_module* mf_module_unserialize(unsigned long size, const unsigned char* a){
   m->data = mf_malloc(m->data_size);
   memcpy(m->program,a+program_index,m->program_size);
   memcpy(m->data,a+data_index,m->data_size);
+  return m;
 }
 
 mt_module* mf_module_load(const char* id){

@@ -21,6 +21,7 @@
 <li><a href="#Reflection">Reflection</a>
 <li><a href="#Monkey">Monkey patching</a>
 <li><a href="#Overloading">Operator overloading</a>
+<li><a href="#Destructors">Destructors</a>
 </ol>
 
 <h2 id="Construction">
@@ -399,8 +400,8 @@ complex = sub|x,y|
 end
 
 complex.type = table
-  sub STR
-    return "("+str(self.re)+", "+str(self.im)+")"
+  sub str
+    return ["(", self.re, ", ", self.im, ")"].join()
   end,
   sub ADD(b)
     if type(b) is complex.type
@@ -442,6 +443,42 @@ end of table
   472329409445772258729579365571477110784)
 &gt; (4+2i)^60
 -9.64275e+38+4.72329e+38i
+</pre>
+
+<h2 id="Destructors">Destructors</h2>
+<p>Sometimes it is necessary to call a destructor function
+before an object is deleted. Such an destructor function
+can be specified right after an object is constructed.
+If can be contained in the object's type, but must be
+assigned to the object explicitly.
+</p>
+
+<pre class="moss">
+sub ship(id,vmax)
+  t = table[ship.type] id=id end
+  destructor(t) = ship.type.delete
+end
+
+ship.type = table
+  color = "gray blue",
+  engine = "diesel",
+  sub str
+    "{} (ship, {})"%[self.id, self.color]
+  end,
+  sub delete
+    print("Disposal of ", self.id)
+  end
+end of table
+
+sub main
+  x = ship("Bristol")
+  print(x)
+end
+
+main()
+# Output:
+# Bristol (ship, gray blue)
+# Disposal of Bristol
 </pre>
 
 </body>

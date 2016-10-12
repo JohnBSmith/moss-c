@@ -30,11 +30,12 @@
 <li><a href="#Lorenz">Lorenz attractor</a>
 <li><a href="#la">Linear algebra</a>
 <li><a href="#nt">Number theory</a>
-<li><a href="#lex">Lexical analysis</a>
 <li><a href="#basic">Basic algorithms</a>
 <li><a href="#ms">Mandelbrot set</a>
 <li><a href="#rot13">ROT13</a>
 <li><a href="#fft">FFT</a>
+<li><a href="#lex">Lexical analysis</a>
+<li><a href="#calc">Postfix calculator</a>
 </ol>
 
 <h2 id="fac">Factorial</h2>
@@ -342,31 +343,23 @@ end
 <h2 id="sets">Set theory</h2>
 
 <pre class="moss">
-# Simulation by lists
+# Powerset
+P = |a| a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
 
-issubset = |a,b| a.all(|x| x in b)
-eq = |a,b| issubset(a,b) and issubset(b,a)
-cup = |a,b| a+b.filter(|x| x not in a)
-cap = |a,b| a.filter(|x| x in b)
-diff = |a,b| a.filter(|x| x not in b)
-symdiff = |a,b| diff(a,b)+diff(b,a)
-prod = |a,b| a.map(|x| b.map(|y| [x,y])).chain()
-powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
-
-# Remove duplicates
-uniq = |a| a.dict(|x| [str(x),x]).values()
+# Remove duplicates from a list
+uniq = |a| list(set(a))
 
 # Quotient set
-partition = |a,R| a.chunks(R)
+partition = |a,R| set(list(a).chunks(R))
 
 # Get equivalence relation
-# from quotient set Q
+# from a quotient set Q
 relation = |Q| |x,y| Q.any(|a| x in a and y in a)
 
 # Get equivalence class
-# from quotient set Q
+# from a quotient set Q
 # and representative x
-class = |Q,x| Q.match(|a| x in a)
+class = |Q,x| Q.find(|a| x in a)
 </pre>
 
 <h2 id="comb">Combinatorics</h2>
@@ -584,6 +577,7 @@ end
 
 lcm = |a| a.reduce(|x,y| x*y//gcd(x,y))
 
+# (a^n)%m (built-in as pow(a,n,m))
 powmod = sub|a,n,m|
   y=1; a=a%m
   while n&gt;0
@@ -605,62 +599,10 @@ sigma = |x,n| (1..n).filter(|k| n%k==0).sum(|k| k^x)
 sigma0 = |n| (1..n).count(|k| n%k==0)
 
 # Prime factorization
-factor = sub|n|
-  list(2..n).filter(sub|k|
-    n%k==0 and isprime(k)
-  end).map(sub|p|
-    [p,(1..).until(|k| n%(p^k)!=0).count()]
-  end)
-end
+factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
+  .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
 </pre>
 
-
-<h2 id="lex">Lexical analysis</h2>
-
-<pre class="moss">
-# Simple tokenizer
-
-syntax_error = object()
-
-sub scan(s)
-  a=[]
-  i=0; n=size(s)
-  while i&lt;n
-    if s[i] in "+-*/^(){}[];,"
-      a.push(s[i])
-      i++
-    elif s[i].isalpha()
-      j=i
-      while i&lt;n and s[i].isalnum()
-        i++
-      end
-      a.push(s[j..i-1])
-    elif s[i].isdigit()
-      j=i
-      while i&lt;n and (s[i].isdigit() or s[i]=='.')
-        i++
-      end
-      a.push(s[j..i-1])
-    elif s[i].isspace()
-      i++
-    else
-      raise table[syntax_error]
-        value="unexpected character: '"+s[i]+"'"
-      end
-    end
-  end
-  return a
-end
-
-while true
-  s = input("&gt; ")
-  try
-    print(scan(s))
-  catch e: syntax_error
-    print("Syntax error: ", e.value, ".")
-  end
-end
-</pre>
 
 <h2 id="basic">Basic algorithms</h2>
 
@@ -691,6 +633,7 @@ rev = sub|a|
   n=size(a)-1
   for i in 0..size(a)//2-1
     a.swap(i,n-i)
+    # a[i],a[n-i] = a[n-i],a[i]
   end
 end
 </pre>
@@ -730,6 +673,69 @@ fft = sub|a| if size(a)<=1 then return a end
 </pre>
 
 
+<h2 id="lex">Lexical analysis</h2>
+<pre class="moss">
+# Simple tokenizer
+
+syntax_error = object()
+
+sub scan(s)
+  a=[]
+  i=0; n=size(s)
+  while i&lt;n
+    if s[i] in "+-*/^(){}[];,"
+      a.push(s[i])
+      i++
+    elif s[i].isalpha()
+      j=i
+      while i&lt;n and s[i].isalnum()
+        i++
+      end
+      a.push(s[j..i-1])
+    elif s[i].isdigit()
+      j=i
+      while i&lt;n and s[i].isdigit()
+        i++
+      end
+      a.push(s[j..i-1])
+    elif s[i].isspace()
+      i++
+    else
+      raise table[syntax_error]
+        value="unexpected character: '"+s[i]+"'"
+      end
+    end
+  end
+  return a
+end
+
+while true
+  s = input("&gt; ")
+  try
+    print(scan(s))
+  catch e: syntax_error
+    print("Syntax error: ", e.value, ".")
+  end
+end
+
+# Without syntax errors
+use re
+regex = re.compile("{d}+ | {a}({a}|{d})* | [+-*/^(){}[];,]")
+scan = |s| regex.list(s)
+</pre>
+
+
+<h2 id="calc">Postfix calculator</h2>
+<pre class="moss">
+use re
+unary={"~": |x| -x}; binary={"+": |x,y| x+y, "-": |x,y| x-y,
+  "*": |x,y| x*y, "/": |x,y| x/y, "^": |x,y| x^y}
+regex = re.compile("{d}+({.}{d}*)?|[+-*/^~]")
+calc = |s| regex.list(s).reduce([],|a,x| x[0].isdigit()?
+  a+[float(x)]: x in unary? a[..-2]+[unary[x](a[-1])]:
+  a[..-3]+[binary[x](a[-2],a[-1])])[-1]
+(|| calc(input("&gt;\s"))).each(print)
+</pre>
 
 </body>
 </html>

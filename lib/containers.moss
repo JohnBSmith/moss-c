@@ -1,0 +1,113 @@
+
+sub deque(*argv)
+  if size(argv)==0
+    return table[deque.type] first=null, last=null end
+  else
+    q = table[deque.type] first=null, last=null end
+    for x in argv[0]
+      q.push(x)
+    end
+    return q
+  end
+end
+
+deque.type = table[iterable]
+  sub empty
+    self.last is null
+  end,
+  sub push(x)
+    if self.last is null
+      self.last = [x,null,null]
+      self.first = self.last
+    else
+      last = self.last
+      t = [x,last,null]
+      last[2]=t
+      self.last=t
+    end
+  end,
+  sub shift(x)
+    if self.last is null
+      self.last = [x,null,null]
+      self.first = self.last
+    else
+      first = self.first
+      t = [x,null,first]
+      first[1]=t
+      self.first=t
+    end
+  end,
+  sub pop
+    if self.last is null
+      raise "Empty deque"
+    end
+    last = self.last
+    if last[1] is null
+      self.first=null
+      self.last=null
+      return last[0]
+    else
+      last[1][2]=null
+      self.last=last[1]
+      return last[0]
+    end
+  end,
+  sub unshift
+    if self.last is null
+      raise "Empty deque"
+    end
+    first = self.first
+    if first[2] is null
+      self.first=null
+      self.last=null
+      return first[0]
+    else
+      first[2][1]=null
+      self.first=first[2]
+      return first[0]
+    end
+  end,
+  sub iter
+    p = self.first
+    return sub||
+      if p is null
+        raise empty
+      else
+        x=p[0]; p=p[2]
+        return x
+      end
+    end
+  end,
+  sub reverse
+    p = self.last
+    return sub||
+      if p is null
+        raise empty
+      else
+        x=p[0]; p=p[1]
+        return x
+      end
+    end
+  end,
+  sub str
+    return ["deque(",list(self.iter()),")"].join()
+  end,
+  sub extend(a)
+    for x in a
+      self.push(x)
+    end
+  end,
+  sub clear
+    p = self.last
+    self.last=null
+    self.first=null
+    while not p is null
+      h=p; p=p[1]; h[1]=null
+      if not p is null
+        p[2]=null
+      end
+    end
+  end
+end
+
+

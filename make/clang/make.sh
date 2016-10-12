@@ -28,6 +28,8 @@ cc -g -c modules/gx/gx.c -o make/clang/bin/gx.o -I./include
 cc -g -c modules/random/random.c -o make/clang/bin/random.o -I./include
 cc -g -c modules/module/module.c -o make/clang/bin/module.o -I./include
 cc -g -c modules/format/format.c -o make/clang/bin/format.o -I./include
+cc -g -c modules/regex/regex.c -o make/clang/bin/regex.o -I./include
+cc -g -c modules/socket/socket.c -o make/clang/bin/socket.o -I./include
 cc -g -c modules/crypto/crypto.c -o make/clang/bin/crypto.o -I./include
 cc -g -c main/main.c -o make/clang/bin/main.o -I./include
 cc -g -c vm/vm.c -o make/clang/bin/vm.o -I./include
@@ -40,6 +42,7 @@ cc -o ../moss -lm -lreadline -lgmp -lblas -lSDL2 -lSDL2_ttf\
   listobject.o mapobject.o longobject.o\
   functionobject.o complexobject.o\
   system.o global.o math.o cmath.o na.o la.o nt.o sf.o\
-  sys.o os.o time.o gx.o random.o format.o crypto.o
+  sys.o os.o time.o gx.o random.o format.o regex.o\
+  socket.o crypto.o
 
 

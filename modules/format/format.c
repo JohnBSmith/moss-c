@@ -96,11 +96,15 @@ int parse_placement(mt_format_info* info, uint32_t* a){
     info->type=FLOAT;
     info->subtype='g';
     a++;
+  }else if(*a=='G'){
+    info->type=FLOAT;
+    info->subtype='G';
+    a++;
   }
   if(mf_uisdigit(*a)){
     a+=get_number(a,&info->precision);
   }else{
-    info->precision=16;
+    info->precision=14;
   }
   if(*a=='#'){
     a++;
@@ -114,16 +118,39 @@ int parse_placement(mt_format_info* info, uint32_t* a){
 }
 
 static
+void format_complex(char* buffer, mt_format_info* info,
+  double re, double im
+){
+  const char* format;
+  if(info->subtype=='f'){
+    format = info->sign_space? "% .*f%+.*fi": "%.*f%+.*fi";
+  }else if(info->subtype=='e'){
+    format = info->sign_space? "% .*e%+.*ei": "%.*e%+.*ei";
+  }else if(info->subtype=='E'){
+    format = info->sign_space? "% .*E%+.*Ei": "%.*E%+.*Ei";
+  }else if(info->subtype=='g'){
+    format = info->sign_space? "% .*g%+.*gi": "%.*g%+.*gi";
+  }else if(info->subtype=='G'){
+    format = info->sign_space? "% .*G%+.*Gi": "%.*G%+.*Gi";
+  }
+  snprintf(buffer,100,format,info->precision,re,info->precision,im);
+}
+
+static
 mt_string* str_formatted(mt_object* x, mt_format_info* info){
   if(info->type==FLOAT){
+    char buffer[100];
+    const char* format;
+    if(x->type==mv_complex){
+      format_complex(buffer,info,x->value.c.re,x->value.c.im);
+      return mf_cstr_to_str(buffer);
+    }
     int e=0;
     double t=mf_float(x,&e);
     if(e){
       mf_type_error1("in s%%a: cannot convert a[k] (type %s) to float.",x);
       return NULL;
     }
-    char buffer[100];
-    const char* format;
     if(info->subtype=='f'){
       format = info->sign_space? "% .*f": "%.*f";
     }else if(info->subtype=='e'){
@@ -132,6 +159,8 @@ mt_string* str_formatted(mt_object* x, mt_format_info* info){
       format = info->sign_space? "% .*E": "%.*E";
     }else if(info->subtype=='g'){
       format = info->sign_space? "% .*g": "%.*g";
+    }else if(info->subtype=='G'){
+      format = info->sign_space? "% .*G": "%.*G";
     }
     snprintf(buffer,100,format,info->precision,t);
     return mf_cstr_to_str(buffer);

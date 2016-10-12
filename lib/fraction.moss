@@ -9,8 +9,8 @@ sub fraction(n,d)
 end
 
 fraction.type = table
-  sub STR
-    str(self.n)+"/"+str(self.d)
+  sub str
+    [self.n, "/", self.d].join()
   end,
   sub ADD(b)
     if b is in int.type

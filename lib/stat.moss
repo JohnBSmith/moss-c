@@ -21,7 +21,7 @@ sub sample(a)
 end
 
 sample.type = table
-  sub STR
+  str = sub STR||
     ["mean: "+str(self.mean),
      "sigma: {E1}"%[self.sigma],
      "max: "+str(self.max),
@@ -77,7 +77,7 @@ sub linear_regression(a)
 end
 
 linear_regression.type = table
-  sub STR
+  str = sub STR||
     ["rxy: "+str(self.r)].join("\n")
   end
 end

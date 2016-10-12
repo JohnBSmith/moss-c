@@ -245,7 +245,7 @@ int mf_finput(mt_object* x, int argc, mt_object* v){
     mt_string* s=(mt_string*)v[1].value.p;
     mt_bstr bs;
     mf_encode_utf8(&bs,s->size,s->a);
-    p = mf_getline_hist(bs.a);
+    p = mf_getline_hist((char*)bs.a);
     mf_free(bs.a);
   }else{
     mf_argc_error(argc,0,1,"input");

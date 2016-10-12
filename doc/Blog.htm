@@ -76,6 +76,42 @@ But it is clear that dictionaries will be used as internal data
 structures of multisets.
 </p>
 
+<h3 data-date="20160930" id="assignment-to-application">
+Assignments to function applications</h3>
+<p>A syntactical sugar for assignments to function
+applications is added to the language.
+</p>
+<pre>
+1. a.m()=y is equivalent to a.set_m(y)
+2. a.m(x1,...,xn)=y is equivalent to a.set_m(x1,...,xn,y)
+3. a.m(x) = y1,y2 the same as a.m(x)=[y1,y2]
+     and therefore equivalent to a.set_m(x,[y1,y2])
+4. a.m1(),a.m2() = t is not possilbe (t=[y1,y2])
+5. a[i]()=y is not possible
+</pre>
+<p>The point in (4) is that the language should be minimalistic
+and (4) would blow it up. It is definitely much harder to
+implement than (1,2,3) which required less than 40 lines of code.
+</p>
+
+<h3 data-date="20161006" id="print-float">
+Printing floating point numbers</h3>
+
+<pre>
+There is a problem with standard printing of floating point
+numbers. For example, one can get
+&gt; list(0..1:0.2)
+[0.0, 0.2, 0.4, 0.6000000000000001, 0.8, 1.0]
+
+So we can have output of the form 000000000...some digit
+and (under other circuumstances)  999999999...some digit.
+This is because of printf("%.16g\n",x)
+In most cases one has engineering tasks and does not suffer
+from slightly lower precision. So I think I will change that
+to %.14g to make output more stable. One can always get full
+precision by "{g16}"%[x] or even "{g17}"%[x].
+(#include &lt;float.h&gt;: DBL_DECIMAL_DIG==17)
+</pre>
 </body>
 </html>
 

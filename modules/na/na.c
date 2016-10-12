@@ -477,7 +477,7 @@ int real_fp(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(mf_call(integral_arguments->f,x,1,argv)) return 1;
-  if(x->type=mv_complex){
+  if(x->type==mv_complex){
     x->type=mv_float;
     x->value.f=x->value.c.re;
   }
@@ -497,7 +497,7 @@ int imag_fp(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(mf_call(integral_arguments->f,x,1,argv)) return 1;
-  if(x->type=mv_complex){
+  if(x->type==mv_complex){
     x->type=mv_float;
     x->value.f=x->value.c.im;
   }else{

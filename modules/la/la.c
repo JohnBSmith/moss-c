@@ -347,13 +347,13 @@ void matrix_str(mt_bs* bs, mt_array* T){
 }
 
 static
-int array_STR(mt_object* x, int argc, mt_object* v){
+int array_str(mt_object* x, int argc, mt_object* v){
   if(argc!=0){
     mf_argc_error(argc,0,0,"array.type.str");
     return 1;
   }
   if(v[0].type!=mv_array){
-    mf_type_error1("in a.STR(): a (type: %s) is not an array.",&v[0]);
+    mf_type_error1("in a.str(): a (type: %s) is not an array.",&v[0]);
     return 1;
   }
   mt_array* T = (mt_array*)v[0].value.p;
@@ -376,11 +376,11 @@ int array_STR(mt_object* x, int argc, mt_object* v){
 static
 int array_list(mt_object* x, int argc, mt_object* v){
   if(argc!=0){
-    mf_argc_error(argc,0,0,"array.type.str");
+    mf_argc_error(argc,0,0,"array.type.list");
     return 1;
   }
   if(v[0].type!=mv_array){
-    mf_type_error1("in a.STR(): a (type: %s) is not an array.",&v[0]);
+    mf_type_error1("in a.list(): a (type: %s) is not an array.",&v[0]);
     return 1;
   }
   mt_array* T = (mt_array*)v[0].value.p;
@@ -906,7 +906,7 @@ mt_array* vector_slice(mt_array* a, mt_range* r){
   b->data=a->data;
   a->data=b->data;
   b->n=1;
-  b->base=(char*)((double*)a->base+a->stride[0]*i);
+  b->base=(unsigned char*)((double*)a->base+a->stride[0]*i);
   b->shape[0]=j-i+1;
   b->stride[0]=a->stride[0];
   return b;
@@ -1131,7 +1131,7 @@ int la_trace(mt_object* x, int argc, mt_object* v){
 
 mt_table* mf_la_load(){
   mt_map* m = mv_type_array->m;
-  mf_insert_function(m,0,0,"STR",array_STR);
+  mf_insert_function(m,0,0,"str",array_str);
   mf_insert_function(m,0,0,"list",array_list);
   mf_insert_function(m,1,1,"ADD",array_ADD);
   mf_insert_function(m,1,1,"SUB",array_SUB);

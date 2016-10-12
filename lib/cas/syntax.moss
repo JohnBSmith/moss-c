@@ -11,7 +11,7 @@ sub scan_error(s,i,info)
   end
 end
 scan_error.type = table[cas_error]
-  STR = || [self.s,"\n",self.value].join()
+  str = || [self.s,"\n",self.value].join()
 end
 
 sub syntax_error(x,s)
@@ -20,7 +20,7 @@ sub syntax_error(x,s)
   end
 end
 syntax_error.type=table[cas_error]
-  STR = || ["Syntax error in col ", self.col+1, ": ",self.value].join()
+  str = || ["Syntax error in col ", self.col+1, ": ",self.value].join()
 end
 
 sub scan(s)

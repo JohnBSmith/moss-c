@@ -8,6 +8,7 @@
 #include <modules/str.h>
 #include <modules/bs.h>
 #include <objects/string.h>
+#include <objects/list.h>
 
 mt_string* mf_list_to_string(mt_list* list);
 mt_string* mf_long_to_string(mt_long* x, int base);
@@ -197,7 +198,7 @@ mt_string* number_to_string(mt_object* x, mt_string* s, long n){
 
 static
 void print_float(char* a, double x){
-  int n = snprintf(a,100,"%.16g",x);
+  int n = snprintf(a,100,"%.14g",x);
   if(isfinite(x) && strchr(a,'.')==NULL && strchr(a,'e')==NULL){
     a+=n;
     snprintf(a,10,".0");
@@ -207,12 +208,12 @@ void print_float(char* a, double x){
 static
 void print_complex(char* a, double re, double im){
   if(re==0){
-    snprintf(a,200,"%.16gi",im);
+    snprintf(a,200,"%.14gi",im);
   }else{
     if(im<0){
-      snprintf(a,200,"%.16g-%.16gi",re,-im);
+      snprintf(a,200,"%.14g-%.14gi",re,-im);
     }else{
-      snprintf(a,200,"%.16g+%.16gi",re,im);
+      snprintf(a,200,"%.14g+%.14gi",re,im);
     }
   }
 }
@@ -273,14 +274,14 @@ mt_string* mf_str(mt_object* x){
     goto Default;
   default: Default:
     mf_type(&prototype,x);
-    e=mf_object_get_memory(&f,&prototype,3,"STR");
+    e=mf_object_get_memory(&f,&prototype,3,"str");
     if(e){
       s=mf_cstr_to_str("object");
       mf_dec_refcount(&prototype);
       return s;
     }
     if(f.type!=mv_function){
-      mf_type_error("Type error in str(x): x.STR is not a function.");
+      mf_type_error("Type error in str(x): x.str is not a function.");
       goto error;
     }
     mt_object y;
@@ -288,7 +289,7 @@ mt_string* mf_str(mt_object* x){
       goto error;
     }
     if(y.type!=mv_string){
-      mf_type_error("Type error in str(x): return value of x.STR() is not a string.");
+      mf_type_error("Type error in str(x): return value of x.str() is not a string.");
       mf_dec_refcount(&y);
       goto error;
     }
@@ -1089,6 +1090,105 @@ int str_encode(mt_object* x, int argc, mt_object* v){
   }
 }
 
+static
+int str_eqa(uint32_t* a, uint32_t* end, uint32_t* sub, long n){
+  long i;
+  for(i=0; i<n; i++){
+    if(a+i==end || a[i]!=sub[i]) return 0;
+  }
+  return 1;
+}
+
+mt_list* str_split_space(mt_string* s){
+  mt_list* list = mf_raw_list(0);
+  mt_object x;
+  x.type=mv_string;
+  int i,j,k,size;
+  i=0;
+  while(i<s->size && isspace(s->a[i])) i++;
+  while(i<s->size){
+    j=i;
+    while(1){
+      if(j>=s->size || isspace(s->a[j])){
+        break;
+      }
+      j++;
+    }
+    size = j-i;
+    mt_string* t=mf_raw_string(size);
+    for(k=0; k<size; k++){
+      t->a[k]=s->a[i+k];
+    }
+    x.value.p=(mt_basic*)t;
+    mf_list_push(list,&x);
+    i=j;
+    while(i<s->size && isspace(s->a[i])) i++;
+  }
+  return list;
+}
+
+int str_split(mt_object* x, int argc, mt_object* v){
+  if(v[0].type!=mv_string){
+    mf_type_error1("in s.split(sep): s (type: %s) is not a string.",&v[0]);
+    return 1;
+  }
+  mt_string* s = (mt_string*)v[0].value.p;
+  if(argc==0){
+    x->type=mv_list;
+    x->value.p=(mt_basic*)str_split_space(s);
+    return 0;
+  }else if(argc!=1){
+    mf_argc_error(argc,0,1,"s.split");
+    return 0;
+  }
+  if(v[1].type!=mv_string){
+    mf_type_error1("Type error in s.split(sep): sep (type: %s) is not a string.",&v[1]);
+    return 1;
+  }
+  mt_string*  t;
+  mt_string* sep = (mt_string*)v[1].value.p;
+  if(sep->size==0){
+    mf_value_error("Value error in s.split(sep): sep is an empty string.");
+    return 1;
+  }
+  mt_object u;
+  u.type=mv_string;
+  mt_list* list = mf_raw_list(0);
+  long i,j,k;
+  long size = s->size;
+  uint32_t* end = s->a+size;
+  i=0;
+  while(1){
+    j=i;
+    while(1){
+      if(j==size){
+        t = mf_raw_string(j-i);
+        for(k=0; k<j-i; k++){
+          t->a[k]=s->a[i+k];
+        }
+        u.value.p=(mt_basic*)t;
+        mf_list_push(list,&u);
+        goto out;
+      }
+      if(str_eqa(s->a+j,end,sep->a,sep->size)){
+        t=mf_raw_string(j-i);
+        for(k=0; k<j-i; k++){
+          t->a[k]=s->a[i+k];
+        }
+        u.value.p=(mt_basic*)t;
+        mf_list_push(list,&u);
+        i=j+sep->size;
+        break;
+      }
+      j++;
+    }
+  }
+  out:
+  x->type=mv_list;
+  x->value.p=(mt_basic*)list;
+  return 0;
+}
+
 void mf_init_type_string(mt_table* type){
   type->name = mf_cstr_to_str("str");
   type->m=mf_empty_map();
@@ -1108,4 +1208,5 @@ void mf_init_type_string(mt_table* type){
   mf_insert_function(m,0,1,"rtrim",str_rtrim);
   mf_insert_function(m,0,1,"trim",str_trim);
   mf_insert_function(m,0,1,"encode",str_encode);
+  mf_insert_function(m,0,1,"split",str_split);
 }

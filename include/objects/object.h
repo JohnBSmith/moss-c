@@ -78,13 +78,6 @@ typedef struct{
 
 typedef struct{
   long refcount;
-  mt_object prototype;
-  mt_map* m;
-  mt_string* name;
-} mt_table;
-
-typedef struct{
-  long refcount;
   int size;
   mt_object a[];
 } mt_tuple;
@@ -118,6 +111,14 @@ typedef struct{
   mt_tuple* context;
   mt_module* module;
 } mt_function;
+
+typedef struct{
+  long refcount;
+  mt_object prototype;
+  mt_map* m;
+  mt_string* name;
+  mt_function* del;
+} mt_table;
 
 typedef struct{
   long refcount;

@@ -1,0 +1,31 @@
+
+# == A driver for formal languages ==
+# words of characters: {"a","ab"}
+# words of general symbols: {[], [1,2], [3]}
+
+extend(dict.type,table
+  sub MPY(b)
+    set((list(self)*list(b)).map(|x,y| x+y))
+  end,
+  sub POW(n)
+    if n==0
+      return {iter(self)()[1..0]}
+    else
+      L=self
+      return (1..n-1).reduce(L,|x,y| x*L)
+    end
+  end,
+  sub star(n)
+    L=self
+    (0..n).map(|k| L^k).reduce({},|x,y| x|y)
+  end,
+  sub plus(n)
+    L=self
+    (1..n).map(|k| L^k).reduce({},|x,y| x|y)
+  end,
+  sub rev
+    set(self.map(|x| x[..:-1]))
+  end
+end)
+
+

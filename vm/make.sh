@@ -7,7 +7,7 @@ gcc -o ../vm/moss\
   random.o math.o cmath.o sys.o time.o na.o sf.o nt.o os.o\
   listobject.o stringobject.o bstringobject.o mapobject.o\
   functionobject.o complexobject.o longobject.o\
-  iterable.o format.o la.o crypto.o gx.o\
+  iterable.o format.o la.o regex.o crypto.o gx.o socket.o\
   module.o main.o\
   -lm -lreadline -lgmp -lSDL2 -lSDL2_ttf -lblas
 

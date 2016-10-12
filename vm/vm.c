@@ -19,7 +19,6 @@
 // long integers are different
 // TODO: max,min for iterators
 // TODO: reverse iterator
-// TODO: command line type only "use", segfault
 // TODO: no weak references for
 // mf_call: argv. This is a major bug. See list_map.
 // TODO: try overshadows line, col
@@ -27,7 +26,6 @@
 // TODO: d.get(key,default_value)
 // TODO: cycle
 // TODO: list.type.sort: second argument
-// TODO: compiler: f()=x
 // TODO: str.type.isrange
 // TODO: "end of" interactive
 // TODO: f->data refcount?
@@ -450,8 +448,10 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,1,1,"hex",mf_fhex);
   mf_insert_function(m,1,1,"bin",mf_fbin);
   mf_insert_function(m,1,1,"set",mf_fset);
+  mf_insert_function(m,2,2,"set_destructor",mf_set_destructor);
 
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
+  mf_insert_table(m,"iterable",mv_type_iterable);
 }
 
 void mf_vm_init(void){
@@ -541,11 +541,11 @@ void mf_vm_delete(void){
 
 void mf_argc_error_sub(int argc, mt_function* f){
   char a[100];
-  mt_bstr s;
+  mt_bstr bs;
   if(f->name){
-    mf_encode_utf8(&s,f->name->size,f->name->a);
-    mf_argc_error(argc,f->argc,f->argc,(char*)s.a);
-    mf_free(s.a);
+    mf_encode_utf8(&bs,f->name->size,f->name->a);
+    mf_argc_error(argc,f->argc,f->argc,(char*)bs.a);
+    mf_free(bs.a);
   }else{
     snprintf(a,100,"function %p",f);
     mf_argc_error(argc,f->argc,f->argc,a);
@@ -1486,6 +1486,15 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=BC;
       break;
     case RET:
+      stack_pointer=sp;
+      retv=0;
+      if(frame->ret){
+        return 0;
+      }else{
+        goto jmp_return;
+      }
+    case YIELD:
+      function_self->address=a+ip+BC;
       stack_pointer=sp;
       retv=0;
       if(frame->ret){

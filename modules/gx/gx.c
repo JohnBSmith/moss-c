@@ -818,7 +818,7 @@ int mf_gx_print(mt_object* x, int argc, mt_object* v){
   mt_string* s = (mt_string*)v[1].value.p;
   mt_bstr bs;
   mf_encode_utf8(&bs,s->size,s->a);
-  gx_print_ttf(canvas,bs.a);
+  gx_print_ttf(canvas,(char*)bs.a);
   // gx_print(canvas,s->size,s->a);
   x->type=mv_null;
   return 0;

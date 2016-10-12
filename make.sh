@@ -20,7 +20,9 @@ cd modules
 (cd gx && sh make.sh)
 (cd module && sh make.sh)
 (cd format && sh make.sh)
+(cd regex && sh make.sh)
 (cd crypto && sh make.sh)
+(cd socket && sh make.sh)
 
 cd ../objects
 (cd string && sh make.sh)

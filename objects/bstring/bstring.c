@@ -78,7 +78,7 @@ mt_list* mf_bstring_to_list(mt_bstring* bs){
   mt_list* list = mf_raw_list(bs->size);
   long i;
   mt_object* a=list->a;
-  const char* b=bs->a;
+  const unsigned char* b=bs->a;
   for(i=0; i<bs->size; i++){
     a[i].type=mv_int;
     a[i].value.i=b[i];

@@ -3,7 +3,7 @@
 #include <complex.h>
 #include <moss.h>
 
-#if defined(_WIN32) || defined(__clang__)
+#ifndef CMPLX
   #define CMPLX(x,y) ((x)+(y)*I)
 #endif
 
@@ -83,7 +83,7 @@ int cmath_conj(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,1,1,"conj");
     return 1;
   }
-  if(v[1].type=mv_complex){
+  if(v[1].type==mv_complex){
     x->type=mv_complex;
     x->value.c.re = v[1].value.c.re;
     x->value.c.im = -v[1].value.c.im;

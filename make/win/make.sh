@@ -24,6 +24,7 @@ cc -c modules/random/random.c -o make/win/bin/random.o -I./include
 cc -c modules/module/module.c -o make/win/bin/module.o -I./include
 cc -c modules/sys/sys.c -o make/win/bin/sys.o -I./include
 cc -c modules/format/format.c -o make/win/bin/format.o -I./include
+cc -c modules/regex/regex.c -o make/win/bin/regex.o -I./include
 cc -c modules/la/la.c -o make/win/bin/la.o -I./include
 cc -c modules/crypto/crypto.c -o make/win/bin/crypto.o -I./include
 cc -c main/main.c -o make/win/bin/main.o -I./include
@@ -38,7 +39,7 @@ cc -o ../moss.exe -lm\
   listobject.o mapobject.o longobject.o\
   functionobject.o complexobject.o\
   system.o global.o math.o cmath.o sf.o na.o nt.o\
-  format.o sys.o la.o crypto.o
+  format.o sys.o la.o regex.o crypto.o
 
 
 

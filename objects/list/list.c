@@ -19,6 +19,8 @@ static mt_list* mf_list_filter_map(mt_list* a, mt_function* f);
 mt_list* mf_iterator_to_list(mt_function* f, long max);
 mt_list* mf_bstring_to_list(mt_bstring* bs);
 int mf_ncall(mt_function* f, mt_object* x, mt_object* t);
+mt_function* mf_iter(mt_object* x);
+void mf_function_dec_refcount(mt_function* f);
 
 mt_list* mf_raw_list(long size){
   mt_list* list = mf_malloc(sizeof(mt_list));
@@ -334,9 +336,17 @@ mt_list* mf_list(mt_object* a){
     return mf_iterator_to_list(f,-1);
   }
   default:
-    mf_type_error1("in list(x): cannot convert x (type: %s) into a list.",a);
+    break;
+  }
+  mt_function* f = mf_iter(a);
+  if(f==NULL){
+    mf_traceback("list");
     return NULL;
   }
+  mt_list* y = mf_iterator_to_list(f,-1);
+  mf_function_dec_refcount(f);
+  // mf_type_error1("in list(x): cannot convert x (type: %s) into a list.",a);
+  return y;
 }
 
 int mf_flist(mt_object* x, int argc, mt_object* v){
