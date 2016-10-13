@@ -1,6 +1,6 @@
 
-# data = json.load(json)
-# json = json.dump(data)
+# data = json.load(json_string)
+# json_string = json.dump(data)
 # json.dump(data,{trim,nan})
 # trim: no whitespace
 # nan: allow NaN and Infinity
