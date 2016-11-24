@@ -5,9 +5,13 @@
 #include <ctype.h>
 #include <moss.h>
 #include <objects/list.h>
+#include <objects/function.h>
+#include <modules/bs.h>
 
 mt_string* mf_str_decode_utf8(long size, unsigned char* a);
 int mf_str_cmpmem(mt_string* s, long size, const char* a);
+mt_function* mf_iter(mt_object* x);
+int mf_empty(void);
 
 mt_bstring* mf_raw_bstring(long size){
   mt_bstring* s = mf_malloc(sizeof(mt_bstring)+size*sizeof(unsigned char));
@@ -84,6 +88,49 @@ mt_list* mf_bstring_to_list(mt_bstring* bs){
     a[i].value.i=b[i];
   }
   return list;
+}
+
+int mf_bstring(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"bstr");
+    return 1;
+  }
+  mt_function* i = mf_iter(v+1);
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y;
+  mt_bs buffer;
+  mf_bs_init(&buffer);
+  unsigned char c;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()) break;
+      goto error;
+    }
+    if(y.type!=mv_int){
+      mf_type_error1("in bstr(a): x (type: %s) in iter(a) is not an integer.",&y);
+      mf_dec_refcount(&y);
+      goto error;
+    }
+    if(y.value.i<0 || y.value.i>255){
+      mf_value_error("Value error in bstr(a): x in iter(a) is out of range 0..255.");
+      goto error;
+    }
+    c = (unsigned char)y.value.i;
+    mf_bs_push(&buffer,1,(char*)&c);
+  }
+  
+  mt_bstring* bs = mf_buffer_to_bstring(buffer.size,buffer.a);
+  mf_function_dec_refcount(i);
+  mf_bs_delete(&buffer);
+  x->type=mv_bstring;
+  x->value.p=(mt_basic*)bs;
+  return 0;
+  
+  error:
+  mf_function_dec_refcount(i);
+  mf_bs_delete(&buffer);
+  return 1;
 }
 
 void mf_init_type_bstring(mt_table* type){

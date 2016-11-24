@@ -16,7 +16,7 @@
 #endif
 
 #if defined(__linux__) && !defined(MOSS_LEVEL1)
-#define READLINE
+  #define READLINE
 #endif
 
 // install
@@ -232,6 +232,23 @@ char* mf_getline_hist(const char* prompt){
   return mf_getline(prompt);
 }
 #endif
+
+void mf_getline_clear(void){
+#ifdef READLINE
+  rl_clear_history();
+/*
+  long i;
+  HIST_ENTRY **list = history_list();
+  for(i=0; list[i]; i++){
+    free(list[i]->line);
+    free(list[i]->timestamp);
+    free(list[i]->data);
+    free(list[i]);
+  }
+  free(list);
+*/
+#endif
+}
 
 int mf_finput(mt_object* x, int argc, mt_object* v){
   char* p;

@@ -106,7 +106,7 @@ typedef struct{
   unsigned char* address;
   mt_object* data;
   mt_map* gtab;
-  int argc,min,max;
+  int argc, argc_min, argc_max;
   int varcount;
   mt_tuple* context;
   mt_module* module;

@@ -104,7 +104,7 @@ int function_argc(mt_object* x, int argc, mt_object* v){
   mt_function* f = (mt_function*)v[0].value.p;
   if(f->argc<0){
     x->type=mv_range;
-    x->value.p=(mt_basic*)uint_range(f->min,f->max);
+    x->value.p=(mt_basic*)uint_range(f->argc_min,f->argc_max);
   }else{
     x->type=mv_int;
     x->value.i=f->argc;

@@ -399,6 +399,7 @@ void eval_cmd(void){
     }
     mf_vtoken_delete(&v);
   }
+  mf_getline_clear();
 }
 
 static

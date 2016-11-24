@@ -31,6 +31,7 @@ extern mt_table* mv_type_list;
 extern mt_table* mv_type_function;
 extern mt_table* mv_type_dict;
 extern mt_table* mv_type_long;
+extern mt_table* mv_type_array;
 
 extern mt_list* mv_traceback_list;
 extern mt_object mv_exception;
@@ -343,8 +344,8 @@ mt_function* mf_function_copy(mt_function* f){
   g->data=f->data;
   g->gtab=f->gtab;
   g->argc=f->argc;
-  g->min=f->min;
-  g->max=f->max;
+  g->argc_min=f->argc_min;
+  g->argc_max=f->argc_max;
   g->varcount=f->varcount;
   if(f->context){
     g->context = mf_tuple_copy(f->context);
@@ -3136,6 +3137,11 @@ void mf_type(mt_object* x, mt_object* a){
     x->type=mv_table;
     x->value.p=(mt_basic*)mv_type_dict;
     break;
+  case mv_array:{
+    mv_type_array->refcount++;
+    x->type=mv_table;
+    x->value.p=(mt_basic*)mv_type_array;
+  } break;
   case mv_table:{
     mt_table* t=(mt_table*)a->value.p;
     mf_copy_inc(x,&t->prototype);
@@ -3189,8 +3195,8 @@ mt_function* mf_insert_function(mt_map* m, int min, int max,
     f->argc=min;
   }else{
     f->argc=-1;
-    f->min=min;
-    f->max=max;
+    f->argc_min=min;
+    f->argc_max=max;
   }
   mt_string* key = mf_str_new(strlen(id),id);
   mt_object x;
@@ -3210,16 +3216,26 @@ void mf_insert_object(mt_map* m, const char* id, mt_object* x){
   mf_str_dec_refcount(key);
 }
 
+extern mt_table* mv_type_std_exception;
 void mf_str_exception(mt_string* s){
+  mt_object x;
+  x.type=mv_table;
+  x.value.p=(mt_basic*) mv_type_std_exception;
+  mt_table* t = mf_table(&x);
+  t->m = mf_empty_map();
+  x.type=mv_string;
+  x.value.p=(mt_basic*)s;
+  s->refcount--;
+  mf_insert_object(t->m,"value",&x);
+
   mf_dec_refcount(&mv_exception);
-  mv_exception.type=mv_string;
-  mv_exception.value.p=(mt_basic*)s;
+  mv_exception.type=mv_table;
+  mv_exception.value.p = (mt_basic*)t;
 }
 
-void mf_cstr_exception(const char* s){
-  mf_dec_refcount(&mv_exception);
-  mv_exception.type=mv_string;
-  mv_exception.value.p = (mt_basic*)mf_cstr_to_str(s);
+void mf_cstr_exception(const char* a){
+  mt_string* s = mf_cstr_to_str(a);
+  mf_str_exception(s);
 }
 
 void mf_argc_error(int argc, int min, int max, const char* s){
@@ -3227,14 +3243,22 @@ void mf_argc_error(int argc, int min, int max, const char* s){
   char a[200];
   if(min==max){
     if(min==0){
-      snprintf(a,200,"Error in %s: expected no argument but got %i.",s,argc);
+      snprintf(a,200,"Error in %s: expected no argument, but got %i.",s,argc);
     }else if(min==1){
-      snprintf(a,200,"Error in %s: expected exactly one argument but got %i.",s,argc);
+      snprintf(a,200,"Error in %s: expected exactly 1 argument, but got %i.",s,argc);
     }else if(min==2){
-      snprintf(a,200,"Error in %s: expected exactly %i arguments but got %i.",s,min,argc);
+      snprintf(a,200,"Error in %s: expected exactly %i arguments, but got %i.",s,min,argc);
     }
   }else{
-    snprintf(a,200,"Error in %s: expected %i..%i arguments but got %i.",s,min,max,argc);
+    if(max<0){
+      if(min==1){
+        snprintf(a,200,"Error in %s: expected at least 1 argument, but got %i.",s,argc);
+      }else{
+        snprintf(a,200,"Error in %s: expected at least %i arguments, but got %i.",s,min,argc);
+      }
+    }else{
+      snprintf(a,200,"Error in %s: expected %i..%i arguments, but got %i.",s,min,max,argc);
+    }
   }
   mf_cstr_exception(a);
 }
@@ -4392,4 +4416,3 @@ int mf_set_destructor(mt_object* x, int argc, mt_object* v){
   x->type=mv_null;
   return 0;
 }
-

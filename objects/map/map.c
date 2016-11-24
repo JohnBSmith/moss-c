@@ -62,6 +62,8 @@ uint32_t mf_hash(mt_object* key, int* error){
   switch(key->type){
   case mv_null:
     return 0;
+  case mv_bool:
+    return key->value.b;
   case mv_string:
     return mf_hash_string((mt_string*)key->value.p);
   case mv_int:

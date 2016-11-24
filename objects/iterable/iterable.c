@@ -1,4 +1,5 @@
 
+#include <stdlib.h>
 #include <moss.h>
 #include <objects/list.h>
 #include <objects/function.h>
@@ -11,6 +12,7 @@ int mf_list_prod0(mt_object* x, mt_list* a);
 int mf_list_prod1(mt_object* x, mt_list* a, mt_function* f);
 int mf_list_count(mt_object* x, mt_list* a, mt_function* f);
 int mf_count_element(mt_object* x, mt_list* list, mt_object* t);
+int mf_lt(mt_object* x, mt_object* a, mt_object* b);
 
 int mf_empty();
 void mf_raise_empty();
@@ -320,6 +322,248 @@ int iterable_each(mt_object* x, int argc, mt_object* v){
   e = list_each(x,list,f);
   mf_list_dec_refcount(list);
   return e;
+}
+
+static
+int maximum(mt_object* x, mt_function* i){
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y,c;
+  mt_object max;
+  max.type=mv_null;
+  int first=1;
+  int e;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()) break;
+      mf_dec_refcount(&max);
+      return 1;
+    }
+    if(first){
+      first=0;
+      mf_copy(&max,&y);
+      continue;
+    }
+    e = mf_lt(&c,&max,&y);
+    if(e) goto error;
+    if(c.type!=mv_bool){
+      mf_type_error1("in i.max(): i() (type: %s) is not a boolean.",&c);
+      mf_dec_refcount(&c);
+      goto error;
+    }
+    if(c.value.b){
+      mf_dec_refcount(&max);
+      mf_copy(&max,&y);
+    }else{
+      mf_dec_refcount(&y);
+    }
+  }
+
+  mf_copy(x,&max);
+  return 0;
+  
+  error:
+  mf_dec_refcount(&y);
+  return 1;
+}
+
+static
+int maximum_fn(mt_object* x, mt_function* i, mt_function* p){
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y,py,c;
+  mt_object max,pmax;
+  max.type=mv_null;
+  pmax.type=mv_null;
+  int first=1;
+  int e;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()) break;
+      goto error2;
+    }
+    if(mf_ncall(p,&py,&y)){
+      goto error1;
+    }
+    if(first){
+      first=0;
+      mf_copy(&max,&y);
+      mf_copy(&pmax,&py);
+      continue;
+    }
+    e = mf_lt(&c,&pmax,&py);
+    if(e) goto error1;
+    if(c.type!=mv_bool){
+      mf_type_error1("in i.max(p): p(x) (type: %s) is not a boolean.",&c);
+      mf_dec_refcount(&c);
+      mf_dec_refcount(&py);
+      goto error1;
+    }
+    if(c.value.b){
+      mf_dec_refcount(&max);
+      mf_dec_refcount(&pmax);
+      mf_copy(&max,&y);
+      mf_copy(&pmax,&py);
+    }else{
+      mf_dec_refcount(&y);
+      mf_dec_refcount(&py);
+    }
+  }
+  mf_dec_refcount(&pmax);
+  mf_copy(x,&max);
+  return 0;
+
+  error1:
+  mf_dec_refcount(&y);
+  error2:
+  mf_dec_refcount(&max);
+  mf_dec_refcount(&pmax);
+  return 1;
+}
+
+static
+int iterable_max(mt_object* x, int argc, mt_object* v){
+  mt_function* i;
+  i = mf_iter(&v[0]);
+  // todo: dec_refcount i
+  if(i==NULL){
+    mf_traceback("max");
+    return 1;
+  }
+  if(argc==1){
+    if(v[1].type!=mv_function){
+      mf_type_error1("in i.max(p): p (type: %s) is not a function.",&v[1]);
+      return 1;
+    }
+    mt_function* p = (mt_function*)v[1].value.p;
+    return maximum_fn(x,i,p);
+  }else if(argc==0){
+    return maximum(x,i);
+  }else{
+    mf_argc_error(argc,0,1,"max");
+    return 1;
+  }
+}
+
+static
+int minimum(mt_object* x, mt_function* i){
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y,c;
+  mt_object min;
+  min.type=mv_null;
+  int first=1;
+  int e;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()) break;
+      mf_dec_refcount(&min);
+      return 1;
+    }
+    if(first){
+      first=0;
+      mf_copy(&min,&y);
+      continue;
+    }
+    e = mf_lt(&c,&y,&min);
+    if(e) goto error;
+    if(c.type!=mv_bool){
+      mf_type_error1("in i.max(): i() (type: %s) is not a boolean.",&c);
+      mf_dec_refcount(&c);
+      goto error;
+    }
+    if(c.value.b){
+      mf_dec_refcount(&min);
+      mf_copy(&min,&y);
+    }else{
+      mf_dec_refcount(&y);
+    }
+  }
+
+  mf_copy(x,&min);
+  return 0;
+  
+  error:
+  mf_dec_refcount(&y);
+  return 1;
+}
+
+static
+int minimum_fn(mt_object* x, mt_function* i, mt_function* p){
+  mt_object argv[1];
+  argv[0].type=mv_null;
+  mt_object y,py,c;
+  mt_object min,pmin;
+  min.type=mv_null;
+  pmin.type=mv_null;
+  int first=1;
+  int e;
+  while(1){
+    if(mf_call(i,&y,0,argv)){
+      if(mf_empty()) break;
+      goto error2;
+    }
+    if(mf_ncall(p,&py,&y)){
+      goto error1;
+    }
+    if(first){
+      first=0;
+      mf_copy(&min,&y);
+      mf_copy(&pmin,&py);
+      continue;
+    }
+    e = mf_lt(&c,&py,&pmin);
+    if(e) goto error1;
+    if(c.type!=mv_bool){
+      mf_type_error1("in i.min(p): p(x) (type: %s) is not a boolean.",&c);
+      mf_dec_refcount(&c);
+      mf_dec_refcount(&py);
+      goto error1;
+    }
+    if(c.value.b){
+      mf_dec_refcount(&min);
+      mf_dec_refcount(&pmin);
+      mf_copy(&min,&y);
+      mf_copy(&pmin,&py);
+    }else{
+      mf_dec_refcount(&y);
+      mf_dec_refcount(&py);
+    }
+  }
+  mf_dec_refcount(&pmin);
+  mf_copy(x,&min);
+  return 0;
+
+  error1:
+  mf_dec_refcount(&y);
+  error2:
+  mf_dec_refcount(&min);
+  mf_dec_refcount(&pmin);
+  return 1;
+}
+
+static
+int iterable_min(mt_object* x, int argc, mt_object* v){
+  mt_function* i;
+  i = mf_iter(&v[0]);
+  // todo: dec_refcount i
+  if(i==NULL){
+    mf_traceback("min");
+    return 1;
+  }
+  if(argc==1){
+    if(v[1].type!=mv_function){
+      mf_type_error1("in i.min(p): p (type: %s) is not a function.",&v[1]);
+      return 1;
+    }
+    mt_function* p = (mt_function*)v[1].value.p;
+    return minimum_fn(x,i,p);
+  }else if(argc==0){
+    return minimum(x,i);
+  }else{
+    mf_argc_error(argc,0,1,"min");
+    return 1;
+  }
 }
 
 static
@@ -794,4 +1038,6 @@ void mf_init_type_iterable(mt_table* type){
   mf_insert_function(m,1,1,"find",iterable_find);
   mf_insert_function(m,1,1,"until",iterable_until);
   mf_insert_function(m,0,0,"enum",iterable_enum);
+  mf_insert_function(m,0,1,"max",iterable_max);
+  mf_insert_function(m,0,1,"min",iterable_min);
 }

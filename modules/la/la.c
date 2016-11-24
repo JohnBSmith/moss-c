@@ -1159,5 +1159,4 @@ mt_table* mf_la_load(){
   mf_insert_function(m,1,1,"trace",la_trace);
   m->frozen=1;
   return la;
-  return mf_table(NULL);
 }

@@ -11,6 +11,12 @@ body{
 a{
   color: #600030;
 }
+div.toc a{
+  text-decoration: none;
+}
+div.toc a:hover{
+  text-decoration: underline;
+}
 
 pre, code{
   font-family: "FreeMono", "Courier New", monospace;

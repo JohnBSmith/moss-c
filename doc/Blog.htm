@@ -11,7 +11,7 @@
 
 <h1>Development blog</h1>
 <h2>Table of contents</h2>
-<div id="toc"></div>
+<div id="toc" class="toc"></div>
 
 <h3 data-date="20160808" id="new-formatted-printing-policy">
 New formatted printing policy</h3>
@@ -112,6 +112,44 @@ to %.14g to make output more stable. One can always get full
 precision by "{g16}"%[x] or even "{g17}"%[x].
 (#include &lt;float.h&gt;: DBL_DECIMAL_DIG==17)
 </pre>
+
+<h3 data-date="20161107" id="Rust">
+Reimplementation in Rust</h3>
+
+<p>It is clear for me now, that the Moss interpreter must be
+rewritten in Rust. I&nbsp;have to struggle with segmentation faults
+too often. Rust is one of the strictest languages I know.
+It is very well thought, well thought on a higher intellecutal
+level.
+</p>
+
+<h3 data-date="20161107" id="self">
+New syntax for a formal self-argument</h3>
+
+<p>The standard syntax for formal self-arguments
+has a problem. The following is not possible,
+bacause the inner self-argument shadows the outer one:
+</p>
+<pre>
+function.type.o = |g| |x| self(g(x))
+
+# One is forced to write instead:
+function.type.o = sub|g|
+  f=self
+  return |x| f(g(x))
+end
+</pre>
+<p>This problem occurs often if one uses methods, because
+closures and higher order functions are frequently used.
+Now the idea is, to separate the self-argument via an semicolon
+from the other arguments. For actual arguments this syntax is
+already possible, but I will provide it also for formal
+arguments. Then we have:
+</p>
+<pre>
+function.type.o = |f;g| |x| f(g(x))
+</pre>
+
 </body>
 </html>
 

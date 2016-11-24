@@ -11,8 +11,8 @@
 
 <h1>Functions</h1>
 
+<div class="toc">
 <h2 id="toc">Table of contents</h2>
-
 <ol>
 <li><a href="#rec">Recursion</a>
 <li><a href="#pf">Passing functions</a>
@@ -29,7 +29,9 @@
 <li><a href="#return">Multiple return values</a>
 <li><a href="#static">Static variables</a>
 <li><a href="#lazy">Lazy evaluation</a>
+<li><a href="#assignments">Assignments to calls</a>
 </ol>
+</div>
 
 <h2 id="rec">Recursion</h2>
 
@@ -658,6 +660,71 @@ sub force(x)
   type(x) is function.type? x(): x
 end
 print([force(2), force(|| 1+2)])
+</pre>
+
+<h2 id="assignments">Assignments to calls</h2>
+
+<p>In some assignment <code>y=f(x)</code>,
+that <code>y</code> is some variable and the value <code>f(x)</code>
+is assigned to it. But how do we interpret <code>g(x)=y</code>?
+A value can be assigned to a variable, but not to a value.
+Therefore <code>g(x)</code> on the left side cannot be a value,
+but something that can be considered as variable.
+</p>
+
+<p>In Moss such an assignment to a function application is
+simply syntactic sugar.
+</p>
+
+<pre class="moss">
+# Any assignment of the form
+  g(x) = y
+# is strictly equivalent to
+  set_g(x,y)
+
+# Any assignment of the form
+  a.m(x) = y
+# is strictly equivalent to
+  a.set_m(x,y)
+
+# More general
+  g(x1, ..., xn) = y
+  a.m(x1, ..., xn) = y
+# are strictly equivalent to
+  set_g(x1, ..., xn, y)
+  a.set_m(x1, ..., xn, y)
+
+# Note that
+  a.m(x) = y1,y2
+# is the same as
+  a.m(x) = [y1,y2]
+# and therefore
+  a.set_m(x,[y1,y2])
+</pre>
+
+<p>An example. We want the dictionary data type to have a
+method that assigns a value to a key, but implicitly converts
+the key into a string in before.
+</p>
+<pre class="moss">
+extend(dict.type,table
+  sub get(key)
+    return self[str(key)]
+  end,
+  sub set_get(key,value)
+    self[str(key)]=value
+  end
+end)
+
+d = {}
+d.get("a") = 10
+d.get(2) = 11
+print(d)
+
+# Output:
+# {"a": 10, "2": 11}
+# which is not the same as 
+# {"a": 10, 2: 11}
 </pre>
 
 </body>

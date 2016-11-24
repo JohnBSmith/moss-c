@@ -36,10 +36,11 @@ sub bag(a)
   for x in a
     if x in m then m[x]++ else m[x]=1 end
   end
+  return m
 end
 
 sub mode(a)
-  return list(bag(a)).max(|t| t[1])[0]
+  return bag(a).max(|t| t[1])[0]
 end
 
 sub mean(a)

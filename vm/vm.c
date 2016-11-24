@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 // #define NDEBUG
 #include <assert.h>
 #include <moss.h>
@@ -17,7 +18,6 @@
 
 // BUG: hash values of integers and corresponding
 // long integers are different
-// TODO: max,min for iterators
 // TODO: reverse iterator
 // TODO: no weak references for
 // mf_call: argv. This is a major bug. See list_map.
@@ -29,7 +29,6 @@
 // TODO: str.type.isrange
 // TODO: "end of" interactive
 // TODO: f->data refcount?
-// TODO: type bstr, convert from and to list
 
 #define STACK_SIZE 800000
 #define EVAL_STACK_SIZE 200000
@@ -104,6 +103,8 @@ mt_table* mv_type_dict;
 mt_table* mv_type_iterable;
 mt_table* mv_type_range;
 mt_table* mv_type_array;
+
+mt_table* mv_type_std_exception;
 
 int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
   int e;
@@ -361,6 +362,13 @@ void mf_insert_table(mt_map* m, const char* id, mt_table* t){
   mf_str_dec_refcount(key);
 }
 
+int mf_std_exception_str(mt_object* x, int argc, mt_object* v){
+  int e = mf_object_get_memory(x,&v[0],5,"value");
+  if(e) return 1;
+  mf_inc_refcount(x);
+  return 0;
+}
+
 void mf_vm_init_gvtab(void){
   mt_map* m=mv_mvtab;
   mt_function* f;
@@ -406,11 +414,9 @@ void mf_vm_init_gvtab(void){
   mf_insert_table(m,"range",range);
   range->refcount--;
 
-  mt_table* bstr = mf_table(NULL);
-  bstr->m=mf_empty_map();
-  mf_insert_table(bstr->m,"type",mv_type_bstring);
-  mf_insert_table(m,"bstr",bstr);
-  bstr->refcount--;
+  f = mf_insert_function(m,1,1,"bstr",mf_bstring);
+  f->m=mf_empty_map();
+  mf_insert_table(f->m,"type",mv_type_bstring);
 
   f=mf_insert_function(m,1,1,"dict",mf_fdict);
   f->m=mf_empty_map();
@@ -452,6 +458,7 @@ void mf_vm_init_gvtab(void){
 
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
   mf_insert_table(m,"iterable",mv_type_iterable);
+  mf_insert_table(m,"Exception",mv_type_std_exception);
 }
 
 void mf_vm_init(void){
@@ -509,9 +516,15 @@ void mf_vm_init(void){
   mv_type_range = mf_table(&iterable);
   mv_type_range->name = mf_cstr_to_str("range");
   mv_type_range->m = mf_empty_map();
-  
+
   mv_type_array = mf_table(NULL);
+  mv_type_array->name = mf_cstr_to_str("array");
   mv_type_array->m = mf_empty_map();
+  
+  mv_type_std_exception = mf_table(NULL);
+  mv_type_std_exception->name = mf_cstr_to_str("Exception");
+  mv_type_std_exception->m = mf_empty_map();
+  mf_insert_function(mv_type_std_exception->m,0,0,"str",mf_std_exception_str);
 }
 
 void mf_vm_delete(void){
@@ -533,6 +546,7 @@ void mf_vm_delete(void){
 
   mf_table_dec_refcount(mv_type_iterable);
   mf_table_dec_refcount((mt_table*)mv_empty);
+  mf_table_dec_refcount(mv_type_std_exception);
   mf_function_dec_refcount(global_function);
   
   mf_dec_refcount(&mv_exception);
@@ -542,13 +556,15 @@ void mf_vm_delete(void){
 void mf_argc_error_sub(int argc, mt_function* f){
   char a[100];
   mt_bstr bs;
+  int min = f->argc_min;
+  int max = f->argc_max==INT_MAX? -1: f->argc_max;
   if(f->name){
     mf_encode_utf8(&bs,f->name->size,f->name->a);
-    mf_argc_error(argc,f->argc,f->argc,(char*)bs.a);
+    mf_argc_error(argc,min,max,(char*)bs.a);
     mf_free(bs.a);
   }else{
     snprintf(a,100,"function %p",f);
-    mf_argc_error(argc,f->argc,f->argc,a);
+    mf_argc_error(argc,min,max,a);
   }
 }
 
@@ -635,80 +651,6 @@ void print_byte_code(long ip, unsigned char* a){
 }
 
 static
-void argc_error_str(int argc, int min, int max, mt_function* f){
-  mt_bstr s;
-  char a[100];
-  if(f->name){
-    mf_encode_utf8(&s,f->name->size,f->name->a);
-    mf_argc_error(argc,min,max,(char*)s.a);
-    mf_free(s.a);
-  }else{
-    snprintf(a,100,"function %p",f);
-    mf_argc_error(argc,min,max,a);
-  }
-}
-
-int mf_call(mt_function* f, mt_object* x, int argc, mt_object* v){
-  int e;
-  if(f->address==NULL){
-    frame->fp=function_self;
-    frame++;
-    function_self=f;
-    e = f->fp(x,argc,v);
-    frame--;
-    function_self=frame->fp;
-    return e;
-  }
-  if(f->argc!=argc){
-    if(f->argc<0){
-      int n = -f->argc-1;
-      if(n>argc){
-        argc_error_str(argc,n,-1,f);
-        return 1;
-      }
-      mt_list* list = mf_raw_list(argc-n);
-      int i;
-      for(i=0; i<argc-n; i++){
-        mf_copy_inc(list->a+i,v+n+i+1);
-      }
-      v[n+1].type=mv_list;
-      v[n+1].value.p=(mt_basic*)list;
-    }else{
-      argc_error_str(argc,f->argc,f->argc,f);
-      return 1;
-    }
-  }
-  frame->fp=function_self;
-  function_self=f;
-  base_pointer=v;
-  int varcount = f->varcount;
-  mt_object vars[100];
-  int i;
-  for(i=0; i<varcount; i++){
-    vars[i].type=mv_null;
-  }
-  var_pointer=vars;
-  eval_sp++;
-  frame++;
-  e = mf_vm_eval(f->address,0);
-  eval_sp--;
-  frame--;
-  function_self=frame->fp;
-  for(i=0; i<varcount; i++){
-    mf_dec_refcount(vars+i);
-  }
-  assert(stack_pointer>0);
-  stack_pointer--;
-  if(e){
-    traceback_lambda(f,NULL,frame->fp);
-    return 1;
-  }else{
-    mf_copy(x,vm_stack+stack_pointer);
-    return 0;
-  }
-}
-
-static
 int unpacking_get(mt_object* x, mt_object* a, long i){
   if(a->type==mv_list){
     mt_list* list=(mt_list*)a->value.p;
@@ -759,6 +701,66 @@ void undefined_variable(mt_object* x){
   snprintf(a,200,"Error: undefined variable: '%s'.",s.a);
   mf_free(s.a);
   mf_std_exception(a);
+}
+
+int mf_call(mt_function* f, mt_object* x, int argc, mt_object* v){
+  int e;
+  if(f->address==NULL){
+    frame->fp=function_self;
+    frame++;
+    function_self=f;
+    e = f->fp(x,argc,v);
+    frame--;
+    function_self=frame->fp;
+    return e;
+  }
+  if(f->argc!=argc){
+    if(f->argc<0){
+      int n = f->argc_min;
+      if(argc<n || argc>f->argc_max){
+        mf_argc_error_sub(argc,f);
+        return 1;
+      }
+      mt_list* list = mf_raw_list(argc-n);
+      int i;
+      for(i=0; i<argc-n; i++){
+        mf_copy_inc(list->a+i,v+n+i+1);
+      }
+      v[n+1].type=mv_list;
+      v[n+1].value.p=(mt_basic*)list;
+    }else{
+      mf_argc_error_sub(argc,f);
+      return 1;
+    }
+  }
+  frame->fp=function_self;
+  function_self=f;
+  base_pointer=v;
+  int varcount = f->varcount;
+  mt_object vars[100];
+  int i;
+  for(i=0; i<varcount; i++){
+    vars[i].type=mv_null;
+  }
+  var_pointer=vars;
+  eval_sp++;
+  frame++;
+  e = mf_vm_eval(f->address,0);
+  eval_sp--;
+  frame--;
+  function_self=frame->fp;
+  for(i=0; i<varcount; i++){
+    mf_dec_refcount(vars+i);
+  }
+  assert(stack_pointer>0);
+  stack_pointer--;
+  if(e){
+    traceback_lambda(f,NULL,frame->fp);
+    return 1;
+  }else{
+    mf_copy(x,vm_stack+stack_pointer);
+    return 0;
+  }
 }
 
 int mf_vm_eval(unsigned char* a, long ip){
@@ -829,7 +831,13 @@ int mf_vm_eval(unsigned char* a, long ip){
       p1=stack+sp-2; p2=stack+sp-1;
       sp--;
       mt_function* f = mf_new_function(a+ip+*(int32_t*)(a+ip+BC));
-      f->argc = *(int32_t*)(a+ip+BCp4);
+      v1 = *(int32_t*)(a+ip+BCp4);
+      if(v1<0){
+        f->argc=v1;
+        f->argc_min=-v1-1; f->argc_max=INT_MAX;
+      }else{
+        f->argc=v1;
+      }
       f->varcount = *(int32_t*)(a+ip+BCp8);
       // f->data = string_pool->a;
       // f->gtab = gvtab;
@@ -1238,26 +1246,28 @@ int mf_vm_eval(unsigned char* a, long ip){
         ip+=BCp4;
         break;
       }
-      if(f->argc<0){
-        int n = -f->argc-1;
-        if(n>argc){
-          mf_std_exception("Error: function takes more arguments.");
+      if(f->argc!=argc){
+        if(f->argc<0){
+          int n = f->argc_min;
+          if(argc<n || argc>f->argc_max){
+            mf_argc_error_sub(argc,f);
+            goto error;
+          }
+          mt_list* list = mf_raw_list(argc-n);
+          sp=sp-argc+n;
+          for(i=0; i<argc-n; i++){
+            list->a[i]=stack[sp+i];
+            // CRITICAL
+            // list->a[i]->refcount++;
+          }
+          argcp1=2+n;
+          stack[sp].type=mv_list;
+          stack[sp].value.p=(mt_basic*)list;
+          sp++;
+        }else{
+          mf_argc_error_sub(argc,f);
           goto error;
         }
-        mt_list* list = mf_raw_list(argc-n);
-        sp=sp-argc+n;
-        for(i=0; i<argc-n; i++){
-          list->a[i]=stack[sp+i];
-          // CRITICAL
-          // list->a[i]->refcount++;
-        }
-        argcp1=2+n;
-        stack[sp].type=mv_list;
-        stack[sp].value.p=(mt_basic*)list;
-        sp++;
-      }else if(f->argc!=argc){
-        mf_argc_error_sub(argc,f);
-        goto error;
       }
       int varcount = f->varcount;
       base_pointer=stack+sp-argcp1;

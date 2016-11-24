@@ -1,14 +1,14 @@
 
 sub deque(*argv)
-  if size(argv)==0
-    return table[deque.type] first=null, last=null end
-  else
-    q = table[deque.type] first=null, last=null end
+  T = deque.type
+  d = table[T] first=null, last=null end
+  destructor(d)=T.clear
+  if size(argv)!=0
     for x in argv[0]
-      q.push(x)
+      d.push(x)
     end
-    return q
   end
+  return d
 end
 
 deque.type = table[iterable]
