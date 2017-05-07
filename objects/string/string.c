@@ -500,8 +500,32 @@ int str_isalpha(mt_object* x, int argc, mt_object* v){
 }
 
 static
+int isdigit_base(unsigned long c, unsigned long b){
+  if(b>10){
+    if('a'<=c && c<='z'){
+      return c<'a'+b-10;
+    }else if('A'<=c && c<='Z'){
+      return c<'A'+b-10;
+    }else{
+      return '0'<=c && c<='9';
+    }
+  }else{
+    return '0'<=c && c<'0'+b;
+  }
+}
+
+static
 int str_isdigit(mt_object* x, int argc, mt_object* v){
-  if(argc!=0){
+  unsigned long base;
+  if(argc==0){
+    base=10;
+  }else if(argc==1){
+    if(v[1].type!=mv_int){
+      mf_type_error("Type error in s.isdigit(n): no is not an integer.");
+      return 1;
+    }
+    base = v[1].value.i;
+  }else{
     mf_argc_error(argc,0,0,"isdigit");
     return 1;
   }
@@ -512,12 +536,22 @@ int str_isdigit(mt_object* x, int argc, mt_object* v){
   mt_string* s = (mt_string*)v[0].value.p;
   long size=s->size;
   long i;
-  for(i=0; i<size; i++){
-    if(!mf_uisdigit(s->a[i])){
-      x->type=mv_bool;
-      x->value.b=0;
-      return 0;
+  if(base==10){
+    for(i=0; i<size; i++){
+      if(!mf_uisdigit(s->a[i])){
+        x->type=mv_bool;
+        x->value.b=0;
+        return 0;
+      }
     }
+  }else{
+    for(i=0; i<size; i++){
+      if(!isdigit_base(s->a[i],base)){
+        x->type=mv_bool;
+        x->value.b=0;
+        return 0;
+      }
+    }  
   }
   x->type=mv_bool;
   x->value.b=1;
@@ -1197,7 +1231,7 @@ void mf_init_type_string(mt_table* type){
   mf_insert_function(m,0,0,"lower",str_lower);
   mf_insert_function(m,0,0,"isalpha",str_isalpha);
   mf_insert_function(m,0,0,"isalnum",str_isalnum);
-  mf_insert_function(m,0,0,"isdigit",str_isdigit);
+  mf_insert_function(m,0,1,"isdigit",str_isdigit);
   mf_insert_function(m,0,0,"isspace",str_isspace);
   mf_insert_function(m,0,0,"islower",str_islower);
   mf_insert_function(m,0,0,"isupper",str_isupper);

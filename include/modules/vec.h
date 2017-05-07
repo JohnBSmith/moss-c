@@ -9,6 +9,7 @@ typedef struct{
 
 void mf_vec_init(mt_vec* v, int bsize);
 void mf_vec_delete(mt_vec* v);
+void* mf_vec_move(mt_vec* v);
 void mf_vec_push(mt_vec* v, void* data);
 int mf_vec_size(mt_vec* v);
 void mf_vec_pop(mt_vec* v, int n);

@@ -1,6 +1,14 @@
 
 #include <math.h>
 #include <moss.h>
+
+#ifndef M_E
+  #define M_E 2.718281828459045
+#endif
+#ifndef M_PI
+  #define M_PI 3.141592653589793
+#endif
+
 double mf_float(mt_object* x, int* error);
 
 static
@@ -522,7 +530,7 @@ int math_isnan(mt_object* x, int argc, mt_object* v){
 
 static
 int math_hypot(mt_object* x, int argc, mt_object* v){
-  int e,i;
+  int e;
   double a,b;
   if(argc==2){
     e=0;

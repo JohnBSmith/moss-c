@@ -14,9 +14,9 @@
 #include <objects/long.h>
 #include <objects/function.h>
 #include <modules/la.h>
-mt_function* mf_new_function(unsigned char* address);
+
 mt_table* mf_load_module(const char* id);
-void mf_module_dec_refcount(mt_module* m);
+// void mf_module_dec_refcount(mt_module* m);
 mt_tuple* mf_raw_tuple(long size);
 mt_string* mf_format(mt_string* s, mt_list* list);
 mt_string* mf_long_to_string(mt_long* x, int base);
@@ -2915,6 +2915,13 @@ int mf_get(mt_object* x, int argc, mt_object* v){
   } break;
   case mv_function:{
     mt_function* f = (mt_function*)v[0].value.p;
+    if(mf_img(x,f,argc,v+1)){
+      return 1;
+    }else{
+      mf_dec_refcounts(argc+1,v);
+      return 0;
+    }
+    /*
     if(argc==1){
       if(mf_apply(f,x,NULL,v+1)) return 1;
       mf_dec_refcounts(2,v);
@@ -2927,6 +2934,8 @@ int mf_get(mt_object* x, int argc, mt_object* v){
       mf_argc_error(argc,1,2,"f[]");
       return 1;
     }
+    */
+    
   } break;
   case mv_range:{
     mt_range* r = (mt_range*)v[0].value.p;
@@ -4207,7 +4216,6 @@ char* read_file(int* fsize, const unsigned char* id){
   return data;
 }
 
-mt_string* mf_str_decode_utf8(long size, unsigned char* a);
 int mf_fread(mt_object* x, int argc, mt_object* v){
   if(argc==2){
     if(v[2].type!=mv_string){

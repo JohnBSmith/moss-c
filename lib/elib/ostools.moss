@@ -1,0 +1,31 @@
+
+use os
+
+sub walk_rec(n,hidden,id)
+  a = os.ls(id)
+  b = []
+  t = [id,
+    a.filter(|x| os.isdir(id+x)), 
+    a.filter(|x| os.isfile(id+x))]
+  b.push(t)
+  directories = (t[1] if hidden
+    else iter(t[1]).filter(|x| x[0]!='.'))
+  if n!=0
+    for x in directories
+      b.extend(walk_rec(n-1,hidden,id+x+"/"))
+    end
+  end
+  return b;
+end
+
+sub walk(id,*a)
+  d = {} if size(a)==0 else a[0]
+  n = d["depth"] if "depth" in d else -1
+  hidden = d["hidden"] if "hidden" in d else false
+  return walk_rec(n,hidden,id)
+end
+
+# walk("/foo/bar/")
+# walk("/foo/bar/",{detph=2,hidden=true})
+
+

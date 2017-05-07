@@ -67,7 +67,8 @@ mt_array* mf_array_copy(mt_array* a){
       b->stride[0]=1; b->stride[1]=m;
       double* pa=(double*)a->base;
       double* pb=(double*)b->base;
-      long i,j,mj,sjj;
+      unsigned long i,j,mj;
+      long sjj;
       for(j=0; j<n; j++){
         mj=m*j; sjj=sj*j;
         for(i=0; i<m; i++){
@@ -92,7 +93,7 @@ mt_array* mf_array_copy(mt_array* a){
   b = mf_new_array(a->size,mv_array_float);
   b->n=a->n;
   b->plain=1;
-  int i;
+  unsigned long i;
   for(i=0; i<a->n; i++){
     b->shape[i]=a->shape[i];
     b->stride[i]=a->stride[i];
@@ -114,8 +115,8 @@ void mf_ensure_plain(mt_array* a){
     unsigned long n=a->shape[1];
     long si=a->stride[0];
     long sj=a->stride[1];
-    long i,j;
-    long mj,sjj;
+    unsigned long i,j,mj;
+    long sjj;
     for(j=0; j<n; j++){
       mj=m*j; sjj=sj*j;
       for(i=0; i<m; i++){
@@ -157,7 +158,8 @@ mt_array* mf_array_map_dd(mt_array* a, double(*f)(double)){
       b->stride[0]=1; b->stride[1]=m;
       double* pa=(double*)a->base;
       double* pb=(double*)b->base;
-      long i,j,mj,sjj;
+      unsigned long i,j,mj;
+      long sjj;
       for(j=0; j<n; j++){
         mj=m*j; sjj=sj*j;
         for(i=0; i<m; i++){
@@ -188,7 +190,7 @@ mt_array* mf_array_map_dd(mt_array* a, double(*f)(double)){
   b = mf_new_array(a->size,mv_array_float);
   b->n=a->n;
   b->plain=1;
-  int i;
+  unsigned long i;
   for(i=0; i<a->n; i++){
     b->shape[i]=a->shape[i];
     b->stride[i]=a->stride[i];
@@ -205,7 +207,7 @@ mt_array* mf_array_map_dd(mt_array* a, double(*f)(double)){
 
 long mf_array_size(mt_array* a){
   long p;
-  int k;
+  unsigned long k;
   switch(a->n){
   case 1:
     return a->shape[0];
@@ -250,7 +252,6 @@ mt_array* mf_array(long size, mt_object* v){
     long i;
     double* b = (double*)a->base;
     int e=0;
-    double t;
     for(i=0; i<size; i++){
       b[i] = mf_float(v+i,&e);
     }
@@ -368,7 +369,7 @@ int array_str(mt_object* x, int argc, mt_object* v){
   }
 
   x->type = mv_string;
-  x->value.p = (mt_basic*)mf_str_new(bs.size,bs.a);
+  x->value.p = (mt_basic*)mf_str_new(bs.size,(const char*)bs.a);
   mf_free(bs.a);
   return 0;
 }
@@ -439,7 +440,7 @@ int array_ADD(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(a->n==1){
-    long size=a->shape[0];
+    unsigned long size=a->shape[0];
     if(size!=b->shape[0]){
       mf_value_error("Value error in a+b: a and b have unequal shape.");
       return 1;
@@ -450,7 +451,7 @@ int array_ADD(mt_object* x, int argc, mt_object* v){
     cblas_dcopy(size,(double*)a->base,a->stride[0],(double*)c->base,1);
     cblas_daxpy(size,1,(double*)b->base,b->stride[0],(double*)c->base,1);
   }else{
-    int i;
+    unsigned long i;
     for(i=0; i<a->n; i++){
       if(a->shape[i]!=b->shape[i]) abort();
     }
@@ -490,7 +491,7 @@ int array_SUB(mt_object* x, int argc, mt_object* v){
   }
   mt_array* b=(mt_array*)v[1].value.p;
   if(a->n==1){
-    long size=a->shape[0];
+    unsigned long size=a->shape[0];
     if(size!=b->shape[0]){
       mf_value_error("Value error in a-b: a and b have unequal shape.");
       return 1;
@@ -502,7 +503,7 @@ int array_SUB(mt_object* x, int argc, mt_object* v){
     cblas_dcopy(size,(double*)a->base,a->stride[0],(double*)c->base,1);
     cblas_daxpy(size,-1,(double*)b->base,b->stride[0],(double*)c->base,1);
   }else{
-    int i;
+    unsigned long i;
     for(i=0; i<a->n; i++){
       if(a->shape[i]!=b->shape[i]) abort();
     }
@@ -534,17 +535,17 @@ mt_array* mf_array_scal(double r, mt_array* a){
 static
 mt_array* array_mpy_array(mt_array* a, mt_array* b){
   if(b->n==1){
-    if(a->shape[1]!=b->shape[0]){
+    unsigned long m = a->shape[0];
+    unsigned long n = a->shape[1];
+    if(n!=b->shape[0]){
       mf_value_error("Value error in A*x: shape does not match.");
       return NULL;
     }
     if(a->stride[0]!=1){
       mf_ensure_plain(a);
     }
-    unsigned long m = a->shape[0];
-    unsigned long n = a->shape[1];
-    mt_array* c = mf_new_array(a->shape[0],mv_array_float);
-    c->n=1; c->shape[0]=a->shape[0];
+    mt_array* c = mf_new_array(m,mv_array_float);
+    c->n=1; c->shape[0]=m;
     c->stride[0]=1;
     cblas_dgemv(CblasColMajor,CblasNoTrans,m,n,1,
       (double*)a->base, a->stride[1],
@@ -895,7 +896,7 @@ mt_array* vector_slice(mt_array* a, mt_range* r){
     mf_value_error("Value error in a[r]: range with negative values.");
     return NULL;
   }
-  if(i>=n || j>=n){
+  if((unsigned long)i>=n || (unsigned long)j>=n){
     mf_value_error("Value error in a[r]: range is out of bounds.");
     return NULL;
   }
@@ -937,7 +938,7 @@ int array_GET(mt_object* x, int argc, mt_object* v){
     }
     long index = v[1].value.i;
     unsigned long n = a->shape[0];
-    if(index<0 && index>=n){
+    if(index<0 || (unsigned long)index>=n){
       mf_value_error("Value error in a[i]: i is out of bounds.");
       return 1;
     }
@@ -974,7 +975,7 @@ mt_array* diag(mt_array* v){
     mf_value_error("Value error in diag(v): v is not a vector.");
     return NULL;
   }
-  long n = v->shape[0];
+  unsigned long n = v->shape[0];
   mt_array* a = mf_new_array(n*n,mv_array_float);
   a->n=2; a->plain=1;
   a->shape[0]=n; a->shape[1]=n;

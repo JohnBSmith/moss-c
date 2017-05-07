@@ -28,13 +28,13 @@ end
 sub diff(t,id)
   T = type(t)
   if T is Tstr
-    return t==id? 1: 0
+    return (1 if t==id else 0)
   elif T is Tint
     return 0
   elif T is Tlist
     if t[0]=="+"
       a = t[1].map(|u| diff(u,id)).filter(|u| u!=0)
-      return size(a)>1? ["+",a]: size(a)>0? a[0]: 0
+      return (["+",a] if size(a)>1 else a[0] if size(a)>0 else 0)
     elif t[0]=="*"
       a = t[1]
       b=[]
@@ -42,12 +42,12 @@ sub diff(t,id)
         u = diff(a[k],id)
         ank = a[..k-1]+a[k+1..]
         if u==1
-          b.push(size(ank)>1? ["*",ank]: ank[0])
+          b.push(["*",ank] if size(ank)>1 else ank[0])
         elif u!=0
           b.push(["*",[u]+ank])
         end
       end
-      return size(b)>1? ["+",b]: size(b)!=0? b[0]:0
+      return (["+",b] if size(b)>1 else b[0] if size(b)!=0 else 0)
     elif t[0]=="^"
       x=t[1][0]; n=t[1][1]
       if isconst(x,id)
@@ -58,7 +58,7 @@ sub diff(t,id)
       elif isconst(n,id)
         x1=diff(x,id)
         a = ["^",[x,["+",[n,-1]]]]
-        return ["*",x1==1? [n,a]: [n,a,x1]]
+        return ["*",[n,a] if x1==1 else [n,a,x1]]
       end
     end
   end
@@ -98,7 +98,7 @@ sub simplify_sum(a)
       s+=t
     elif T is Tlist and t[0]=="*" and type(t[1][0]) is Tint
       p = t[1][1..]
-      p = size(p)==1? p[0]: ["*",p]
+      p = p[0] if size(p)==1 else ["*",p]
       if p in d
         d[p]+=t[1][0]
       else
@@ -110,8 +110,8 @@ sub simplify_sum(a)
       d[t]=1
     end
   end
-  b = list(d).map(|u| u[1]==1? u[0]: ["*",[u[1],u[0]]])
-  return ["+",s!=0? b+[s]: b]
+  b = list(d).map(|u| u[0] if u[1]==1 else ["*",[u[1],u[0]]])
+  return ["+",b+[s] if s!=0 else b]
 end
 
 sub simplify_prod(a)
@@ -134,8 +134,8 @@ sub simplify_prod(a)
       d[t]=1
     end
   end
-  b = list(d).map(|u| u[1]==1? u[0]: ["^",u])
-  return ["*",p!=1? [p]+b: b]
+  b = list(d).map(|u| u[0] if u[1]==1 else ["^",u])
+  return ["*",[p]+b if p!=1 else b]
 end
 
 sub simplify(t)

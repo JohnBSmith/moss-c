@@ -1,9 +1,10 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>FAQ</title>
   <link rel="stylesheet" href="css/main.css">
+  <script src = "js/syntax.js"></script>
 </head>
 <body>
 
@@ -65,6 +66,67 @@ but no one would understand its precise
 behavior. Elegance suffers from intricacy.
 </dd>
 
+<dt>List comprehensions?</dt>
+<dd>At the moment, list construction takes an optional argument
+that makes list comprehensions possible:
+<pre class="moss">
+a = list(1..10,|x| x^2 if x%2==0)
+</pre>
+Some operator may be overloaded:
+<pre class="moss">
+iterable.MOD = |a;f| list(a,f)
+
+a = (1..10) % |x| x^2 if x%2==0
+</pre>
+It is a shorter way to express this:
+<pre class="moss">
+a = list(1..10).filter(|x| x%2==0).map(|x| x^2)
+</pre>
+Under the hood, usage of iterators is feasible. So comprehension
+functionality can be transferred to iterators, sets and dictionarys
+as well. Moreover, the consumer could be a coroutine, enabling
+asynchronous execution.
+<br><br>
+But note that nested comprehensions produce unwanted list constructions.
+These can be dissolved by <code>chain</code>:
+<pre class="moss">
+a = list(1..20,|x| list(x..20,|y| list(y..20,|z|
+  [x,y,z] if x^2+y^2==z^2
+)).chain()).chain()
+
+# [[3, 4, 5], [5, 12, 13], [6, 8, 10],
+# [8, 15, 17], [9, 12, 15], [12, 16, 20]]
+</pre>
+Native support may be likeable:
+<pre class="moss">
+a = [[x,y,z] for x in 1..20 for y in x..20 for z in y..20
+  if x^2+y^2==z^2]
+</pre>
+In addition, one could have
+<pre class="moss">
+  all(p(x) for x in a)
+</pre>
+instead of
+<pre class="moss">
+  a.all(|x| p(x))
+</pre>
+and
+<pre class="moss">
+  sum(f(k) for k in m..n)
+</pre>
+instead of
+<pre class="moss">
+  (m..n).sum(|k| f(k))
+</pre>
+Also a very clear notation, but it conflicts with
+the method chaining notation (by analogy with Unix pipelines):
+<pre class="moss">
+a = L().some_stuff().filter(p).map(f).sort()
+</pre>
+vs.
+<pre class="moss">
+a = [f(x) for x in L().some_stuff() if p(x)].sort()
+</pre>
 </dl>
 
 </body>

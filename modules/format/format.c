@@ -173,7 +173,6 @@ mt_string* mf_format(mt_string* s, mt_list* list){
   mt_bu32 b;
   mf_bu32_init(&b,256);
   long counter=0;
-  long index;
   long k,i;
   uint32_t* a=s->a;
   long size=s->size;

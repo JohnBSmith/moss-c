@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -16,6 +16,7 @@
 <ol>
 <li><a href="#fac">Factorial</a>
 <li><a href="#fib">Fibonacci sequence</a>
+<li><a href="#collatz">Collatz conjecture</a>
 <li><a href="#fc">Function composition</a>
 <li><a href="#pa">Partial application</a>
 <li><a href="#currying">Currying</a>
@@ -30,6 +31,7 @@
 <li><a href="#Euler">Euler method</a>
 <li><a href="#Lorenz">Lorenz attractor</a>
 <li><a href="#la">Linear algebra</a>
+<li><a href="#dg">Differential geometry</a>
 <li><a href="#nt">Number theory</a>
 <li><a href="#basic">Basic algorithms</a>
 <li><a href="#ms">Mandelbrot set</a>
@@ -53,14 +55,18 @@ fac = sub|n|
 end
 
 # Recursive
-fac = |n| if n==0 then 1 else n*fac(n-1) end
+fac = |n| 1 if n==0 else n*fac(n-1)
 
 # Functional
 fac = |n| (1..n).reduce(1,|x,y| x*y)
 
 # Functional iteration
-Fac = |x| [x[0]*x[1],x[1]+1]
-fac = |n| (Fac^n)([1,1])[0]
+Fac = |t| [t[0]+1,t[1]*(t[0]+1)]
+fac = |n| (Fac^n)([0,1])[1]
+
+# Corecursion
+Fac = |t| [t[0]+1,t[1]*(t[0]+1)]
+fac = |n| Fac.orbit([0,1]).omit(n)()[1]
 
 # Semifunctional iteration
 f = sub|n| i=0; (sub|x| i=i+1; x*i end^n)(1) end
@@ -68,12 +74,12 @@ f = sub|n| i=0; (sub|x| i=i+1; x*i end^n)(1) end
 # As a product
 fac = |n| (1..n).prod()
 
-# Recursive, with fixed-point combinator
+# Recursive, by application of the fixed-point combinator
 fix = |F| sub g|n| F(g,n) end
-fac = fix(|f,n| if n==0 then 1 else n*f(n-1) end)
+fac = fix(|f,n| 1 if n==0 else n*f(n-1))
 
 # Tail-recursive
-call = sub|f,m,n|
+sub call(f,m,n)
   x=f(m,n)
   while type(x) is function.type
     x=x()
@@ -81,11 +87,11 @@ call = sub|f,m,n|
   return x
 end
 
-Fac = |m,n| n==0? m: || Fac(m*n,n-1)
+Fac = |m,n| m if n==0 else || Fac(m*n,n-1)
 fac = |n| call(Fac,1,n)
 
 # Solve the functional equation
-solve = sub|g,m,f0|
+sub solve(g,m,f0)
   a = list(0..m)
   a[0]=f0
   f = |x| a[x]
@@ -106,40 +112,22 @@ fac = sub|m|
 end
 
 # Construct the list of permutations
-fac = sub|n|
-  size((list(1..n)^n).filter(sub|t|
-    (1..n).all(|x| x in t)
-  end))
-end
-
-# Recursive, Lisp style
-eq = |a,b| a==b
-mpy = |a,b| a*b
-minus = |a,b| a-b
-If = |c,f,g| if c then f() else g() end
-define = sub|s,f|
-  gtab()[s]=f
-end
-
-define("fac",|n|
-  If(eq(n,0),
-    || 1,
-    || mpy(n,fac(minus(n,1)))))
+fac = |n| size((list(1..n)^n).filter(|t| (1..n).all(|x| x in t)))
 
 # Tacit programming
 compose = |f| |g| |x| f(g(x))
-r = |a| |b| list(a..b)
-mpy = |x,y| x*y
-reduce = |f| |e| |a| a.reduce(e,f)
+reduce  = |f| |e| |a| a.reduce(e,f)
+range   = |a| |b| list(a..b)
+mpy     = |x,y| x*y
 
-fac = compose(reduce(mpy)(1))(r(1))
+fac = compose(reduce(mpy)(1))(range(1))
 </pre>
 
 <h2 id="fib">Fibonacci sequence</h2>
 
 <pre class="moss">
 # Recursive
-memo = sub|f|
+sub memo(f)
   m={}
   return sub|n|
     if n not in m then m[n]=f(n) end
@@ -147,7 +135,7 @@ memo = sub|f|
   end
 end
 
-fib = |n| if n==1 or n==2 then 1 else fib(n-1)+fib(n-2) end
+fib = |n| 1 if n in 1..2 else fib(n-1)+fib(n-2)
 fib = memo(fib)
 
 # Functional iteration
@@ -166,6 +154,47 @@ end
 fib = rec(0,1,|n,x,y| x+y)
 </pre>
 
+<h2 id="collatz">Collatz conjecture</h2>
+<pre class="moss">
+Collatz = |n| n//2 if n%2==0 else 3*n+1
+
+for x in 1..20
+  a = Collatz.orbit(x).until(|n| n==1).list()
+  print(a)
+end
+
+sub tab(m)
+  d = {}
+  for x in 1..m
+    i = Collatz.orbit(x)
+    a = i()
+    for b in i
+      if b in d
+        d[b].add(a)
+        break
+      end
+      d[b] = {a}
+      a = b
+    end
+  end
+  d[4] = {8}
+  return d
+end
+
+sub tree(n,d,s,max)
+  if s&lt;max
+    print("| "*s,n)
+    if n in d
+      for x in list(d[n]).sort()
+        tree(x,d,s+1,max)
+      end
+    end
+  end
+end
+
+tree(1,tab(100),0,20)
+</pre>
+
 
 <h2 id="fc">Function composition</h2>
 <pre class="moss">
@@ -173,11 +202,8 @@ compose = |f,g| |x| f(g(x))
 f = |x| 2*x
 print(compose(f,f)(10))
 
-function.type.o = sub|g|
-  f = self
-  return |x| f(g(x))
-end
-print(f.o(f).o(f)(10))
+function.type.MPY = |f;g| |x| f(g(x))
+print((f*f*f)(10))
 </pre>
 
 
@@ -187,10 +213,10 @@ first = |f,x| |y| f(x,y)
 second = |f,y| |x| f(x,y)
 
 # variadic, fix first arguments
-first = |f,*a| |*b| f[a+b]
+first = |f,*a| |*b| f.apply(a+b)
 
 # variadic, fix last arguments
-last = |f,*a| |*b| f[b+a]
+last = |f,*a| |*b| f.apply(b+a)
 </pre>
 
 
@@ -199,7 +225,7 @@ last = |f,*a| |*b| f[b+a]
 curry = sub|f|
   n=f.argc()
   a=list(0..n-1)
-  g = sub|x| a[n-1]=x; f[a] end
+  g = sub|x| a[n-1]=x; f.apply(a) end
   for i in 2..n
     g = sub|x| a[n-i]=x; g end
   end
@@ -207,7 +233,7 @@ curry = sub|f|
 end
 
 curry = sub|f| n=f.argc(); a=list(0..n-1)
-  return (2..n).reduce(sub|x| a[n-1]=x; f[a]
+  return (2..n).reduce(sub|x| a[n-1]=x; f.apply(a)
   end, |g,i| sub|x| a[n-i]=x; g end) end
 
 uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
@@ -216,9 +242,11 @@ uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 
 <h2 id="rn">Random numbers</h2>
 <pre class="moss">
-a = list(1..100).map(|x| rand(0,9))
+# 100 samples of a standard dice
+a = rand(1..6).list(100)
 print(a)
 
+# shuffle a list
 a = list(1..100).shuffle()
 print(a)
 </pre>
@@ -234,18 +262,18 @@ print(mean(1..4))
 print(mean(rand(0,1).list(1000)))
 
 # Estimated standard deviation
-sigma = sub|a| m=mean(a)
+sub sigma(a) m=mean(a)
   sqrt(a.sum(|x| (x-m)^2)/(size(a)-1))
 end
 
 # Variance
-var = sub|a| m=mean(a)
+sub var(a) m=mean(a)
   a.sum(|x| (x-m)^2)/size(a)
 end
 
 # Covariance
-cov = sub|a,b| ma=mean(a); mb=mean(b)
-  map(a,b,sub|x,y| (x-ma)*(y-mb) end).sum()/size(a)
+sub cov(a,b) ma=mean(a); mb=mean(b)
+  map(a,b,|x,y| (x-ma)*(y-mb)).sum()/size(a)
 end
 
 # Covariance matrix
@@ -283,35 +311,32 @@ end
 <h2 id="qsort">Quicksort</h2>
 
 <pre class="moss">
-qsort = |a| if size(a)==0 then [] else
+qsort = |a| ([] if size(a)==0 else
   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
-  qsort(a[1..].filter(|x| x&gt;=a[0])) end
-
-# Brevity for brevity's sake
-q=|a|a==[]?[]:q(a[1..](|x|x&lt;a[0]))+[a[0]]+q(a[1..](|x|x&gt;=a[0]))
+  qsort(a[1..].filter(|x| x&gt;=a[0])))
 
 # Test function
 issorted = |a| (0..size(a)-2).all(|i| a[i]&lt;=a[i+1])
 
 # Alternative form
 sub qsort(a)
-  size(a)==0?[]:begin
+  return [] if size(a)==0 else begin
     R,L=[],[]
-    a[1..].each(|x|(x&lt;a[0]?R:L).push(x))
+    a[1..].each(|x| (R if x&lt;a[0] else L).push(x))
     return [R,L].map(qsort)
-  end().reduce(|R,L| R+[a[0]]+L)
+  end.reduce(|R,L| R+[a[0]]+L)
 end
 </pre>
 
 <h2 id="msort">Mergesort</h2>
 
 <pre class="moss">
-msort = |a| if size(a)<=1 then copy(a) else
-  merge(msort(a[1..:2]),msort(a[0..:2])) end
+msort = |a| (copy(a) if size(a)&lt;=1 else
+  merge(msort(a[1..:2]),msort(a[0..:2])))
 
 merge = sub|L,R| y=[]
   while size(L)!=0 and size(R)!=0
-    y.push(if L[-1]>R[-1] then L else R end.pop())
+    y.push((L if L[-1]&gt;R[-1] else R).pop())
   end
   return L+R+y.rev()
 end
@@ -354,13 +379,11 @@ uniq = |a| list(set(a))
 # Quotient set
 partition = |a,R| set(list(a).chunks(R))
 
-# Get equivalence relation
-# from a quotient set Q
+# Obtain the equivalence relation of a quotient set Q
 relation = |Q| |x,y| Q.any(|a| x in a and y in a)
 
-# Get equivalence class
-# from a quotient set Q
-# and representative x
+# Obtain the equivalence class
+# of a quotient set Q and representative x
 class = |Q,x| Q.find(|a| x in a)
 </pre>
 
@@ -402,11 +425,11 @@ perm(list("abc")).map(|a| a.join()).each(print)
 
 <pre class="moss">
 # Square root
-sqrt = |a| (sub|x| 0.5*(x+a/x) end^10)(1)
+sqrt = |a| ((|x| 0.5*(x+a/x))^10)(1)
 
 # Differential operator
-D = sub|f| h=0.001
-  return |x| (f(x+h)-f(x-h))/(2*h)
+D = begin h=0.001
+  |f| |x| (f(x+h)-f(x-h))/(2*h)
 end
 
 f = |x| x^3+2*x
@@ -554,33 +577,134 @@ A = hm([1,2],[3,4])
 B = exp(A)
 </pre>
 
+<h2 id="dg">Differential geometry</h2>
+<pre class="moss">
+# Tangential and normal vector
+use plotlib: system
+use math: exp, sqrt, pi, sin, cos
+use la: hv, hm, ha
+use na: diff, integral
+
+# Rotation matrix
+rot = |phi| hm(
+  [cos(phi),-sin(phi)],
+  [sin(phi), cos(phi)]
+)
+
+# Unit vector
+unit = |v| v/sqrt(v*v)
+
+TN = begin R=rot(90*pi/180)
+  |f| [|t| unit(diff(f,t)),|t| R*unit(diff(f,t))]
+end
+
+f = |t| 2*hv(cos(t),sin(t))
+T,N = TN(f)
+
+s = system({t1=0, t2=2*pi})
+s.vplot([f,T])
+s.idle()
+
+# Arc length
+# g: representation matrix of a metric tensor
+sub length(I,g,f)
+  integral(I[0],I[1],sub|t| v=diff(f,t); sqrt(g(f(t))*v*v) end)
+end
+# One could define g as a function and use
+# g(f(t),v,v) or g(f(t))(v,v) instead of g(f(t))*v*v.
+# But note, this is a bogus abstraction, because v is a
+# representation that is induced by a coordinate chart.
+# So g has to be given for the frame that is induced by the
+# same coordinate chart.
+
+# Directional derivative
+D = |v,f,x| diff(|t| f(x+t*v),0)
+
+# One can expand this into:
+D = begin h=0.001
+  |v,f,x| (f(x+h*v)-f(x-h*v))/(2*h)
+end
+
+# Standard basis
+sub basis(n,k)
+  v=[0]*n; v[k]=1
+  return ha(v)
+end
+
+# Jacobian matrix
+sub Jacobi(m,n)
+  E = list(0..n-1).map(|k| basis(n,k))
+  return |F,u| ha(
+    list(0..m-1).map(|i|
+      list(0..n-1).map(|j| D(E[j],F[i],u))))
+end
+
+# Metric tensor
+sub metric(m,n,F)
+  D = Jacobi(m,n)
+  return sub|u|
+    J = D(F,u)
+    return J.T()*J
+  end
+end
+
+# Polar coordinates
+# u = hv(r,phi)
+F = [
+  |u| u[0]*cos(u[1]),
+  |u| u[0]*sin(u[1])
+]
+g = metric(2,2,F)
+
+# Logarithmic spiral
+# r(phi) = a*exp(k*phi)
+# a=1, k=0.2
+f = |t| hv(exp(0.2*t),t)
+
+# lim(n to inf) length([-2*n*pi,0],g,f)
+# = sqrt(1+k^2)/k = 5.0990... 
+L = length([-200*pi,0],g,f)
+print(L)
+</pre>
 
 
 <h2 id="nt">Number theory</h2>
 
 <pre class="moss">
-isprime = |n| n&gt;1 and (2..n-1).all(|k| n%k!=0)
-print(list(1..100).filter(isprime))
-
 # A prime is a number that has two divisors.
 isprime = |n| (1..n).count(|k| n%k==0)==2
 
-sieve = |a| if size(a)==0 then [] else
-  [a[0]]+sieve(a[1..].filter(|x| x%a[0]!=0)) end
+# A slightly faster algorithm.
+isprime = |n| n&gt;1 and (2..n-1).all(|k| n%k!=0)
+
+# The basic idea to speed it up.
+isprime = |n| n&gt;1 and (2..).until(|k| k*k&gt;n).all(|k| n%k!=0)
+
+# Print all the primes in 1..100.
+print(list(1..100).filter(isprime))
+
+# Print the first 100 primes.
+print((1..).filter(isprime).list(100))
+
+# Sieve of Eratosthenes
+sieve = |a| ([] if size(a)==0 else
+  [a[0]]+sieve(a[1..].filter(|x| x%a[0]!=0)))
 
 print(sieve(list(2..100)))
 
-gcd = |a,b| if b==0 then a else gcd(b,a%b) end
+# Greatest common divisor
+gcd = |a,b| a if b==0 else gcd(b,a%b)
 
-gcd = sub|a,b|
+sub gcd(a,b)
   while b!=0 do a,b=b,a%b end
   return a
 end
 
+# Least common multiple
 lcm = |a| a.reduce(|x,y| x*y//gcd(x,y))
 
 # (a^n)%m (built-in as pow(a,n,m))
-powmod = sub|a,n,m|
+sub powmod(a,n,m)
   y=1; a=a%m
   while n&gt;0
     if n%2==0
@@ -603,6 +727,18 @@ sigma0 = |n| (1..n).count(|k| n%k==0)
 # Prime factorization
 factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
   .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
+
+# Zeller's congruence
+day_of_the_week = begin
+  w = ["Satur", "Sun", "Mon", "Tues", "Wednes", "Thurs", "Fri"]
+  return sub|d,m,a|
+    J = a//100
+    K = (a if m in 3..12 else a-1)%100
+    m = (m if m in 3..12 else m+12)
+    n = (d + (m+1)*13//5 + K + K//4 + J//4 - 2*J)%7
+    return w[n]+"day"
+  end
+end
 </pre>
 
 
@@ -611,10 +747,10 @@ factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
 <pre class="moss">
 # Any base
 integer = |s,b| s.reduce(0,|x,c| b*x+ord(c)-ord('0'))
-base = |n,b| x==0? "0": base(n//b,b)+chr(n%b+ord('0'))
+base = |n,b| "0" if x==0 else base(n//b,b)+chr(n%b+ord('0'))
 
 base = sub|n,b|
-  s = n==0? "0": ""
+  s = "0" if n==0 else ""
   while n!=0
     s=chr(n%b+ord('0'))+s
     n=n//b
@@ -623,11 +759,11 @@ base = sub|n,b|
 end
 
 # Abstract version (mathematically pure)
-base = |n,b| n==0? []: base(n//b,b)+[n%b]
+base = |n,b| [] if n==0 else base(n//b,b)+[n%b]
 
 # Custom digits
 base = sub|n,s| b=size(s)
-  n&lt;b? s[n]: base(n//b,s)+s[n%b]
+  s[n] if n&lt;b else base(n//b,s)+s[n%b]
 end
 
 # Reverse
@@ -646,7 +782,7 @@ end
 <pre class="moss">
 (0..25).map(|x|
   (0..39).map(sub|y| c = (x/10-2)+(y/10-2)*1i
-    abs((sub|z| z^2+c end^10)(0))&lt;2? "*": "\s"
+    "*" if abs((sub|z| z^2+c end^10)(0))&lt;2 else "\s"
   end).join()).each(print)
 </pre>
 
@@ -654,9 +790,13 @@ end
 <h2 id="rot13">ROT13</h2>
 
 <pre class="moss">
-rot13 = |s| s.map(|c|
-  c in 'a'..'z'? chr((ord(c)-97+13)%26+97):
-  c in 'A'..'Z'? chr((ord(c)-65+13)%26+65): c).join()
+rot13 = begin
+  a = ord('a'); A = ord('A')
+  return |s| s.map(|c|
+    chr((ord(c)-a+13)%26+a) if c in 'a'..'z' else
+    chr((ord(c)-A+13)%26+A) if c in 'A'..'Z' else
+    c).join()
+end
 </pre>
 
 <h2 id="fft">FFT</h2>
@@ -666,7 +806,7 @@ use math: pi
 use cmath: exp
 
 # size(a) is a power of two
-fft = sub|a| if size(a)<=1 then return a end
+fft = sub|a| if size(a)&lt;=1 then return a end
   even = fft(a[0..:2]); odd = fft(a[1..:2])
   N = size(a); L = list(0..N//2-1)
   T = L.map(|k| exp(-2i*pi*k/N)*odd[k])
@@ -732,10 +872,15 @@ scan = |s| regex.list(s)
 use re
 unary={"~": |x| -x}; binary={"+": |x,y| x+y, "-": |x,y| x-y,
   "*": |x,y| x*y, "/": |x,y| x/y, "^": |x,y| x^y}
+
 regex = re.compile("{d}+({.}{d}*)?|[+-*/^~]")
-calc = |s| regex.list(s).reduce([],|a,x| x[0].isdigit()?
-  a+[float(x)]: x in unary? a[..-2]+[unary[x](a[-1])]:
-  a[..-3]+[binary[x](a[-2],a[-1])])[-1]
+
+calc = |s| regex.list(s).reduce([],|a,x|
+  a+[float(x)] if x[0].isdigit() else
+  a[..-2]+[unary[x](a[-1])] if x in unary else
+  a[..-3]+[binary[x](a[-2],a[-1])]
+)[-1]
+
 (|| calc(input("&gt;\s"))).each(print)
 </pre>
 

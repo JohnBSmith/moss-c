@@ -1,3 +1,3 @@
 
-gcc -c os.c -Wimplicit-function-declaration\
+gcc -c os.c -g -Wimplicit-function-declaration\
   -o ../../bin/os.o -I../../include

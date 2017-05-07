@@ -9,11 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <compiler.h>
 
 mt_list* sys_argv;
 extern int gv_argc;
 extern char** gv_argv;
 extern mt_list* mv_path_list;
+extern mt_module* mv_module;
 
 static
 int sys_exit(mt_object* x, int argc, mt_object* v){
@@ -31,6 +33,13 @@ int sys_exit(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,0,1,"exit");
     return 1;
   }
+}
+
+static
+int sys_main(mt_object* x, int argc, mt_object* v){
+  x->type = mv_bool;
+  x->value.b = mv_module->main;
+  return 0;
 }
 
 mt_table* mf_sys_load(){
@@ -54,8 +63,10 @@ mt_table* mf_sys_load(){
   if(mv_path_list){
     t.value.p=(mt_basic*)mv_path_list;
     mf_insert_object(m,"path",&t);
+    // Todo: inc refcount?
   }
   mf_insert_function(m,1,1,"exit",sys_exit);
+  mf_insert_function(m,0,0,"main",sys_main);
   m->frozen=1;
   return sys;
 }

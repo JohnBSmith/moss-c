@@ -158,7 +158,6 @@ int cmath_exp(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,1,1,"exp");
     return 1;
   }
-  double t;
   if(v[1].type==mv_int){
     x->type=mv_float;
     x->value.f=exp(v[1].value.i);

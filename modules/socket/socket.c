@@ -159,9 +159,9 @@ int mf_socket_receive(mt_object* x, int argc, mt_object* v){
     }else if(count==0){
       break;
     }
-    mf_bs_push(&bs,count,buffer);
+    mf_bs_push(&bs,count,(const unsigned char*)buffer);
   }
-  mt_bstring* u8 = mf_buffer_to_bstring(bs.size,(unsigned char*)bs.a);
+  mt_bstring* u8 = mf_buffer_to_bstring(bs.size,bs.a);
   mf_bs_delete(&bs);
   x->type=mv_bstring;
   x->value.p=(mt_basic*)u8;

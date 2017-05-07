@@ -6,12 +6,9 @@
 #include <moss.h>
 #include <objects/list.h>
 #include <objects/function.h>
+#include <objects/string.h>
 #include <modules/bs.h>
 
-mt_string* mf_str_decode_utf8(long size, unsigned char* a);
-int mf_str_cmpmem(mt_string* s, long size, const char* a);
-mt_function* mf_iter(mt_object* x);
-int mf_empty(void);
 
 mt_bstring* mf_raw_bstring(long size){
   mt_bstring* s = mf_malloc(sizeof(mt_bstring)+size*sizeof(unsigned char));
@@ -117,7 +114,7 @@ int mf_bstring(mt_object* x, int argc, mt_object* v){
       goto error;
     }
     c = (unsigned char)y.value.i;
-    mf_bs_push(&buffer,1,(char*)&c);
+    mf_bs_push(&buffer,1,&c);
   }
   
   mt_bstring* bs = mf_buffer_to_bstring(buffer.size,buffer.a);

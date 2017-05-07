@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -19,6 +19,7 @@
 <li><a href="#Classes">Character classes</a>
 <li><a href="#All">Finding all</a>
 <li><a href="#Groups">Groups</a>
+<li><a href="#Examples">Examples</a>
 </ol>
 </div>
 
@@ -270,6 +271,66 @@ end
 # Date: 2016-10-14
 # ["2016", "10", "14"]
 </pre>
+
+<h2 id="Examples">Examples</h2>
+<h3>A very simple tokenizer generator</h3>
+<pre class="moss">
+use re
+
+sub tokenizer(d)
+  r = re.compile(d["r"])
+  f = d["f"] if "f" in d else null
+  return sub|s|
+    a = r.list(s)
+    return a if f is null else a.map(f)
+  end
+end
+
+words = tokenizer({
+  r = "{a}+"
+})
+
+integers = tokenizer({
+  r = "{d}+",
+  f = int
+})
+
+numbers = tokenizer({
+  r = "({d}|{.})+",
+  f = |x| float(x) if '.' in x else int(x)
+})
+
+for line in input
+  a = numbers(line)
+  print(a)
+end
+</pre>
+
+<h3>Alternative versions of isalpha</h3>
+
+<pre class="moss">
+use re
+
+sub isalpha(r)
+  r = re.compile(r)
+  return |s| r.match(s)
+end
+
+isalpha_german = isalpha("[A-Za-zÄÖÜäöüß]*")
+isalpha_latin = isalpha("""[
+  A-Z a-z
+  \u00c0-\00d6
+  \u00d8-\u00f6
+  \u00f8-\u024f
+]*""")
+</pre>
+
+<p>As one can see, the Unicode letter range was fragmented by
+throwing in two mathematical operators (<code>\u00d7</code>,
+<code>\u00f7</code>). Matching upper and lower case is
+even more complicated. Furthermore, in general a letter may
+be followed by combining characters.
+
 
 </body>
 </html>

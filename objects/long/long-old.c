@@ -11,31 +11,10 @@
 
 void mf_print_string(long size, uint32_t* a);
 
-#ifndef SIZE
-#define SIZE 16
-#endif
-
-#if SIZE==8
-  #define BASE 256
-  #define MAXDIGIT 255
-  typedef unsigned char digit_t;
-  typedef unsigned long value_t;
-#elif SIZE==16
-  #define BASE 0x10000
-  #define MAXDIGIT 0xffff
-  typedef unsigned short digit_t;
-  typedef unsigned long value_t;
-#else
-  #define BASE 0x100000000
-  #define MAXDIGIT 0xffffffff
-  typedef unsigned long digit_t;
-  typedef unsigned long long value_t;
-#endif
-
 typedef struct{
   int sgn;
   long size, capacity;
-  digit_t* a;
+  unsigned char* a;
 } bint;
 
 struct mt_long{
@@ -81,13 +60,12 @@ void bint_set_value(bint* x, long n){
   }
   if(x->a==NULL){
     x->capacity=4;
-    x->a=mf_malloc(4*sizeof(digit_t));
+    x->a=mf_malloc(4);
   }else if(x->capacity<4){
     mf_free(x->a);
     x->capacity=4;
-    x->a=mf_malloc(4*sizeof(digit_t));
+    x->a=mf_malloc(4);
   }
-  #if SIZE==8
   if(n<0x100){
     x->a[0]=n;
     x->size=1;
@@ -107,19 +85,6 @@ void bint_set_value(bint* x, long n){
     x->a[3]=(n>>24)&0xff;
     x->size=4;
   }
-  #elif SIZE==16
-  if(n<0x10000){
-    x->a[0]=n;
-    x->size=1;
-  }else{
-    x->a[0]=n&0xffff;
-    x->a[1]=(n>>16)&0xffff;
-    x->size=2;
-  }
-  #else
-  x->a[0]=n;
-  x->size=1;
-  #endif
 }
 
 mt_long* long_new(){
@@ -138,12 +103,12 @@ mt_long* mf_int_to_long(long n){
 static
 void bint_init_raw(bint* x, int size){
   if(x->a==NULL){
-    x->a=mf_malloc(size*sizeof(digit_t));
+    x->a=mf_malloc(size);
     x->capacity=size;
     x->size=size;
   }else if(size>x->capacity){
     mf_free(x->a);
-    x->a=mf_malloc(size*sizeof(digit_t));
+    x->a=mf_malloc(size);
     x->capacity=size;
     x->size=size;
   }else{
@@ -182,9 +147,9 @@ int mf_flong(mt_object* x, int argc, mt_object* v){
 
 static
 void bint_copy(bint* x, bint* y){
-  long size = x->size;
-  long i;
+  int size = x->size;
   bint_init_raw(y,size);
+  int i;
   for(i=0; i<size; i++){
     y->a[i]=x->a[i];
   }
@@ -199,17 +164,14 @@ void long_print_hex(mt_long* x){
   if(x->value.size==0){
     printf("0");
   }
-  long i;
-  unsigned int digit;
+  int i;
+  int byte;
   for(i=x->value.size-1; i>=0; i--){
-    digit = x->value.a[i];
-    #if SIZE==8
-      printf("%02x",digit);
-    #elif SIZE==16
-      printf("%04x",digit);
-    #else
-      printf("%08x",digit);
-    #endif
+    byte = x->value.a[i];
+    if(byte<16){
+      printf("0");
+    }
+    printf("%x",byte);
   }
 }
 
@@ -255,28 +217,28 @@ mt_long* hex_to_long(unsigned char* a, int size){
 */
 
 static
-void print_digit_bin(unsigned int digit){
-  char a[SIZE];
+void print_byte_bin(unsigned char byte){
+  char a[8];
   int i;
-  for(i=0; i<SIZE; i++){
+  for(i=0; i<8; i++){
     a[i]=0;
   }
-  for(i=SIZE-1; i>=0 && digit>0; i--){
-    if(digit%2==1){
+  i=7;
+  while(byte>0){
+    if(byte%2==1){
       a[i]=1;
     }else{
       a[i]=0;
     }
-    digit=digit/2;
+    byte=byte/2;
+    i--;
   }
-  for(i=0; i<SIZE; i++){
+  for(i=0; i<8; i++){
     printf("%i",a[i]);
   }
 }
 
 void long_print_bin(mt_long* x){
-  long i;
-  unsigned int digit;
   if(x->value.sgn==-1){
     printf("-");
   }
@@ -284,9 +246,11 @@ void long_print_bin(mt_long* x){
   if(x->value.size==0){
     printf("0");
   }
+  int i;
+  int byte;
   for(i=x->value.size-1; i>=0; i--){
-    digit = x->value.a[i];
-    print_digit_bin(digit);
+    byte = x->value.a[i];
+    print_byte_bin(byte);
   }
 }
 
@@ -302,8 +266,8 @@ void normalize(bint* x){
 
 static
 int ltabs(bint* a, bint* b){
-  digit_t digita,digitb;
-  long i;
+  unsigned char bytea,byteb;
+  int i;
   normalize(a);
   normalize(b);
   if(a->size==0){
@@ -311,10 +275,10 @@ int ltabs(bint* a, bint* b){
   }else if(a->size==b->size){
     i=a->size-1;
     while(i>=0){
-      digita=a->a[i];
-      digitb=b->a[i];
-      if(digita<digitb) return 1;
-      else if(digita>digitb) return 0;
+      bytea=a->a[i];
+      byteb=b->a[i];
+      if(bytea<byteb) return 1;
+      else if(bytea>byteb) return 0;
       i--;
     }
     return 0;
@@ -327,8 +291,8 @@ int ltabs(bint* a, bint* b){
 
 static
 int gtabs(bint* a, bint* b){
-  digit_t digita,digitb;
-  long i;
+  unsigned char bytea,byteb;
+  int i;
   normalize(a);
   normalize(b);
   if(b->size==0){
@@ -336,10 +300,10 @@ int gtabs(bint* a, bint* b){
   }if(a->size==b->size){
     i=a->size-1;
     while(i>=0){
-      digita=a->a[i];
-      digitb=b->a[i];
-      if(digita>digitb) return 1;
-      else if(digita<digitb) return 0;
+      bytea=a->a[i];
+      byteb=b->a[i];
+      if(bytea>byteb) return 1;
+      else if(bytea<byteb) return 0;
       i--;
     }
     return 0;
@@ -365,6 +329,7 @@ int bint_lt(bint* a, bint* b){
 }
 
 int bint_gt(bint* a, bint* b){
+  int bytea,byteb;
   if(a->sgn==b->sgn){
     if(a->sgn==-1){
       return ltabs(a,b);
@@ -396,7 +361,7 @@ int bint_eq(bint* a, bint* b){
   }else if(a->size==0){
     return 1;
   }else{
-    long i=a->size-1;
+    int i=a->size-1;
     while(i>=0){
       if(a->a[i]!=b->a[i]) return 0;
       i--;
@@ -421,24 +386,18 @@ int bint_cmp(bint* a, bint* b){
 
 static
 void sub_from_greater(bint* a, bint* b, bint* x){
-  long size = a->size;
-  long i;
-  #if SIZE==32
-  long long s;
-  #else
-  long s;
-  #endif
-  int carry;
-  digit_t digita,digitb;
+  int size = a->size;
   bint_init_raw(x,size);
   x->sgn = a->sgn;
+  int i,s,carry;
+  int bytea,byteb;
   carry=0;
   for(i=0; i<size; i++){
-    digita = i<a->size? a->a[i]: 0;
-    digitb = i<b->size? b->a[i]: 0;
-    s = digita-digitb-carry;
+    bytea = i<a->size? a->a[i]: 0;
+    byteb = i<b->size? b->a[i]: 0;
+    s = bytea-byteb-carry;
     if(s<0){
-      s+=BASE;
+      s+=256;
       carry=1;
     }else{
       carry=0;
@@ -449,14 +408,6 @@ void sub_from_greater(bint* a, bint* b, bint* x){
 }
 
 void bint_add(bint* a, bint* b, bint* y){
-  long i;
-  #if SIZE==32
-  long long s;
-  #else
-  long s;
-  #endif
-  int carry;
-  digit_t digita,digitb;
   if(a->sgn!=b->sgn){
     // printf("a: ");
     // long_print_hex(a);
@@ -484,14 +435,16 @@ void bint_add(bint* a, bint* b, bint* y){
   }
   bint_init_raw(y,size+1);
   y->sgn = a->sgn;
+  int i,s,carry;
+  int bytea,byteb;
   carry=0;
   for(i=0; i<size; i++){
-    digita = i<a->size? a->a[i]: 0;
-    digitb = i<b->size? b->a[i]: 0;
-    s = ((value_t)digita)+digitb+carry;
-    if(s>MAXDIGIT){
+    bytea = i<a->size? a->a[i]: 0;
+    byteb = i<b->size? b->a[i]: 0;
+    s = bytea+byteb+carry;
+    if(s>255){
       carry=1;
-      s-=BASE;
+      s-=256;
     }else{
       carry=0;
     }
@@ -521,9 +474,9 @@ static
 void lshiftw(bint* x, long n){
   long i;
   long size=x->size;
-  digit_t* a;
+  unsigned char* a;
   if(size+n>x->capacity){
-    a = mf_malloc((size+n)*(2*sizeof(digit_t)));
+    a = mf_malloc((size+n)*2);
     for(i=0; i<size; i++){
       a[i]=x->a[i];
     }
@@ -547,7 +500,7 @@ void lshiftw(bint* x, long n){
 static
 void rshiftw(bint* x, long n){
   long size=x->size;
-  digit_t* a = x->a;
+  unsigned char* a = x->a;
   long i;
   for(i=n; i<size; i++){
     a[i-n]=a[i];
@@ -557,11 +510,9 @@ void rshiftw(bint* x, long n){
 
 static
 void lshift1(bint* x){
-  long i;
-  digit_t digit;
-  int carry;
+  int i,byte,carry;
   if(x->size==x->capacity){
-    digit_t* a = mf_malloc(x->size*(2*sizeof(digit_t)));
+    unsigned char* a = mf_malloc(x->size*2);
     for(i=0; i<x->size; i++){
       a[i]=x->a[i];
     }
@@ -573,9 +524,9 @@ void lshift1(bint* x){
   }
   carry=0;
   for(i=0; i<x->size; i++){
-    digit = x->a[i];
-    x->a[i]=(digit<<1)|carry;
-    carry = digit>>(SIZE-1);
+    byte = x->a[i];
+    x->a[i]=(byte<<1)|carry;
+    carry = byte>>7;
   }
   if(carry==1){
     x->a[x->size]=1;
@@ -584,8 +535,8 @@ void lshift1(bint* x){
 }
 
 static
-void lshift(bint* x, long n){
-  long i;
+void lshift(bint* x, int n){
+  int i;
   for(i=0; i<n; i++){
     lshift1(x);
   }
@@ -593,14 +544,12 @@ void lshift(bint* x, long n){
 
 static
 void rshift1(bint* x){
-  long i;
-  digit_t digit;
-  int carry;
+  int i,byte,carry;
   carry=0;
   for(i=x->size-1; i>=0; i--){
-    digit = x->a[i];
-    x->a[i] = (digit>>1)|carry;
-    carry = (digit&1)<<(SIZE-1);
+    byte = x->a[i];
+    x->a[i] = (byte>>1)|carry;
+    carry = (byte&1)<<7;
   }
   if(x->size>0 && x->a[x->size-1]==0){
     x->size--;
@@ -608,8 +557,8 @@ void rshift1(bint* x){
 }
 
 static
-void rshift(bint* x, long n){
-  long i;
+void rshift(bint* x, int n){
+  int i;
   for(i=0; i<n; i++){
     rshift1(x);
   }
@@ -651,12 +600,12 @@ int is_zero(bint* x){
 }
 
 static
-void resize(bint* x, long size){
-  long i;
-  digit_t* a;
+void resize(bint* x, int size){
+  int i;
+  unsigned char* a;
   if(size>x->size){
     if(size>x->capacity){
-      a = mf_malloc(size*sizeof(digit_t));
+      a = mf_malloc(size);
       for(i=0; i<x->size; i++){
         a[i]=x->a[i];
       }
@@ -678,15 +627,15 @@ void resize(bint* x, long size){
 }
 
 static
-digit_t* bint_mpy_by_n(bint* a, value_t n, digit_t* result){
-  value_t carry=0;
-  value_t tmp;
+unsigned char* bint_mpy_by_n(bint* a, int n, unsigned char* result){
+  unsigned long carry=0;
+  unsigned long tmp;
   long size=a->size;
   long i;
   for(i=0; i<size; i++){
     tmp = carry + a->a[i]*n + *result;
-    carry = tmp/BASE;
-    *result++ = tmp%BASE;
+    carry = tmp/256;
+    *result++ = tmp%256;
   }
   if(carry){
     *result++ = carry;
@@ -707,8 +656,8 @@ void bint_mpy_standard(bint* a, bint* b, bint* y){
   long size = b->size;
   long max = a->size + size;
   bint_init_raw(y,max);
-  memset(y->a,0,max*sizeof(digit_t));
-  digit_t* end=y->a;
+  memset(y->a,0,max);
+  unsigned char* end=y->a;
   long i;
   for(i=0; i<size; i++){
     end = bint_mpy_by_n(a, b->a[i], y->a+i);
@@ -811,24 +760,22 @@ void bint_mpy_int(bint* a, int b, bint* y){
 }
 
 static
-int get_bit(bint* x, long i){
-  long digit;
-  int bit;
-  digit=i/SIZE; bit=i%SIZE;
-  if(digit>=x->size)return 0;
-  return (x->a[digit]>>bit)&1;
+int get_bit(bint* x, int i){
+  int byte,bit;
+  byte=i/8; bit=i%8;
+  if(byte>=x->size)return 0;
+  return (x->a[byte]>>bit)&1;
 }
 
 static
-void set_bit(bint* x, long i, int a){
-  long digit;
-  int bit;
-  digit=i/SIZE; bit=i%SIZE;
-  if(digit>=x->size) resize(x,digit+1);
+void set_bit(bint* x, int i, int a){
+  int byte, bit, k;
+  byte=i/8; bit=i%8;
+  if(byte>=x->size) resize(x,byte+1);
   if(a==0){
-    x->a[digit] &= ~(1<<bit);
+    x->a[byte] &= ~(1<<bit);
   }else{
-    x->a[digit] |= 1<<bit;
+    x->a[byte] |= 1<<bit;
   }
   while(x->size>0 && x->a[x->size-1]==0){
     x->size--;
@@ -836,10 +783,12 @@ void set_bit(bint* x, long i, int a){
 }
 
 static
-long last_bit(bint* x){
+int last_bit(bint* x){
   if(is_zero(x)) return -1;
-  long i = SIZE*x->size;
-  while(i>0 && get_bit(x,i)==0) i--;
+  int i = 8*x->size;
+  while(i>0 && get_bit(x,i)==0){
+    i--;
+  }
   return i;
 }
 
@@ -852,7 +801,7 @@ void bint_divmod(bint* N, bint* D, bint* Q, bint* R){
   bint_set_value(Q,0);
   bint_set_value(R,0);
   bint t; t.a=NULL;
-  long i;
+  int i;
   i=last_bit(N);
   while(i>=0){
     lshift1(R);
@@ -1007,49 +956,48 @@ mt_string* bint_to_string(bint* x){
 
 static
 void to_buffer(mt_vec* v, bint* R, int n){
-  long i;
-  int x=0;
+  int i,x;
+  x=0;
   // printf("base 256 size of remainder: %i\n",R->size);
   // printf("remainder: "); bint_print(R);
   // printf("\n");
   if(!is_zero(R)){
     for(i=R->size-1; i>=0; i--){
-      x=BASE*x+R->a[i];
+      x=256*x+R->a[i];
     }
   }
   int byte;
   for(i=0; i<n; i++){
-    byte = '0'+x%10;
+    byte = 48+x%10;
     mf_vec_push(v,&byte);
     x=x/10;
   }
 }
 
 static
-unsigned long bint_to_ulong(bint* x){
+long bint_to_int(bint* x){
   if(is_zero(x)){
     return 0;
   }else{
-    unsigned long y=0;
-    long i;
+    long y=0;
+    int i;
     for(i=x->size-1; i>=0; i--){
-      y=BASE*y+x->a[i];
+      y=256*y+x->a[i];
     }
     return y;
   }
 }
 
 static
-void int_to_buffer(mt_vec* v, unsigned long x, long fill){
-  long i=0;
-  int byte;
+void int_to_buffer(mt_vec* v, int x, int fill){
+  int i=0,byte;
   while(x>0){
-    byte = '0'+x%10;
+    byte = x%10+48;
     mf_vec_push(v,&byte);
     x=x/10;
     i++;
   }
-  byte='0';
+  byte=48;
   while(i<fill){
     mf_vec_push(v,&byte);
     i++;
@@ -1057,18 +1005,13 @@ void int_to_buffer(mt_vec* v, unsigned long x, long fill){
 }
 
 static
-void to_buffer_rec(mt_vec* v, bint* x, long fill){
+void to_buffer_rec(mt_vec* v, bint* x, int fill){
   if(is_zero(x)){
     int_to_buffer(v,0,fill);
     return;
   }
-  #if SIZE==8
-  if(x->size<4)
-  #else
-  if(x->size<2)
-  #endif
-  {
-    unsigned long y = bint_to_ulong(x);
+  if(x->size<4){
+    long y = bint_to_int(x);
     int_to_buffer(v,y,fill);
     return;
   }
@@ -1106,7 +1049,7 @@ mt_string* bint_to_string_fast(bint* x){
   bint R; R.a=NULL;
   /*
   while(!is_zero(&a)){
-    bint_divmod(&a,&b,&Q,&R);
+    divmod(&a,&b,&Q,&R);
     to_buffer(&v,&R,9);
     bint_copy(&Q,&a);
   }
@@ -1313,7 +1256,7 @@ uint32_t mf_long_hash(mt_long* x){
   }else if(x->value.size<2){
     return x->value.a[0];
   }else{
-    return ((uint32_t)x->value.a[1])*BASE+x->value.a[0];
+    return ((uint32_t)x->value.a[1])*256+x->value.a[0];
   }
 }
 
@@ -1328,7 +1271,7 @@ mt_list* mf_long_base(mt_long* x, int b){
   r.type=mv_int;
   while(!is_zero(&x->value)){
     bint_divmod(&x->value,&B,&Q,&R);
-    r.value.i = (long)bint_to_ulong(&R);
+    r.value.i = bint_to_int(&R);
     mf_list_push(list,&r);
     bint_copy(&Q,&x->value);
   }

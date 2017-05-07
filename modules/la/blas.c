@@ -57,8 +57,16 @@ void cblas_dgemv(CBLAS_LAYOUT layout, CBLAS_TRANSPOSE TransA,
   double *y, int incy
 ){
   int i;
-  for(i=0; i<M; i++){
-    y[i*incy]=alpha*cblas_ddot(N,A+i,lda,x,incx)+beta*y[i*incy];
+  if(beta==0){
+    for(i=0; i<M; i++){
+      y[i*incy]=alpha*cblas_ddot(N,A+i,lda,x,incx);
+    }
+  }else{
+    // If beta is zero, y may be uninitialized. This is serious,
+    // one would need "valgrind --track-origins=yes" to find this bug.
+    for(i=0; i<M; i++){
+      y[i*incy]=alpha*cblas_ddot(N,A+i,lda,x,incx)+beta*y[i*incy];
+    }
   }
 }
 

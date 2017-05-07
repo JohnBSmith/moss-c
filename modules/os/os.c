@@ -19,6 +19,7 @@ extern int mode_unsafe;
 extern int mode_network;
 extern mt_object mv_exception;
 mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
+extern mt_table* mv_type_std_exception;
 static mt_object not_found;
 
 static
@@ -37,7 +38,6 @@ void raise_not_found(const char* a){
 
 static
 int os_ls(mt_object* x, int argc, mt_object* v){
-  mt_string* s;
   DIR* dir;
   mt_bstr id;
   if(argc==0){
@@ -211,14 +211,47 @@ int os_isfile(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+static
+int os_getenv(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"getenv");
+    return 1;
+  }
+  if(v[1].type!=mv_string){
+    mf_type_error("Type error in os.getenv(s): s is not a string.");
+    return 1;
+  }
+  mt_string* s = (mt_string*)v[1].value.p;
+  mt_bstr id;
+  mf_encode_utf8(&id,s->size,s->a);
+  char* p = getenv((char*)id.a);
+  if(p==NULL){
+    char a[400];
+    snprintf(a,400,"Exception in getenv: %s is not defined.",id.a);
+    mf_free(id.a);
+    mf_std_exception(a);
+    return 1;
+  }
+  mf_free(id.a);
+  mt_string* y = mf_cstr_to_str(p);
+  x->type=mv_string;
+  x->value.p=(mt_basic*)y;
+  return 0;
+}
+
 mt_table* mf_os_load(){
   mt_table* os = mf_table(NULL);
   os->name = mf_cstr_to_str("module os");
   os->m = mf_empty_map();
   mt_map* m = os->m;
-  not_found.type=mv_table;
-  not_found.value.p = (mt_basic*)mf_table(NULL);
+
+  mt_object type;
+  type.type = mv_table;
+  type.value.p = (mt_basic*) mv_type_std_exception;
+  not_found.type = mv_table;
+  not_found.value.p = (mt_basic*)mf_table(&type);
   mf_insert_object(m,"not_found",&not_found);
+
   mf_insert_function(m,0,1,"ls",os_ls);
   mf_insert_function(m,0,0,"wd",os_wd);
   mf_insert_function(m,1,1,"cd",os_cd);
@@ -226,6 +259,7 @@ mt_table* mf_os_load(){
   mf_insert_function(m,1,1,"isdir",os_isdir);
   mf_insert_function(m,1,1,"isfile",os_isfile);
   mf_insert_function(m,1,1,"system",os_system);
+  mf_insert_function(m,1,1,"getenv",os_getenv);
   m->frozen=1;
   return os;
 }

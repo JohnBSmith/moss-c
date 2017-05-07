@@ -1,5 +1,5 @@
 
-alias cc=i686-w64-mingw32-gcc
+alias cc="i686-w64-mingw32-gcc"
 cd ../..
 cc -c modules/bs/bs.c -o make/win/bin/bs.o -I./include
 cc -c modules/str/str.c -o make/win/bin/str.o -I./include

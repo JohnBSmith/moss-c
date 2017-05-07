@@ -1,4 +1,6 @@
 
+// Todo: exception hierarchy
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +29,6 @@
 // TODO: cycle
 // TODO: list.type.sort: second argument
 // TODO: str.type.isrange
-// TODO: "end of" interactive
 // TODO: f->data refcount?
 
 #define STACK_SIZE 800000
@@ -71,6 +72,7 @@ mt_object iter_value;
 mt_list* mv_traceback_list;
 static unsigned char* exception_address;
 static mt_module* exception_module;
+mt_module* mv_module;
 
 int mf_list_print(mt_list* a);
 void mf_print_string(long size, uint32_t* a);
@@ -97,6 +99,7 @@ mt_table* mv_type_complex;
 mt_table* mv_type_string;
 mt_table* mv_type_bstring;
 mt_table* mv_type_list;
+mt_table* mv_type_tuple;
 mt_table* mv_type_function;
 mt_table* mv_type_long;
 mt_table* mv_type_dict;
@@ -130,6 +133,9 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
     return mf_map_get(x,mv_type_bstring->m,key);
   case mv_list:
     m = mv_type_list->m;
+    goto iterable_get;
+  case mv_tuple:
+    m = mv_type_tuple->m;
     goto iterable_get;
   case mv_map:
     m = mv_type_dict->m;
@@ -369,6 +375,11 @@ int mf_std_exception_str(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+void mf_init_type_tuple(mt_table* type){
+  type->name=mf_cstr_to_str("tuple");
+  type->m=mf_empty_map();
+}
+
 void mf_vm_init_gvtab(void){
   mt_map* m=mv_mvtab;
   mt_function* f;
@@ -401,6 +412,11 @@ void mf_vm_init_gvtab(void){
   f->m=mf_empty_map();
   mf_insert_table(f->m,"type",mv_type_string);
 
+  mt_table* tuple = mf_table(NULL);
+  tuple->m=mf_empty_map();
+  mf_insert_table(tuple->m,"type",mv_type_tuple);
+  mf_insert_table(m,"tuple",tuple);
+  tuple->refcount--;
 
   mt_table* function = mf_table(NULL);
   function->m=mf_empty_map();
@@ -507,6 +523,9 @@ void mf_vm_init(void){
   mv_type_list = mf_table(&iterable);
   mf_init_type_list(mv_type_list);
 
+  mv_type_tuple = mf_table(&iterable);
+  mf_init_type_tuple(mv_type_tuple);
+
   mv_type_function = mf_table(&iterable);
   mf_init_type_function(mv_type_function);
 
@@ -539,10 +558,13 @@ void mf_vm_delete(void){
   mf_table_dec_refcount(mv_type_complex);
   mf_table_dec_refcount(mv_type_long);
   mf_table_dec_refcount(mv_type_string);
+  mf_table_dec_refcount(mv_type_bstring);
   mf_table_dec_refcount(mv_type_list);
+  mf_table_dec_refcount(mv_type_tuple);
   mf_table_dec_refcount(mv_type_function);
   mf_table_dec_refcount(mv_type_dict);
   mf_table_dec_refcount(mv_type_range);
+  mf_table_dec_refcount(mv_type_array);
 
   mf_table_dec_refcount(mv_type_iterable);
   mf_table_dec_refcount((mt_table*)mv_empty);
@@ -556,14 +578,20 @@ void mf_vm_delete(void){
 void mf_argc_error_sub(int argc, mt_function* f){
   char a[100];
   mt_bstr bs;
-  int min = f->argc_min;
-  int max = f->argc_max==INT_MAX? -1: f->argc_max;
+  int min,max;
+  if(f->argc<0){
+    min = f->argc_min;
+    max = f->argc_max==INT_MAX? -1: f->argc_max;
+  }else{
+    min = f->argc;
+    max = f->argc;
+  }
   if(f->name){
     mf_encode_utf8(&bs,f->name->size,f->name->a);
     mf_argc_error(argc,min,max,(char*)bs.a);
     mf_free(bs.a);
   }else{
-    snprintf(a,100,"function %p",f);
+    snprintf(a,100,"function %p",(void*)f);
     mf_argc_error(argc,min,max,a);
   }
 }
@@ -591,7 +619,7 @@ void traceback_lambda(mt_function* f, unsigned char* instruction, mt_function* c
         mf_free(s.a);
         mf_traceback(a);
       }else{
-        snprintf(a,200,"function %p (%i:%i)%s ",f,line,col,id);
+        snprintf(a,200,"function %p (%i:%i)%s ",(void*)f,line,col,id);
         mf_traceback(a);
       }
     }else{
@@ -601,7 +629,7 @@ void traceback_lambda(mt_function* f, unsigned char* instruction, mt_function* c
         mf_free(s.a);
         mf_traceback(a);
       }else{
-        snprintf(a,200,"function %p",f);
+        snprintf(a,200,"function %p",(void*)f);
         mf_traceback(a);
       }
     }
@@ -639,7 +667,7 @@ void print_byte_code(long ip, unsigned char* a){
   int n=*a;
   int line=*(uint16_t*)(a+1);
   int col=*(uint8_t*)(a+3);
-  int i;
+  unsigned int i;
   printf("%02li [%02i:%02i] ",ip,line,col);
   for(i=0; i<sizeof(byte_code_tab)/sizeof(byte_code_tab[0]); i++){
     if(byte_code_tab[i].n==n){
@@ -733,6 +761,7 @@ int mf_call(mt_function* f, mt_object* x, int argc, mt_object* v){
       return 1;
     }
   }
+  // #stack
   frame->fp=function_self;
   function_self=f;
   base_pointer=v;
@@ -1204,7 +1233,7 @@ int mf_vm_eval(unsigned char* a, long ip){
         sp--;
       }
       break;
-    case CALL:
+    case CALL: // #stack
       argc = *(int32_t*)(a+ip+BC);
       argcp1 = argc+1;
       assert(sp>argc);
@@ -1228,7 +1257,7 @@ int mf_vm_eval(unsigned char* a, long ip){
         f = (mt_function*)p1->value.p;
       }
       address = f->address;
-      if(address==NULL){
+      if(address==NULL){ // #stack
         mt_object y;
         stack_pointer=sp;
 
@@ -1240,9 +1269,9 @@ int mf_vm_eval(unsigned char* a, long ip){
         function_self=frame->fp;
 
         if(e) goto error;
-        mf_dec_refcounts(argcp1+1,stack+sp-argcp1-1);
-        sp=sp-argcp1;
-        mf_copy(stack+sp-1,&y);
+        mf_dec_refcounts(argcp1+1,stack+sp-argcp1-1); // #stack
+        sp=sp-argcp1; // #stack
+        mf_copy(stack+sp-1,&y); // #stack
         ip+=BCp4;
         break;
       }
@@ -1270,15 +1299,16 @@ int mf_vm_eval(unsigned char* a, long ip){
         }
       }
       int varcount = f->varcount;
-      base_pointer=stack+sp-argcp1;
-      vars=stack+sp;
-      var_pointer=vars;
-      sp+=varcount;
+      base_pointer=stack+sp-argcp1; // #stack
+      vars=stack+sp; // #stack
+      var_pointer=vars; // #stack
+      sp+=varcount; // #stack
       stack_pointer=sp;
       for(i=0; i<varcount; i++){
         vars[i].type=mv_null;
       }
 
+      // #stack
       frame->fp=function_self;
       function_self=f;
       frame->ip=ip;
@@ -1318,6 +1348,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       varcount=frame->varcount;
       a=frame->data;
 
+      // #stack
       sp=stack_pointer;
       if(retv>0){
         traceback_lambda(function_self,a+ip,frame->fp);
@@ -1496,6 +1527,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=BC;
       break;
     case RET:
+      // #stack
       stack_pointer=sp;
       retv=0;
       if(frame->ret){
@@ -1546,6 +1578,7 @@ int mf_vm_eval(unsigned char* a, long ip){
     }
   }
   error:
+  // #stack
   stack_pointer=sp;
   if(!exception_address){
     exception_address=a+ip;
@@ -1609,6 +1642,7 @@ void mf_vm_set_program(mt_module* module){
   base_pointer=vm_stack;
   global_function->gtab=mv_gvtab;
   function_self=global_function;
+  mv_module = module;
 
   module->refcount++;
   function_self->module=module;
@@ -1687,7 +1721,8 @@ typedef struct{
   long stack_pointer;
   mt_object* base_pointer;
   mt_function* function_pointer;
-  mt_list* string_pool;
+  // mt_list* string_pool;
+  mt_module* module;
 } mt_process_context;
 
 typedef struct{
@@ -1704,6 +1739,7 @@ void mf_save_process_context(mt_process_context* context){
   context->stack_pointer = stack_pointer;
   context->base_pointer = base_pointer;
   context->function_pointer = function_self;
+  context->module = mv_module;
 }
 
 static
@@ -1713,6 +1749,7 @@ void mf_restore_process_context(mt_process_context* context){
   stack_pointer = context->stack_pointer;
   base_pointer = context->base_pointer;
   function_self = context->function_pointer;
+  mv_module = context->module;
 }
 
 int mf_eval_fiber(mt_fiber* fiber, mt_module* module, long ip){
@@ -1733,6 +1770,8 @@ int mf_eval_fiber(mt_fiber* fiber, mt_module* module, long ip){
   function_self->module=module;
   module->string_pool=mf_load_data(module->data);
   function_self->data=module->string_pool->a;
+  mv_module = module;
+
   int e = mf_vm_eval(module->program,ip);
   fiber->stack=vm_stack;
   fiber->stack_pointer=stack_pointer;

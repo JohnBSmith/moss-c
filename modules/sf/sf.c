@@ -48,7 +48,7 @@ double complex cgammapz(double complex z){
     771.32342877765313, -176.61502916214059, 12.507343278686905,
     -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
   };
-  z--;
+  z-=1;
   double complex y=p[0];
   int i;
   for(i=1; i<9; i++){
@@ -82,7 +82,7 @@ static
 double digamma_positive(double x){
   double s=0;
   while(x<10){
-    s-=1/x; x++;
+    s-=1/x; x+=1;
   }
   double x2,x4,x8,x10;
   x2=x*x; x4=x2*x2; x8=x4*x4; x10=x8*x2;
@@ -105,7 +105,7 @@ static
 double complex cdigamma_positive(double complex x){
   double complex s=0;
   while(creal(x)<10){
-    s-=1/x; x++;
+    s-=1/x; x+=1;
   }
   double complex x2,x4,x8,x10;
   x2=x*x; x4=x2*x2; x8=x4*x4; x10=x8*x2;
@@ -377,6 +377,7 @@ double PU(long n, double x){
     long k;
     for(k=2; k<=n; k++){
       h=2*x*b-a;
+      a=b; b=h;
     }
     return b;
   }
@@ -1055,6 +1056,7 @@ int sf_test(mt_object* x, int argc, mt_object* v){
         return 1;
       }
       x->type=mv_float;
+      x->value.f=t;
       // x->value.f = gsl_sf_psi(t);
       return 0;
     }

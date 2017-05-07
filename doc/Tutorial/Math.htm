@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -96,7 +96,7 @@ A&lt;=B, A&lt;B
 <tr>
 <td><img src="../img/capcup.png">
 <td><pre class="moss">
-A|B, A&amp;B
+A&amp;B, A|B
 </pre>
 <td>intersection, union
 
@@ -110,7 +110,7 @@ A|B, A&amp;B
 <tr>
 <td><img src="../img/case.png">
 <td><pre class="moss">
-a?x:y
+a if c else b
 </pre>
 <td>distinction of cases
 
@@ -140,7 +140,7 @@ f.dom = a..b
 <td><pre class="moss">
 [a,b,c]
 </pre>
-<td>tuple
+<td>tuples
 
 <tr>
 <td><img src="../img/cart.png">
@@ -217,7 +217,7 @@ M.count(|x| p(x))
 <tr>
 <td><img src="../img/image.png">
 <td><pre class="moss">
-A.map(f)
+f[A]
 </pre>
 <td>image of a function
 </table>

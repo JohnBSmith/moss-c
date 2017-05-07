@@ -15,7 +15,7 @@ function toc(){
   b.push(begin);
   for(var i=0; i<a.length; i++){
     var h=a[i];
-    var date="<span style='color: #a09080'>["+h.getAttribute("data-date")+"]</span>";
+    var date="<span style='color: #a09080'>["+h.getAttribute("data-date")+"]</span> ";
     if(h.id){
       b.push("<li>"+date+" <a href='#"+h.id+"'>"+h.innerHTML+"</a>");
     }else{

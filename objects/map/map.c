@@ -734,8 +734,7 @@ int mf_map_subset(mt_map* x, mt_map* y){
   return 1;
 }
 
-static
-mt_map* list_to_set(mt_list* list){
+mt_map* mf_list_to_set(mt_list* list){
   mt_map* m = mf_empty_map();
   int error=0;
   uint32_t hash;
@@ -764,7 +763,7 @@ int mf_fset(mt_object* x, int argc, mt_object* v){
     mf_traceback("set");
     return 1;
   }
-  mt_map* m = list_to_set(list);
+  mt_map* m = mf_list_to_set(list);
   mf_list_dec_refcount(list);
   if(m==NULL) return 1;
   x->type=mv_map;

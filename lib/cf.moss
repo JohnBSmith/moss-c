@@ -70,7 +70,7 @@ end
 
 sub s1(n,k)
   if n==0
-    return k==0? 1: 0
+    return 1 if k==0 else 0
   elif k==0
     return 0
   else
@@ -88,7 +88,7 @@ s1.m={}
 
 sub s2(n,k)
   if n==0
-    return k==0? 1: 0
+    return 1 if k==0 else 0
   elif k==0
     return 0
   else
@@ -109,7 +109,7 @@ sub bracket(n,k)
   if n<0 and k<0
     return brace(-k,-n)
   else
-    return n<k? 0: s1(n,k)
+    return 0 if n<k else s1(n,k)
   end
 end
 
@@ -118,14 +118,14 @@ sub brace(n,k)
   if n<0 and k<0
     return bracket(-k,-n)
   else
-    return n<k? 0: s2(n,k)
+    return 0 if n<k else s2(n,k)
   end
 end
 
 # Eulerian numbers
 sub angle(n,k)
   if n==0
-    return k==0? 1: 0
+    return 1 if k==0 else 0
   elif k<0
     return 0
   else
@@ -144,7 +144,7 @@ angle.m={}
 # second-order Eulerian numbers
 sub aangle(n,k)
   if n==0
-    return k==0? 1: 0
+    return 1 if k==0 else 0
   elif k<0
     return 0
   else

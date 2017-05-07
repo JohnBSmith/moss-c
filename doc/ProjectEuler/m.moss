@@ -1,0 +1,27 @@
+
+isprime = |n| n>1 and (2..).until(|i| i*i>n).all(|i| n%i!=0)
+
+sub factor(n)
+  primes = (2..).filter(isprime)
+  a=[]
+  for p in primes
+    e = (1..).until(|k| n%(p^k)!=0).count()
+    if e!=0
+      a.push([p,e])
+      n=n//p^e
+    end
+    if p>n
+      break
+    end
+  end
+  return a
+end
+
+
+# p = factor(600851475143).max(|t| t[0])[0]
+# print(p)
+
+a = factor(600851475143)
+print(a)
+
+

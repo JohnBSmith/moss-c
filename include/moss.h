@@ -11,6 +11,13 @@
 // MOSS_LEVEL1: no MOSS_LEVEL2, no GNU readline, no LibGMP
 // MOSS_LEVEL0: no MOSS_LEVEL1, no POSIX
 
+#ifdef MOSS_LEVEL0
+  #define MOSS_LEVEL1
+#endif
+#ifdef MOSS_LEVEL1
+  #define MOSS_LEVEL2
+#endif
+
 void* mf_malloc(size_t size);
 #define mf_free free
 

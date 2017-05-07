@@ -16,6 +16,7 @@ typedef struct{
 } char_class_item;
 
 typedef struct{
+  char inversion;
   size_t size;
   char_class_item a[];
 } char_class;
@@ -138,7 +139,7 @@ void regex_ast_delete(regex_ast_node* p){
 static
 void ast_buffer_delete(mt_vec* v){
   regex_ast_node** a = (regex_ast_node**)v->a;
-  size_t k;
+  long k;
   for(k=0; k<v->size; k++){
     regex_ast_delete(a[k]);
   }
@@ -175,24 +176,49 @@ regex_ast_node* class_node(token_iterator* i){
   mt_vec v;
   mf_vec_init(&v,sizeof(char_class_item));
   char_class_item item;
+  char inversion=0;
   while(1){
-    if(empty_iterator(i)){
-      syntax_error(i,"expected a character.");
-      mf_vec_delete(&v);
-      return NULL;
-    }
+    if(empty_iterator(i)) goto empty;
     unsigned long c = i->a[i->index].c;
     i->index++;
-    if(c==']'){
-      break;
+    if(c==']') break;
+    if(c=='^'){
+      inversion=1;
+      continue;
     }
-    item.type=RANGE;
-    item.a=c; item.b=c;
+    if(empty_iterator(i)) goto empty;
+    unsigned long op = i->a[i->index].c;
+    if(op=='-'){
+      i->index++;
+      if(empty_iterator(i)) goto empty;
+      unsigned long d = i->a[i->index].c;
+      i->index++;
+      item.type=RANGE;
+      item.a=c; item.b=d;
+    }else if(c=='{'){
+      if(empty_iterator(i)) goto empty;
+      unsigned long u = i->a[i->index].c;
+      i->index++;
+      if(empty_iterator(i)) goto empty;
+      i->index++;
+      item.type=RANGE;
+      if(u=='s') u=' ';
+      else if(u=='n') u='\n';
+      else if(u=='t') u='\t';
+      else if(u=='L') u='{';
+      else if(u=='R') u='}';
+      else if(u=='.') u='.';
+      item.a=u; item.b=u;
+    }else{
+      item.type=RANGE;
+      item.a=c; item.b=c;
+    }
     mf_vec_push(&v,&item);
   }
   char_class* p = mf_malloc(
     sizeof(char_class)+v.size*sizeof(char_class_item)
   );
+  p->inversion=inversion;
   p->size=v.size;
   long k;
   char_class_item* a = (char_class_item*)v.a;
@@ -202,6 +228,11 @@ regex_ast_node* class_node(token_iterator* i){
   regex_ast_node* y = new_node(0,CLASS);
   y->value.class=p;
   return y;
+  
+  empty:
+  syntax_error(i,"expected a character.");
+  mf_vec_delete(&v);
+  return NULL;
 }
 
 static
@@ -322,7 +353,7 @@ regex_ast_node* operand(token_iterator* i){
   }
   regex_ast_node* y = new_node(v.size,REGEX);
   regex_ast_node** a = (regex_ast_node**)v.a;
-  size_t k;
+  long k;
   for(k=0; k<v.size; k++){
     y->a[k]=a[k];
   }
@@ -434,12 +465,19 @@ int match(regex_ast_node* p, string_iterator* i, int level){
     unsigned long c = i->a[i->index];
     i->index++;
     size_t k;
-    for(k=0; k<p->value.class->size; k++){
-      if(p->value.class->a[k].a<=c && c<=p->value.class->a[k].b){
-        return 1;
+    size_t size = p->value.class->size;
+    char_class_item* a = p->value.class->a;
+    if(p->value.class->inversion){
+      for(k=0; k<size; k++){
+        if(a[k].a<=c && c<=a[k].b) return 0;
       }
+      return 1;
+    }else{
+      for(k=0; k<size; k++){
+        if(a[k].a<=c && c<=a[k].b) return 1;
+      }
+      return 0;
     }
-    return 0;
   }
   case SCLASS:
     switch(p->value.c){

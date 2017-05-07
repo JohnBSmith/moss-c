@@ -8,5 +8,7 @@ cd make
 (cd win && rm -f moss-win.zip)
 (cd clang/bin && rm -f *.o)
 (cd clang && rm -f moss)
+(cd static/bin && rm -f *.o)
+(cd static && rm -f moss)
 
 

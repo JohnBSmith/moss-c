@@ -94,7 +94,7 @@ function syntax(s){
       s2+="<span class='bracket'>"+c+"</span>";
       i++;
     }else if(c=='+' || c=='-' || c=='*' || c=='/' || c=='|' ||
-      c=='.' || c=='=' || c=='!' || c==':' || c=='%' || c=='^'
+      c=='.' || c=='=' || c=='!' || c==':' || c=='%' || c=='^' || c=='$'
     ){
       s2+="<span class='symbol'>"+c+"</span>";
       i++;

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Input and output</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/syntax.js">
+  </script>
+</head>
+<body>
+
+<h1>Input and output</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Command-line">Command-line</a>
+<li><a href="#String-formatting">String formatting</a>
+</ol>
+</div>
+
+<h2 id="Command-line">Command-line</h2>
+
+<p>For command-line input, a function called <code>input</code>
+is used. It takes an optional argument: the prompt, that is
+simply a text printed before one can type input into the input
+line. And it returns a string, containing the text that was
+typed. Here is a most basic example:
+<pre class="moss">
+s = input("Please type something and press return: ")
+print("Input was: '", s, "'".)
+</pre>
+<p>That input string can be converted into an integer or
+a floating point number:
+<pre class="moss">
+s = input("> ")
+print([s,int(s),float(s)])
+</pre>
+
+<p>For command-line output, the function <code>print</code>
+is used. It takes any number of arguments, converts its arguments
+into strings and joins them together.
+<pre class="moss">
+&gt; print("a",12,"|",3.4,[1,2])
+# Output:
+# a12|3.4[1, 2]
+</pre>
+<p>That is to say, the equation
+<pre class="moss">
+  print(x,y,z) == print([x,y,z].join())
+  == print([x,y,z].map(str).join())
+</pre>
+<p>holds. This allows us to express an alternative version
+of <code>print</code> that takes a separator.
+<pre class="moss">
+sub Print(a,sep)
+  print(a.join(sep))
+end
+
+Print([1,2,3],"|")
+# Output:
+# 1|2|3
+</pre>
+
+<h2 id="String-formatting">String formatting</h2>
+
+<p>Let us have a look one the following example.
+<pre class="moss">
+for x in 1..8
+  print([x,2^x])
+end
+</pre>
+<p>We would like it to be printed in tabular format.
+This is achieved as follows.
+<pre class="moss">
+for x in 1..8
+  print("{} | {3}" % [x,2^x])
+end
+
+# Leading zeros
+for x in 1..8
+  print("{} | {3(0)}" % [x,2^x])
+end
+
+# Fill the space with dots
+for x in 1..8
+  print("{}{5(.)}" % [x,2^x])
+end
+</pre>
+<p>The number after the left brace is for padding, and causes
+right alignment by default. One can specify the template string
+parametrically by usage of <code>join</code>.
+
+<pre class="moss">
+padding = 3
+template = ["{} | {", padding, "(0)}"].join()
+for x in 1..8
+  print(template % [x,2^x])
+end
+</pre>
+
+<p>Note that <code>print(x,y,z)</code>
+is the same as <code>print([x,y,z].join())</code>.
+For oversight, have a look on the following table.
+
+<table class="bt">
+<tr>
+<th>
+<th>Print sth. to the command-line
+<th>Convert sth. into a string
+<tr>
+<th>basic
+<td><code>print(x,y,z)</code>
+<td><code>s = [x,y,z].join()</code>
+<tr>
+<th>formatted
+<td><code>print(template % [x,y,z])</code>
+<td><code>s = template % [x,y,z]</code>
+</table>
+
+<p>But if an integer <code>n</code> is to be converted into a string,
+<code>str(n)</code> can be used simply instead of
+<code>[n].join()</code>.
+
+</body>
+</html>
+

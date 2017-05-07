@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -8,6 +8,7 @@
 </head>
 <body>
 
+<br>
 <pre class="moss">
 # Problem 1: Multiples of 3 and 5
 # If we list all the natural numbers below 10 that are multiples
@@ -35,7 +36,22 @@ print(s)
 # The prime factors of 13195 are 5, 7, 13 and 29.
 # What is the largest prime factor of the number 600851475143?
 
-use nt: factor
+isprime = |n| n&gt;1 and (2..).until(|i| i*i&gt;n).all(|i| n%i!=0)
+
+sub factor(n)
+  primes = (2..).filter(isprime)
+  a=[]
+  for p in primes
+    e = (1..).until(|k| n%(p^k)!=0).count()
+    if e!=0
+      a.push([p,e])
+      n=n//p^e
+    end
+    if p&gt;n: break end
+  end
+  return a
+end
+
 p = factor(600851475143).max(|t| t[0])[0]
 print(p)
 
@@ -70,7 +86,7 @@ print(largest(3))
 # positive number that is evenly divisible by all of the numbers
 # from 1 to 20?
 
-gcd = |a,b| b==0? a: gcd(b,a%b)
+gcd = |a,b| a if b==0 else gcd(b,a%b)
 lcm = |a| a.reduce(|x,y| x*y//gcd(x,y))
 print(lcm(1..20))
 

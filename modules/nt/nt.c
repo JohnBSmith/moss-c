@@ -153,9 +153,6 @@ void push_pe(mt_list* list, long p, long e){
 static
 mt_list* factor(long n){
   mt_list* list = mf_raw_list(0);
-  mt_list* t;
-  mt_object x;
-  x.type=mv_list;
   if(n<0){
     n=-n;
     push_pe(list,-1,1);

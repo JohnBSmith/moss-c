@@ -152,7 +152,7 @@ void mf_decode_utf8(mt_str* s, long size, const unsigned char* a){
 
 static
 int u32_to_multibyte(uint32_t c, unsigned char* a){
-  char a0,a1,a2;
+  unsigned char a0,a1,a2;
   if(c<0x80){
     a[0]=c;
     return 1;

@@ -18,7 +18,6 @@ extern int mode_network;
 extern int gv_argc;
 extern char** gv_argv;
 
-extern int input_nesting;
 extern mt_compiler_context compiler_context;
 void mf_vtoken_delete(mt_vec* v);
 
@@ -51,6 +50,7 @@ mt_module* mf_new_module(void){
   m->del = (void(*)(void*))module_delete;
   m->id=NULL;
   m->path=NULL;
+  m->main=0;
   m->program=NULL;
   m->data=NULL;
   m->string_pool=NULL;
@@ -74,7 +74,7 @@ int mf_get_path(char* buffer, size_t maxsize, size_t size, const char* id){
     if(id[i]=='/') break;
     i--;
   }
-  if(i+1>maxsize){
+  if(i+1>(long)maxsize){
     buffer[0]=0;
     return 1;
   }
@@ -120,11 +120,11 @@ void init_path_info(int argc, char** argv){
 void mf_get_complete_id(mt_bs* bid, const char* id, int size){
   if(size>0 && id[0]=='/'){
     mf_bs_push_cstr(bid,mv_path);
-    mf_bs_push(bid,size,id);
+    mf_bs_push(bid,size,(unsigned char*)id);
   }else{
-    mf_bs_push(bid,size,id);
+    mf_bs_push(bid,size,(unsigned char*)id);
   }
-  mf_bs_push(bid,1,"\0");
+  mf_bs_push(bid,1,(unsigned char*)"\0");
 }
 
 static
@@ -318,6 +318,7 @@ int eval_file(char* id){
   if(v.size>0){
     module = mf_new_module();
     module->id = mf_strdup(id);
+    module->main=1;
     e = mf_compile(&v,module);
     if(e){
       mf_module_dec_refcount(module);
@@ -327,7 +328,6 @@ int eval_file(char* id){
     e = mf_vm_eval_global(module,0);
     mf_module_dec_refcount(module);
   }
-  mf_vtoken_delete(&v);
   mf_free(input.a);
   return 0;
 
@@ -363,8 +363,8 @@ void eval_cmd(void){
   int e;
   mt_module* module;
   while(1){
-    input_nesting=0;
     input = mf_getline_hist("> ");
+    if(input==NULL){puts(""); break;}
     size = strlen(input);
     if(size>0 && input[0]=='/'){
       if(slash_cmd(size-1,input+1)){
@@ -377,15 +377,7 @@ void eval_cmd(void){
     }
     e = mf_scan(&v,(unsigned char*)input,size,0);
     free(input);
-    int line_counter=0;
-    while(e==0 && input_nesting>0){
-      if(v.size>0) v.size--;
-      mf_push_newline(&v,line_counter,-1);
-      input = mf_getline_hist("| ");
-      e = mf_scan(&v,(unsigned char*)input,strlen(input),line_counter);
-      free(input);
-      line_counter++;
-    }
+
     if(e==0 && v.size>0){
       module = mf_new_module();
       module->id = mf_strdup("command-line");
@@ -452,13 +444,13 @@ int main(int argc, char** argv){
   }
 
   if(option==OPTION_i && file_id.size>0){
-    error=eval_file(file_id.a);
+    error=eval_file((char*)file_id.a);
     if(error==0){
       compiler_context.mode_cmd=1;
       eval_cmd();
     }
   }else if(option==OPTION_c && file_id.size>0){
-    mt_module* m=compile_file(file_id.a);
+    mt_module* m=compile_file((char*)file_id.a);
     if(m==NULL){
       printf("Error: could not compile module.");
       error=1;
@@ -466,7 +458,7 @@ int main(int argc, char** argv){
       if(mf_module_save(m,"out.mb")) error=1;
     }
   }else if(file_id.size>0){
-    error=eval_file(file_id.a);
+    error=eval_file((char*)file_id.a);
   }else{
     compiler_context.mode_cmd=1;
     eval_cmd();
@@ -475,6 +467,10 @@ int main(int argc, char** argv){
   out:
   mf_vm_delete();
   mf_bs_delete(&file_id);
+  if(mv_path_list){
+    mf_list_dec_refcount(mv_path_list);
+    mv_path_list=NULL;
+  }
 
   return error;
 }

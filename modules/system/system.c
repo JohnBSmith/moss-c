@@ -36,7 +36,7 @@ const char* mv_path = "/usr/local/lib/moss";
 #endif
 
 static
-int mv_cp850[] = {
+unsigned int mv_cp850[] = {
 // 0x
   0, 0x263a, 0x263b, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
   0x25d8, 0x25cb, 0x25d9, 0x2642, 0x2640, 0x266a, 0x266b, 0x263c,
@@ -136,11 +136,47 @@ void mf_set_io_utf8(){
 }
 
 #ifdef _WIN32
-void mf_print_string(long size, uint32_t* a){
-  int i;
+void mf_print_string_cp850(long size, uint32_t* a){
+  long i;
   for(i=0; i<size; i++){
     printf("%c",utf32_to_cp850(a[i]));
   }
+}
+
+// See "http://bugs.python.org/issue1602#msg131657".
+void mf_print_stringW(long size, uint32_t* a){
+  HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+  if(console == INVALID_HANDLE_VALUE){
+    mf_print_string_cp850(size,a);
+    return;
+  }
+  uint16_t* b = mf_malloc(size*sizeof(uint16_t));
+  long i;
+  for(i=0; i<size; i++){
+    b[i]=a[i];
+  }
+  BOOL ok;
+  DWORD written=0;
+  long chunk;
+  uint16_t* text=b;
+
+  while(size!=0){
+    if(size>10000){
+      chunk = 10000;
+    }else{
+      chunk = size;
+    }
+    ok = WriteConsoleW(console, text, chunk, &written, NULL);
+    if(!ok) break;
+    text += chunk;
+    size -= chunk;
+  }
+  mf_free(b);
+}
+
+void mf_print_string(long size, uint32_t* a){
+  // mf_print_string_cp850(size,a);
+  mf_print_stringW(size,a);
 }
 #else
 void mf_print_string(long size, uint32_t* a){
@@ -195,9 +231,9 @@ char* mf_getline(const char* prompt){
   printf("%s",prompt);
   char* a = mf_malloc(10000);
   char* p=fgets(a,10000,stdin);
-  if(p==0){
+  if(p==NULL){
     mf_free(a);
-    return 0;
+    return NULL;
   }
   int size = strlen(a);
   char* s = mf_malloc(size);
@@ -216,7 +252,7 @@ char* mf_getline(const char* prompt){
 char* last_input;
 char* mf_getline_hist(const char* prompt){
   char* p = readline(prompt);
-  if(p==0) return 0;
+  if(p==NULL) return NULL;
   int size=strlen(p);
   if(size>0 && (last_input==0 || strcmp(p,last_input)!=0)){
     if(last_input!=0) mf_free(last_input);

@@ -19,16 +19,16 @@ turtle_type = table
   end, 
   sub move(d)
     x1=self.x; y1=self.y
-    direction=self.direction*tau
-    x2=x1+d*cos(direction)
-    y2=y1+d*sin(direction)
+    direction = self.direction*tau
+    x2 = x1+d*cos(direction)
+    y2 = y1+d*sin(direction)
     if self.pen_down
       self.canvas.line(x1,y1,x2,y2)
     end
     self.x=x2; self.y=y2
   end,
   sub pen(n)
-    self.pen_down = n==0? false: true
+    self.pen_down = (n!=0)
   end,
   sub idle
     c = self.canvas
@@ -41,10 +41,10 @@ turtle_type = table
     self.a.push([self.x,self.y,self.direction])
   end,
   sub pop
-    t=self.a.pop()
-    self.x=t[0]
-    self.y=t[1]
-    self.direction=t[2]
+    t = self.a.pop()
+    self.x = t[0]
+    self.y = t[1]
+    self.direction = t[2]
   end
 end
 

@@ -18,6 +18,7 @@ int mf_flist(mt_object* x, int argc, mt_object* v);
 int mf_fmap(mt_object* x, int argc, mt_object* v);
 int mf_fzip(mt_object* x, int argc, mt_object* v);
 int mf_funzip(mt_object* x, int argc, mt_object* v);
+int mf_img(mt_object* x, mt_function* f, int argc, mt_object* v);
 
 int mf_join(mt_vec* buffer, mt_list* list, mt_string* sep);
 int mf_list_slice(mt_object* x, mt_list* a, mt_range* r);

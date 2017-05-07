@@ -7,7 +7,7 @@
 #include <modules/bs.h>
 #include <moss.h>
 
-void mf_bs_set(mt_bs* s, const char* a, long size){
+void mf_bs_set(mt_bs* s, long size, const unsigned char* a){
   s->a = mf_malloc(size);
   memcpy(s->a,a,size);
   s->size=size;
@@ -43,7 +43,7 @@ void mf_bs_push_raw(mt_bs* s, long size){
     while(capacity<n){
       capacity*=2;
     }
-    char* buffer=mf_malloc(capacity);
+    unsigned char* buffer=mf_malloc(capacity);
     memcpy(buffer,s->a,s->size);
     mf_free(s->a);
     s->a=buffer;
@@ -54,7 +54,7 @@ void mf_bs_push_raw(mt_bs* s, long size){
   }
 }
 
-void mf_bs_push(mt_bs* s, long size, const char* a){
+void mf_bs_push(mt_bs* s, long size, const unsigned char* a){
   long n = s->size+size;
   long capacity=s->capacity;
   if(n>capacity){
@@ -62,7 +62,7 @@ void mf_bs_push(mt_bs* s, long size, const char* a){
     while(capacity<n){
       capacity*=2;
     }
-    char* buffer = mf_malloc(capacity);
+    unsigned char* buffer = mf_malloc(capacity);
     memcpy(buffer,s->a,s->size);
     memcpy(buffer+s->size,a,size);
     mf_free(s->a);
@@ -77,11 +77,9 @@ void mf_bs_push(mt_bs* s, long size, const char* a){
 
 void mf_bs_push_cstr(mt_bs* s, const char* a){
   long size = strlen(a);
-  mf_bs_push(s,size+1,a);
+  mf_bs_push(s,size+1,(unsigned char*)a);
   s->size--;
 }
-
-
 
 void mf_bu32_init(mt_bu32* b, unsigned long capacity){
   b->size=0;

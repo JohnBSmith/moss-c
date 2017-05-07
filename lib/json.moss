@@ -91,12 +91,12 @@ sub scan(s)
         end
         i++; col++
       end
-      x = (f?float:int)(s[j..i-1])
+      x = (float if f else int)(s[j..i-1])
       if negate
         negate=false
         x=-x
       end
-      a.push([f?Tfloat:Tint,x,line,hcol])
+      a.push([Tfloat if f else Tint,x,line,hcol])
     elif c.isalpha()
       j=i; hcol=col
       while i<n and s[i].isalpha()
@@ -275,12 +275,12 @@ end
 
 sub json_float_repr(x)
   if isnan(x)
-    return mode_nan? "NaN": "\dNaN\d"
+    return "NaN" if mode_nan else "\dNaN\d"
   elif isinf(x)
     if x<0
-      return mode_nan? "-Infinity": "\d-Infinity\d"
+      return "-Infinity" if mode_nan else "\d-Infinity\d"
     else
-      return mode_nan? "Infinity": "\dInfinity\d"
+      return "Infinity" if mode_nan else "\dInfinity\d"
     end
   else
     return str(x)
@@ -390,7 +390,7 @@ sub dump_rec_compressed(a,x)
 end
 
 sub dump(x,*argv)
-  t = size(argv)!=0?argv[0]:{}
+  t = argv[0] if size(argv)!=0 else {}
   global mode_nan
   mode_nan = "nan" in t
   a=[]

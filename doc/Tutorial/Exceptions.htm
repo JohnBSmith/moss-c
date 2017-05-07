@@ -1,9 +1,9 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>Exceptions</title>
-  <link rel="stylesheet" href="../css/main.css">
+  <link href="../css/main.css" rel="stylesheet">
   <script src = "../js/syntax.js">
   </script>
 </head>
@@ -66,7 +66,7 @@ additional information.
 <pre class="moss">
 sub pcall(f,*argv)
   try
-    y = f[argv]
+    y = f.apply(argv)
     success = true
   catch e
     y = e

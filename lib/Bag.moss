@@ -13,7 +13,7 @@ bag.type = table
     iter(self.d)
   end,
   sub GET(x)
-    x in self.d? self.d[x]: 0
+    self.d[x] if x in self.d else 0
   end,
   sub RIN(b)
     self in b.d and b.d[self]!=0
@@ -29,15 +29,13 @@ bag.type = table
   sub EQ(b)
     self.d==b.d
   end,
-  sub ADD(b)
-    a = self
+  sub ADD(a;b)
     m = set(a)|set(b)
     table[bag.type]
       d=dict(m.map(|x| [x,a[x]+b[x]]))
     end
   end,
-  sub BOR(b)
-    a = self
+  sub BOR(a;b)
     m = set(a)|set(b)
     table[bag.type]
       d=dict(m.map(|x| [x,max(a[x],b[x])]))

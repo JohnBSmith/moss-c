@@ -19,6 +19,14 @@ void mf_vec_delete(mt_vec* v){
   v->size=0;
 }
 
+void* mf_vec_move(mt_vec* v){
+  void* a = v->a;
+  v->a=NULL;
+  v->size=0;
+  v->capacity=0;
+  return a;
+}
+
 void mf_vec_push(mt_vec* v, void* data){
   unsigned char* a;
   if(v->size<v->capacity){

@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -52,17 +52,21 @@ end
 
 # The same is recommendable if string literals
 # have to be connected.
-s = ("a"
+s = (
+  "a"
   "b"
-  "c")
+  "c"
+)
 
-# An alternative.
-s = ("a"
-  +"b"
-  +"c")
+# This is equivalent to:
+s = [
+  "a",
+  "b",
+  "c"
+].join()
 
 # To allow line breaks inside of an import statement,
-# put a bracket right after 'use'.
+# put a parenthesis right after 'use'.
 use(math:
   pi, exp, ln,
   sin, cos, tan)

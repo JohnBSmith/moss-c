@@ -88,6 +88,7 @@ typedef struct{
   void (*del)(void*);
   char* id;
   char* path;
+  char main;
   long program_size;
   long data_size;
   unsigned char* program;

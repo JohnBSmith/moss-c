@@ -26,14 +26,14 @@ mt_tuple* mf_raw_tuple(long size){
   return t;
 }
 
-void mf_raise_empty(){
+void mf_raise_empty(void){
   mf_dec_refcount(&mv_exception);
   mv_empty->refcount++;
   mv_exception.type=mv_table;
   mv_exception.value.p=mv_empty;
 }
 
-int mf_empty(){
+int mf_empty(void){
   return mv_exception.type==mv_table && mv_exception.value.p==mv_empty;
 }
 
@@ -125,7 +125,7 @@ int function_id(mt_object* x, int argc, mt_object* v){
   mt_function* f = (mt_function*)v[0].value.p;
   if(f->name==NULL){
     char a[200];
-    snprintf(a,200,"%p",f);
+    snprintf(a,200,"%p",(void*)f);
     mt_string* s = mf_cstr_to_str(a);
     x->type=mv_string;
     x->value.p=(mt_basic*)s;
@@ -217,6 +217,7 @@ int string_next(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+/*
 static
 int crange_next(mt_object* x, int argc, mt_object* v){
   mt_object* a=function_self->context->a;
@@ -243,6 +244,7 @@ int crange_next(mt_object* x, int argc, mt_object* v){
   x->value.p=(mt_basic*)c;
   return 0;
 }
+// */
 
 static
 int dict_next_key(mt_object* x, int argc, mt_object* v){
@@ -370,7 +372,7 @@ mt_function* float_range_iter(mt_range* r){
 }
 
 mt_function* mf_iter_range(mt_range* r){
-  long a,b,step;
+  long a;
   if(r->a.type==mv_int){
     a=r->a.value.i;
   }else if(r->a.type==mv_null){
@@ -917,7 +919,7 @@ int function_sum(mt_object* x, int argc, mt_object* v){
     s.value.i=0;
     while(1){
       if(mf_call(g,&t,0,argv)){
-        if(mf_empty){
+        if(mf_empty()){
           mf_copy(x,&s);
           return 0;
         }
@@ -983,7 +985,7 @@ int function_prod(mt_object* x, int argc, mt_object* v){
     p.value.i=1;
     while(1){
       if(mf_call(g,&t,0,argv)){
-        if(mf_empty){
+        if(mf_empty()){
           mf_copy(x,&p);
           return 0;
         }
@@ -1314,7 +1316,6 @@ int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
     return 1;
   }
   mt_list* list = (mt_list*)a->value.p;
-  mt_object y;
   if(f->argc==-1){
     mt_object argv[2];
     argv[0].type=mv_null;
@@ -1343,6 +1344,25 @@ int mf_apply(mt_function* f, mt_object* x, mt_object* self, mt_object* a){
     }
     mf_free(args);
     return 0;
+  }
+}
+
+static
+int function_apply(mt_object* x, int argc, mt_object* v){
+  if(v[0].type!=mv_function){
+    mf_type_error1("in f.apply: f (type: %s) is not a function.",&v[0]);
+    return 1;
+  }
+  mt_function* f = (mt_function*)v[0].value.p;
+  if(argc==1){
+    if(mf_apply(f,x,NULL,v+1)) return 1;
+    return 0;
+  }else if(argc==2){
+    if(mf_apply(f,x,v+1,v+2)) return 1;
+    return 0;
+  }else{
+    mf_argc_error(argc,1,2,"apply");
+    return 1;
   }
 }
 
@@ -1448,6 +1468,7 @@ void mf_init_type_function(mt_table* type){
   mf_insert_function(m,1,1,"orbit",function_orbit);
   mf_insert_function(m,0,0,"omit",function_omit);
   mf_insert_function(m,0,0,"next",function_next);
+  mf_insert_function(m,1,2,"apply",function_apply);
 
   mf_insert_function(m,0,1,"all",function_all);
   mf_insert_function(m,0,1,"any",function_any);

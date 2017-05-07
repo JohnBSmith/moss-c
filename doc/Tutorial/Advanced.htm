@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -79,7 +79,7 @@ recursive definition of the Fibonacci-squence.
 </p>
 
 <pre class="moss">
-fib = |n| if n==1 or n==2 then 1 else fib(n-1)+fib(n-2) end
+fib = |n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2)
 </pre>
 
 <p>If <code>n</code> increases by one, the number of needed calls
@@ -111,7 +111,7 @@ fix = sub|F|
   end
 end
 
-fib = fix(|f,n| if n==1 or n==2 then 1 else f(n-1)+f(n-2) end)
+fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
 </pre>
 
 

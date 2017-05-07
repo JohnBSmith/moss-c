@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -20,6 +20,7 @@
 <li><a href="#strings">Strings</a>
 <li><a href="#lists">Lists</a>
 <li><a href="#dictionarys">Dictionarys</a>
+<li><a href="#sets">Sets</a>
 <li><a href="#interpreter">How to use the interpreter</a>
 <li><a href="#comments">Comments</a>
 <li><a href="#cf">Control flow</a>
@@ -217,49 +218,45 @@ in the following way.</p>
   <th>Example data
   <th>Meaning
 <tr>
-  <td>bool
+  <td><code>bool</code>
   <td><code>false, true</code>
   <td>logical values
 <tr>
-  <td>int
+  <td><code>int</code>
   <td><code>0, 1, 2, -1</code>
   <td>integer numbers
 <tr>
-  <td>float
+  <td><code>float</code>
   <td><code>0.0, 4.2, 1/3</code>
   <td>floating point numbers
 <tr>
-  <td>complex
+  <td><code>complex</code>
   <td><code>1i, 2+4i, -3.2i</code>
   <td>complex numbers
 <tr>
-  <td>str
+  <td><code>str</code>
   <td><code>"", "ab"</code>
   <td>strings of characters
 <tr>
-  <td>bstr
+  <td><code>bstr</code>
   <td><code>b{}, b{4142}</code>
   <td>strings of bytes
 <tr>
-  <td>list
+  <td><code>list</code>
   <td><code>[], [1,2]</code>
   <td>lists of elements
 <tr>
-  <td>dict
+  <td><code>dict</code>
   <td><code>{}, {a=1, b=2}</code>
   <td>dictionarys of key-value pairs
 <tr>
-  <td>range
+  <td><code>range</code>
   <td><code>1..10, (1..)</code>
   <td>ranges of elements
 <tr>
-  <td>function
+  <td><code>function</code>
   <td><code>|x| 2*x</code>
   <td>functions, subprograms
-<tr>
-  <td>ast
-  <td><code>q{2*x}</code>
-  <td>symbolic expressions
 </table>
 
 <h2 id="functions">Functions</h2>
@@ -271,7 +268,7 @@ and store it in the variable <code>f</code>.
 </p>
 
 <pre class="moss">
-&gt; f = sub|x| 4+2*x end
+&gt; f = |x| 4+2*x
 </pre>
 
 <p>This is a function wich takes the value of the variable
@@ -280,7 +277,6 @@ as output. The <code>x</code> is a variable,
 but it is bound to the function because it appears between
 the vertical bars. Because of this the variable <code>x</code>
 is called <em>formal argument</em> of the function.
-</p>
 
 <p>Now, if <code>a</code> is some
 number, we can write <code>f(a)</code> to calculate the value
@@ -288,7 +284,6 @@ of <code>4+2*a</code>. The number <code>a</code> is called <em>actual
 argument</em> of the function. This makes us able to compute the
 values without typing in the same pattern again and again.
 Think of much longer patterns.
-</p>
 
 <pre class="moss">
 &gt; [f(1),f(2),f(3),f(4)]
@@ -313,7 +308,7 @@ are separated there by commata.
 </p>
 
 <pre class="moss">
-&gt; g = sub|x,y| x*y end
+&gt; g = |x,y| x*y
 &gt; g(3,4)
 12
 </pre>
@@ -322,36 +317,52 @@ are separated there by commata.
 </p>
 
 <pre class="moss">
-&gt; g = sub|x| sub|y| x*y end end
+&gt; g = |x| |y| x*y
 &gt; g(3)(4)
 12
 </pre>
 
 <p>The next way is to have a list as an argument instead.
-</p>
 
 <pre class="moss">
-&gt; g = sub|x| x[0]*x[1] end
+&gt; g = |x| x[0]*x[1]
 &gt; g([3,4])
 12
 </pre>
 
-<p>If the body of a function consists only of a single expression,
-the keywords "<code>sub</code>" and "<code>end</code>" may be omitted.
-</p>
-
+<p>If a function not only consists of a single expression, but of
+a sequence of statements, a longer syntax has to be used.
 <pre class="moss">
-# long form
-&gt; f = sub|x| 2*x end
+# (1) Short syntax
+f = |x| 2*x
 
-# short form
-&gt; f = |x| 2*x
+# (2) Longer syntax
+f = sub|x| 2*x end
+
+# (3) Full syntax
+f = sub|x| return 2*x end
+
+# (4) Function with private name "f"
+f = sub f|x| return 2*x end
+
+# (5) Equivalent to (4)
+sub f(x) return 2*x end
 </pre>
 
+<p>A function can contain statements and local variables.
+Here is an example, an approximation of the natural exponential
+function:
+<pre class="moss">
+sub exp(x)
+  u = x/64
+  y = 1 + u + u^2/2 + u^3/6 + u^4/24
+  return y^64
+end
+</pre>
 
 <h2 id="strings">Strings</h2>
 
-<p>In Moss all kinds of objects can be stored in variables.
+<p>In Moss, all kinds of objects can be stored in variables.
 A string of characters is also an object. The function
 <code>print</code> writes an object to the output.
 </p>
@@ -514,7 +525,7 @@ print(s)
 
 <h2 id="lists">Lists</h2>
 
-<p>In Moss lists are dynamic arrays (not doubly linked lists). This
+<p>In Moss, lists are dynamic arrays (not doubly linked lists). This
 is a fundamental, albeit easy to understand, data structure.
 </p>
 
@@ -646,7 +657,7 @@ express this by methods.
 [[0, "a"], [1, "b"], ["alpha", "c"]]
 </pre>
 
-<p>If the key is an identifier, there is a short notation.
+<p>If the key is an identifier, there is a shorthand notation.
 Instead of
 </p>
 <pre class="moss">
@@ -659,21 +670,22 @@ Instead of
 </pre>
 <p>But note that this is not the same as <code>{x:4,y:3}.</code>
 Before a colon, <code>x,y</code> are itself variables that should contain keys.
-</p>
 <pre class="moss">
 &gt; x="u"; y="v"
 &gt; {x:4,y:3} == {u=4,v=3}
 true
 </pre>
+
+<h2 id="sets">Sets</h2>
 <p>If the value of some key is omitted, <code>null</code> is
 taken as value.
 A dictionary with all values omitted can be used as a set.
 All set operations are supported (e.g. union, intersection,
 subset relation, universal quantifier).
-</p>
 <pre class="moss">
 &gt; {1,2} == {1:null, 2:null}
 true
+
 &gt; A = {1,2,3}
 &gt; B = {2,3,4}
 &gt; [A|B, A&amp;B, A-B, A$B]
@@ -682,16 +694,25 @@ true
 </pre>
 <p>One can use <code>set(a)</code> to convert an iterable
 object <code>a</code> into a set. A set is itself iterable.
-For any iterable object things like <code>map</code>
+For any iterable object, things like <code>map</code>
 and universal quantifier <code>all</code> are defined.
-</p>
 <pre class="moss">
 &gt; set(1..4)
 {1, 2, 3, 4}
+
 &gt; set((1..4).map(|x| 2*x))
 {2, 4, 6, 8}
+
 &gt; {2,4,6,8}.all(|x| x%2==0)
 true
+</pre>
+<p>But note that the elements of a set can be in any order.
+If you wish to pretty print a set, it should be converted into
+a list, so that it can be sorted.
+<pre class="moss">
+&gt; A = set(1..4)
+&gt; list(A).sort()
+[1, 2, 3, 4]
 </pre>
 
 <h2 id="interpreter">How to use the interpreter</h2>
@@ -972,31 +993,45 @@ end
 </pre>
 
 <h3 id="cond">Conditional expressions</h3>
-<p>Like conditional statements there are conditional expressions.
-They are much the same, but the keyword <code>"then"</code> is obligatory
-because in contrast to conditional statements the condition does not
-end with a line break. Let us take the factorial function as an example.
-</p>
-<pre class="moss">
-fac = sub|n|
-  return if n==0 then 1 else n*fac(n-1) end
-end
+<p>Conditional expressions are similar to conditional statements.
+
+<p>Let us take <code>x</code> to the power
+of <code>n</code> as an example. Powers with natural exponents
+can be defined recursively:
+<pre>
+  x<sup>0</sup> := 1,
+  x<sup>n</sup> := x*x<sup>n-1</sup> (n&gt;0).
 </pre>
-<p>If you are delighted by brevity:
-</p>
+
+<p>In this case the definition can be implemented without further
+ado:
 <pre class="moss">
-f = |n| n==0? 1: n*f(n-1)
+pow = |x,n| 1 if n==0 else x*pow(x,n-1)
 </pre>
 
 <p>A more complicated example:
-</p>
 <pre class="moss">
 theta = int(input("A temperature: "))
-print(if theta&lt;1 then "freezing"
-  elif theta&lt;6 then "cold"
-  elif theta&lt;17 then "fresh"
-  elif theta&lt;24 then "warm"
-  else "hot" end)
+print(
+  "freezing" if theta&lt; 1 else 
+  "cold"     if theta&lt; 6 else
+  "fresh"    if theta&lt;17 else
+  "warm"     if theta&lt;24 else
+  "hot"
+)
+
+# By means of an if-statement
+if theta&lt;1
+  print("freezing")
+elif theta&lt;6
+  print("cold")
+elif theta&lt;17
+  print("fresh")
+elif theta&lt;24
+  print("warm")
+else
+  print("hot")
+end
 </pre>
 
 
@@ -1077,7 +1112,8 @@ f = |x| m.sin(m.pi*x)
 use math: pi, s=sin, c=cos
 f = |x| s(pi*x)
 
-# qualify everything
+# qualification of everything
+# (should be avoided)
 use math:*
 f = |x| sin(pi*x)
 

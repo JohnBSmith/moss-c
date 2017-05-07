@@ -61,33 +61,33 @@ tplot3d = table
   end,
   sub scatter(a)
     canvas = self.canvas
-    c=cos(self.phi)
-    s=sin(self.phi)
+    c = cos(self.phi)
+    s = sin(self.phi)
     for t in a
       scatter3d(self,canvas,c,s,t[0],t[1],t[2])
     end
   end,
   sub box(a)
     canvas = self.canvas
-    c=cos(self.phi)
-    s=sin(self.phi)
+    c = cos(self.phi)
+    s = sin(self.phi)
     for t in a
       box3d(self,canvas,c,s,t[0],t[1],t[2])
     end
   end,
   sub plot(f,*argv)
-    t=size(argv)!=0?argv[0]:{}
+    t={} if size(argv)==0 else argv[0]
     canvas = self.canvas
-    c=cos(self.phi)
-    s=sin(self.phi)
-    px=self.px; wx=self.wx 
-    py=self.py; wy=self.wy
-    pz=self.pz; wz=self.wz
-    mx = "mx" in t? t["mx"]: self.mx
-    my = "my" in t? t["my"]: self.my
-    nx = "nx" in t? t["nx"]: self.nx
-    ny = "ny" in t? t["ny"]: self.ny
-    m = "m" in t? t["m"]: self.m
+    c = cos(self.phi)
+    s = sin(self.phi)
+    px = self.px; wx = self.wx 
+    py = self.py; wy = self.wy
+    pz = self.pz; wz = self.wz
+    mx = t["mx"] if "mx" in t else self.mx
+    my = t["my"] if "my" in t else self.my
+    nx = t["nx"] if "nx" in t else self.nx
+    ny = t["ny"] if "ny" in t else self.ny
+    m  = t["m"]  if "m"  in t else self.m
     canvas.cset(color_table[self.index%size(color_table)])
     self.index++
     for tx in -mx..mx
@@ -108,19 +108,19 @@ tplot3d = table
     end
   end,
   sub pplot(f,*argv)
-    t=size(argv)!=0?argv[0]:{}
+    t = {} if size(argv)==0 else argv[0]
     canvas = self.canvas
-    c=cos(self.phi)
-    s=sin(self.phi)
-    u1 = "u1" in t? t["u1"]: 0
-    u2 = "u2" in t? t["u2"]: 2*pi
-    v1 = "v1" in t? t["v1"]: 0
-    v2 = "v2" in t? t["v2"]: pi
-    mu = "mu" in t? t["mu"]: 20
-    mv = "mv" in t? t["mv"]: 20
-    nu = "nu" in t? t["nu"]: 400
-    nv = "nv" in t? t["nv"]: 400
-    m = "m" in t? t["m"]: self.m
+    c = cos(self.phi)
+    s = sin(self.phi)
+    u1 = t["u1"] if "u1" in t else 0.0
+    u2 = t["u2"] if "u2" in t else 2*pi
+    v1 = t["v1"] if "v1" in t else 0.0
+    v2 = t["v2"] if "v2" in t else pi
+    mu = t["mu"] if "mu" in t else 20.0
+    mv = t["mv"] if "mv" in t else 20.0
+    nu = t["nu"] if "nu" in t else 400.0
+    nv = t["nv"] if "nv" in t else 400.0
+    m  = t["m"]  if "m"  in t else self.m
     du = (u2-u1)/nu; Du = (u2-u1)/mu
     dv = (v2-v1)/nv; Dv = (v2-v1)/mv
     canvas.cset(0.4,0.4,0.5)
@@ -139,19 +139,19 @@ tplot3d = table
     end
   end,
   sub vplot(f,*argv)
-    t=size(argv)!=0?argv[0]:{}
+    t = {} if size(argv)==0 else argv[0]
     canvas = self.canvas
-    c=cos(self.phi)
-    s=sin(self.phi)
-    px=self.px; wx=self.wx 
-    py=self.py; wy=self.wy
-    pz=self.pz; wz=self.wz
-    n = "n" in t? t["n"]: self.n
-    m = "m" in t? t["m"]: self.m
-    t1 = "t1" in t? t["t1"]: 0
-    t2 = "t2" in t? t["t2"]: 2*pi
+    c = cos(self.phi)
+    s = sin(self.phi)
+    px = self.px; wx = self.wx 
+    py = self.py; wy = self.wy
+    pz = self.pz; wz = self.wz
+    n  = t["n"]  if "n"  in t else self.n
+    m  = t["m"]  if "m"  in t else self.m
+    t1 = t["t1"] if "t1" in t else 0.0
+    t2 = t["t2"] if "t2" in t else 2*pi
     d = (t2-t1)/n
-    shadow = "shadow" in t? t["shadow"]: true
+    shadow = t["shadow"] if "shadow" in t else true
     canvas.cset(color_table[self.index%size(color_table)])
     self.index++
     for t in t1..t2: d
@@ -169,25 +169,25 @@ tplot3d = table
 end
 
 sub system(*argv)
-  t = size(argv)!=0?argv[0]:{}
-  canvas=gx.new(gw,gh,1)
+  t = {} if size(argv)==0 else argv[0]
+  canvas = gx.new(gw,gh,1)
   canvas.font(16)
   s = table[tplot3d] canvas=canvas, index=0 end
-  s.px = "px" in t? t["px"]: 0
-  s.py = "py" in t? t["py"]: 0
-  s.pz = "pz" in t? t["pz"]: 0
-  s.wx = "wx" in t? t["wx"]: 10
-  s.wy = "wy" in t? t["wy"]: 10
-  s.wz = "wz" in t? t["wz"]: 10
-  s.phi = "phi" in t? t["phi"]: 0.2
+  s.px = t["px"] if "px" in t else  0.0
+  s.py = t["py"] if "py" in t else  0.0
+  s.pz = t["pz"] if "pz" in t else  0.0
+  s.wx = t["wx"] if "wx" in t else 10.0
+  s.wy = t["wy"] if "wy" in t else 10.0
+  s.wz = t["wz"] if "wz" in t else 10.0
+  s.phi = t["phi"] if "phi" in t else 0.2
   s.mx = 10; s.nx = 200
   s.my = 10; s.ny = 200
-  s.m=0.6*("m" in t?t["m"]:1)
+  s.m=0.6*(t["m"] if "m" in t else 1)
   s.n=1000
   canvas.clear(1,1,1)
   canvas.mix(0)
 
-  axes = "axes" in t? t["axes"]: true
+  axes = t["axes"] if "axes" in t else true
   if axes
     canvas.cset(0.5,0.5,0.5)
     cphi = cos(s.phi)

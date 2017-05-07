@@ -157,7 +157,7 @@ sub factor(i)
     if x[1]=="-"
       next_token(i)
       t = factor(i)
-      return type(t) is Tint? -t: ["*",[-1,t]]
+      return -t if type(t) is Tint else ["*",[-1,t]]
     elif x[1]=="+"
       next_token(i)
       return factor(i)
@@ -206,7 +206,7 @@ sub add(i)
         elif x[1]=="-"
           next_token(i)
           t = mpy(i)
-          a.push(type(t) is Tint? -t: ["*",[-1,t]])
+          a.push(-t if type(t) is Tint else ["*",[-1,t]])
         else
           break
         end
@@ -299,7 +299,7 @@ sub summand_to_string(u,first)
       return str(u)
     end
   end
-  return (first?"":"+")+ast_to_string(u)
+  return ("" if first else "+")+ast_to_string(u)
 end
 
 sub negation_to_string(t)

@@ -18,6 +18,7 @@ int mf_str_cmpmem(mt_string* s, long size, const char* a);
 int mf_str_cmp(mt_string* s1, mt_string* s2);
 void mf_init_type_string(mt_table* type);
 int mf_str_to_int(mt_object* x, mt_string* s);
+mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 int mf_str_get(mt_object* x, mt_string* s, mt_object* key);
 int mf_str_in_str(mt_string* a, mt_string* b);
 int mf_str_in_range(mt_string* s, mt_string* a, mt_string* b);

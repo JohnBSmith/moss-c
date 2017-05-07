@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Modules</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/syntax.js">
+  </script>
+</head>
+<body>
+
+<h1>Modules</h1>
+<div class="toc">
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#Main">Main program</a>
+<li><a href="#Dynamic-loading">Dynamic loading</a>
+</ol>
+</div>
+
+<h2 id="Main">Main program</h2>
+
+<p>A computer program consists of a number of subprograms.
+The root program shall be called <em>main</em>. It is located in the
+<em>main module</em>. But note that any library module can be
+used a main program as well. The following construction makes it
+possible:
+
+<pre class="moss">
+# File m1.moss
+use sys
+
+sub main(argv)
+  print("argv: ", argv)
+end
+
+if sys.main()
+  main(sys.argv)
+end
+</pre>
+
+<p>That variable <code>argv</code> (<em>argument vector</em>)
+contains the arguments that are given, if the program is called
+by an command-line interface. So
+<pre>
+$ moss m1 alpha beta gamma
+</pre>
+
+<p>performs as it would be called as follows:
+<pre class="moss">
+use m1
+
+m1.main(["m1", "alpha", "beta", "gamma"])
+</pre>
+
+
+<h2 id="Dynamic-loading">Dynamic loading</h2>
+
+<p>Usually, all modules are loaded at the start of a program.
+If there are many of them, initialization can take quite an amount
+of time. Also a module might need a large amount of memory space.
+
+<pre class="moss">
+use math
+
+sub main
+  print(math.exp(1))
+end
+</pre>
+
+<p>We can achive that module <code>math</code> is only loaded,
+if we call <code>main</code>:
+
+<pre class="moss">
+sub main
+  math = load("math")
+  print(math.exp(1))
+end
+</pre>
+
+<p>This technique is known as <em>dynamic loading</em>.
+
+</body>
+</html>
+

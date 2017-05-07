@@ -2,11 +2,11 @@
 use na: interpolate
 
 sub runge_kutta_first_order(t)
-  g=t["g"]
-  h="h" in t? t["h"]: 0.001
-  w="w" in t? t["w"]: 10
-  x0="t0" in t? t["t0"]: 0
-  y0="y0" in t? t["y0"]: 0
+  g = t["g"]
+  h = (t["h"] if "h" in t else 0.001)
+  w = (t["w"] if "w" in t else 10)
+  x0 = (t["t0"] if "t0" in t else 0)
+  y0 = (t["y0"] if "y0" in t else 0)
   N=int(w/abs(h))+1
   x=x0; y=y0
   a = [[x,y]]
@@ -39,11 +39,11 @@ sub runge_kutta_first_order(t)
 end
 
 sub runge_kutta_system(t)
-  g=t["g"]
-  h="h" in t? t["h"]: 0.001
-  w="w" in t? t["w"]: 10
-  x0="t0" in t? t["t0"]: 0
-  y0="y0" in t? t["y0"]: [0]
+  g = t["g"]
+  h = (t["h"] if "h" in t else 0.001)
+  w = (t["w"] if "w" in t else 10)
+  x0 = (t["t0"] if "t0" in t else 0)
+  y0 = (t["y0"] if "y0" in t else [0])
   N=int(w/abs(h))+1
   x=x0; y=copy(y0)
   a = [[x,y]]

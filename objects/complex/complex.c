@@ -2,6 +2,13 @@
 #include <objects/object.h>
 #include <math.h>
 
+#ifndef M_E
+  #define M_E 2.718281828459045
+#endif
+#ifndef M_PI
+  #define M_PI 3.141592653589793
+#endif
+
 static
 double sgn(double x){
   if(x<0) return -1;
