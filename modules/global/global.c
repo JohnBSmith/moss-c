@@ -36,6 +36,7 @@ extern mt_table* mv_type_array;
 extern mt_list* mv_traceback_list;
 extern mt_object mv_exception;
 extern mt_map* mv_gvtab;
+extern mt_exception mv_Exception;
 
 static
 long floor_div(long a, long b){
@@ -138,9 +139,18 @@ void mf_range_dec_refcount(mt_range* r){
 void mf_table_delete(mt_table* t){
   if(t->del){
     mt_object argv[1];
-    argv[0].type=mv_null;
+    argv[0].type = mv_table;
+    argv[0].value.p = (mt_basic*)t;
     mt_object y;
-    mf_call(t->del,&y,0,argv);
+    // y.type = mv_null;
+    if(mf_call(t->del,&y,0,argv)){
+      if(mf_print(&mv_exception)){
+        puts("Could not print exception.");
+      }
+      puts("Exception was raised in a destructor.");
+      puts("Aborting.");
+      exit(1);
+    }
     mf_dec_refcount(&y);
     mf_function_dec_refcount(t->del);
   }
@@ -1484,16 +1494,18 @@ int mf_tilde_dec(mt_object* x, mt_object* a){
 
 int mf_not_dec(mt_object* x, mt_object* a){
   if(a->type==mv_bool){
-    x->type=mv_bool;
-    x->value.b=!a->value.b;
+    x->type = mv_bool;
+    x->value.b = !a->value.b;
+    return 0;
+  }else if(a->type==mv_null){
+    x->type = mv_bool;
+    x->value.b = 1;
     return 0;
   }else{
-    mf_type_error1(
-      "in not a: 'not' is not defined for a (type: %s).",a
-    );
+    x->type = mv_bool;
+    x->value.b = 0;
     mf_dec_refcount(a);
-    x->type=mv_null;
-    return 1;
+    return 0;
   }
 }
 
@@ -3048,6 +3060,22 @@ mt_table* mf_table(mt_object* prototype){
   return t;
 }
 
+mt_table* mf_table_table(mt_table* t){
+  mt_table* y = mf_malloc(sizeof(mt_table));
+  y->refcount=1;
+  if(t){
+    t->refcount++;
+    y->prototype.type = mv_table;
+    y->prototype.value.p = (mt_basic*)t;
+  }else{
+    y->prototype.type=mv_null;
+  }
+  y->m=NULL;
+  y->name=NULL;
+  y->del=NULL;
+  return y;
+}
+
 int mf_table_literal(mt_object* x, mt_object* prototype, mt_object* m){
   if(m!=0 && m->type!=mv_map){
     mf_type_error("Type error in table: expected dictionary.");
@@ -3225,13 +3253,10 @@ void mf_insert_object(mt_map* m, const char* id, mt_object* x){
   mf_str_dec_refcount(key);
 }
 
-extern mt_table* mv_type_std_exception;
-void mf_str_exception(mt_string* s){
-  mt_object x;
-  x.type=mv_table;
-  x.value.p=(mt_basic*) mv_type_std_exception;
-  mt_table* t = mf_table(&x);
+void mf_str_exception(mt_table* type, mt_string* s){
+  mt_table* t = mf_table_table(type);
   t->m = mf_empty_map();
+  mt_object x;
   x.type=mv_string;
   x.value.p=(mt_basic*)s;
   s->refcount--;
@@ -3242,9 +3267,9 @@ void mf_str_exception(mt_string* s){
   mv_exception.value.p = (mt_basic*)t;
 }
 
-void mf_cstr_exception(const char* a){
+void mf_cstr_exception(mt_table* type, const char* a){
   mt_string* s = mf_cstr_to_str(a);
-  mf_str_exception(s);
+  mf_str_exception(type,s);
 }
 
 void mf_argc_error(int argc, int min, int max, const char* s){
@@ -3269,7 +3294,7 @@ void mf_argc_error(int argc, int min, int max, const char* s){
       snprintf(a,200,"Error in %s: expected %i..%i arguments, but got %i.",s,min,max,argc);
     }
   }
-  mf_cstr_exception(a);
+  mf_cstr_exception(mv_Exception.std,a);
 }
 
 void mf_new_traceback_list(void){
@@ -3281,7 +3306,7 @@ void mf_new_traceback_list(void){
 
 void mf_type_error(const char* s){
   mf_new_traceback_list();
-  mf_cstr_exception(s);
+  mf_cstr_exception(mv_Exception.type,s);
 }
 
 void mf_type_error1(const char* s, mt_object* x){
@@ -3305,12 +3330,12 @@ void mf_type_error2(const char* s, mt_object* x1, mt_object* x2){
 
 void mf_value_error(const char* s){
   mf_new_traceback_list();
-  mf_cstr_exception(s);
+  mf_cstr_exception(mv_Exception.value,s);
 }
 
 void mf_index_error(const char* s){
   mf_new_traceback_list();
-  mf_cstr_exception(s);
+  mf_cstr_exception(mv_Exception.index,s);
 }
 
 void mf_index_error2(const char* s, long index, long size){
@@ -3324,7 +3349,7 @@ void mf_index_error2(const char* s, long index, long size){
 
 void mf_std_exception(const char* s){
   mf_new_traceback_list();
-  mf_cstr_exception(s);
+  mf_cstr_exception(mv_Exception.std,s);
 }
 
 void mf_traceback(const char* s){
@@ -3345,9 +3370,9 @@ mt_table* mf_sys_load(void);
 mt_table* mf_la_load(void);
 mt_table* mf_crypto_load(void);
 mt_table* mf_regex_load(void);
+mt_table* mf_os_load(void);
 #ifdef __linux__
 mt_table* mf_time_load(void);
-mt_table* mf_os_load(void);
 mt_table* mf_gx_load(void);
 mt_table* mf_socket_load(void);
 mt_table* mf_gui_load(void);
@@ -3356,10 +3381,12 @@ mt_table* mf_time_load(void){
   mf_std_exception("Error: module 'time' is not implemented.");
   return NULL;
 }
+/*
 mt_table* mf_os_load(void){
   mf_std_exception("Error: module 'os' is not implemented.");
   return NULL;
 }
+*/
 mt_table* mf_gx_load(void){
   mf_std_exception("Error: module 'gx' is not implemented.");
   return NULL;
@@ -4262,8 +4289,23 @@ int mf_fread(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+int mf_fassert1(mt_object* x, int argc, mt_object* v){
+  if(v[1].type!=mv_bool){
+    mf_type_error1("in assert(e,s): e (type: %s) is not a boolean.",&v[1]);
+    return 1;
+  }
+  if(v[1].value.b!=0){
+    x->type=mv_null;
+    return 0;
+  }
+  mf_std_exception("Assertion failed.");
+  return 1;
+}
+
 int mf_fassert(mt_object* x, int argc, mt_object* v){
-  if(argc!=2){
+  if(argc==1){
+    return mf_fassert1(x,argc,v);
+  }else if(argc!=2){
     mf_argc_error(argc,2,2,"assert");
     return 1;
   }
@@ -4300,7 +4342,7 @@ int mf_fassert(mt_object* x, int argc, mt_object* v){
   mf_list_dec_refcount(list);
 
   mf_new_traceback_list();
-  mf_str_exception(s);
+  mf_str_exception(mv_Exception.std,s);
   return 1;
 }
 

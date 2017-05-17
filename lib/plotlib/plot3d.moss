@@ -75,19 +75,16 @@ tplot3d = table
       box3d(self,canvas,c,s,t[0],t[1],t[2])
     end
   end,
-  sub plot(f,*argv)
-    t={} if size(argv)==0 else argv[0]
+  sub plot(f,t={})
     canvas = self.canvas
     c = cos(self.phi)
     s = sin(self.phi)
     px = self.px; wx = self.wx 
     py = self.py; wy = self.wy
     pz = self.pz; wz = self.wz
-    mx = t["mx"] if "mx" in t else self.mx
-    my = t["my"] if "my" in t else self.my
-    nx = t["nx"] if "nx" in t else self.nx
-    ny = t["ny"] if "ny" in t else self.ny
-    m  = t["m"]  if "m"  in t else self.m
+    {mx=self.mx, nx=self.nx
+     my=self.my, ny=self.ny,
+     m=self.m}=t
     canvas.cset(color_table[self.index%size(color_table)])
     self.index++
     for tx in -mx..mx
@@ -107,20 +104,13 @@ tplot3d = table
       end
     end
   end,
-  sub pplot(f,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub pplot(f,t={})
     canvas = self.canvas
     c = cos(self.phi)
     s = sin(self.phi)
-    u1 = t["u1"] if "u1" in t else 0.0
-    u2 = t["u2"] if "u2" in t else 2*pi
-    v1 = t["v1"] if "v1" in t else 0.0
-    v2 = t["v2"] if "v2" in t else pi
-    mu = t["mu"] if "mu" in t else 20.0
-    mv = t["mv"] if "mv" in t else 20.0
-    nu = t["nu"] if "nu" in t else 400.0
-    nv = t["nv"] if "nv" in t else 400.0
-    m  = t["m"]  if "m"  in t else self.m
+    {u1=0.0, u2=2*pi, v1=0.0, v2=pi,
+     mu=20.0, mv=20.0, nu=400.0, nv=400.0,
+     m=self.m}=t
     du = (u2-u1)/nu; Du = (u2-u1)/mu
     dv = (v2-v1)/nv; Dv = (v2-v1)/mv
     canvas.cset(0.4,0.4,0.5)
@@ -138,18 +128,14 @@ tplot3d = table
       end
     end
   end,
-  sub vplot(f,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub vplot(f,t={})
     canvas = self.canvas
     c = cos(self.phi)
     s = sin(self.phi)
     px = self.px; wx = self.wx 
     py = self.py; wy = self.wy
     pz = self.pz; wz = self.wz
-    n  = t["n"]  if "n"  in t else self.n
-    m  = t["m"]  if "m"  in t else self.m
-    t1 = t["t1"] if "t1" in t else 0.0
-    t2 = t["t2"] if "t2" in t else 2*pi
+    {n=self.n, m=self.m, t1=0.0, t2=2*pi}=t
     d = (t2-t1)/n
     shadow = t["shadow"] if "shadow" in t else true
     canvas.cset(color_table[self.index%size(color_table)])
@@ -168,8 +154,7 @@ tplot3d = table
   end
 end
 
-sub system(*argv)
-  t = {} if size(argv)==0 else argv[0]
+sub system(t={})
   canvas = gx.new(gw,gh,1)
   canvas.font(16)
   s = table[tplot3d] canvas=canvas, index=0 end

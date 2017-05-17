@@ -1,5 +1,5 @@
 
-alias cc="i686-w64-mingw32-gcc"
+alias cc="i686-w64-mingw32-gcc -g"
 cd ../..
 cc -c modules/bs/bs.c -o make/win/bin/bs.o -I./include
 cc -c modules/str/str.c -o make/win/bin/str.o -I./include
@@ -23,6 +23,7 @@ cc -c modules/nt/nt.c -o make/win/bin/nt.o -I./include
 cc -c modules/random/random.c -o make/win/bin/random.o -I./include
 cc -c modules/module/module.c -o make/win/bin/module.o -I./include
 cc -c modules/sys/sys.c -o make/win/bin/sys.o -I./include
+cc -c modules/os/os.c -o make/win/bin/os.o -I./include
 cc -c modules/format/format.c -o make/win/bin/format.o -I./include
 cc -c modules/regex/regex.c -o make/win/bin/regex.o -I./include
 cc -c modules/la/la.c -o make/win/bin/la.o -I./include
@@ -39,7 +40,8 @@ cc -o ../moss.exe -lm\
   listobject.o mapobject.o longobject.o\
   functionobject.o complexobject.o\
   system.o global.o math.o cmath.o sf.o na.o nt.o\
-  format.o sys.o la.o regex.o crypto.o
+  format.o sys.o la.o regex.o crypto.o os.o
+
 
 
 

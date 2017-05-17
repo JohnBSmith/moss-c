@@ -1,6 +1,4 @@
 
-// Todo: exception hierarchy
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -18,15 +16,16 @@
 #include <objects/function.h>
 #include <modules/global.h>
 
+// TODO: reverse iterator
+// TODO: cycle
+
 // BUG: hash values of integers and corresponding
 // long integers are different
-// TODO: reverse iterator
 // TODO: no weak references for
 // mf_call: argv. This is a major bug. See list_map.
 // TODO: try overshadows line, col
 // TODO: unpacking assignment line, col
 // TODO: d.get(key,default_value)
-// TODO: cycle
 // TODO: list.type.sort: second argument
 // TODO: str.type.isrange
 // TODO: f->data refcount?
@@ -72,6 +71,7 @@ mt_object iter_value;
 mt_list* mv_traceback_list;
 static unsigned char* exception_address;
 static mt_module* exception_module;
+mt_exception mv_Exception;
 mt_module* mv_module;
 
 int mf_list_print(mt_list* a);
@@ -106,8 +106,6 @@ mt_table* mv_type_dict;
 mt_table* mv_type_iterable;
 mt_table* mv_type_range;
 mt_table* mv_type_array;
-
-mt_table* mv_type_std_exception;
 
 int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
   int e;
@@ -358,7 +356,6 @@ int store_index(mt_object* value, mt_object* a, int argc, mt_object* index){
   }
 }
 
-static
 void mf_insert_table(mt_map* m, const char* id, mt_table* t){
   mt_string* key = mf_str_new(strlen(id),id);
   mt_object x;
@@ -474,7 +471,7 @@ void mf_vm_init_gvtab(void){
 
   mf_insert_table(m,"empty",(mt_table*)mv_empty);
   mf_insert_table(m,"iterable",mv_type_iterable);
-  mf_insert_table(m,"Exception",mv_type_std_exception);
+  mf_insert_table(m,"Exception",mv_Exception.std);
 }
 
 void mf_vm_init(void){
@@ -540,10 +537,17 @@ void mf_vm_init(void){
   mv_type_array->name = mf_cstr_to_str("array");
   mv_type_array->m = mf_empty_map();
   
-  mv_type_std_exception = mf_table(NULL);
-  mv_type_std_exception->name = mf_cstr_to_str("Exception");
-  mv_type_std_exception->m = mf_empty_map();
-  mf_insert_function(mv_type_std_exception->m,0,0,"str",mf_std_exception_str);
+  mv_Exception.std = mf_table(NULL);
+  mv_Exception.std->name = mf_cstr_to_str("Exception");
+  mv_Exception.std->m = mf_empty_map();
+  mf_insert_function(mv_Exception.std->m,0,0,"str",mf_std_exception_str);
+
+  mv_Exception.type = mf_table_table(mv_Exception.std);
+  mv_Exception.type->name = mf_cstr_to_str("TypeError");
+  mv_Exception.value = mf_table_table(mv_Exception.std);
+  mv_Exception.value->name = mf_cstr_to_str("ValueError");
+  mv_Exception.index = mf_table_table(mv_Exception.value);
+  mv_Exception.index->name = mf_cstr_to_str("IndexError");
 }
 
 void mf_vm_delete(void){
@@ -566,9 +570,13 @@ void mf_vm_delete(void){
   mf_table_dec_refcount(mv_type_range);
   mf_table_dec_refcount(mv_type_array);
 
+  mf_table_dec_refcount(mv_Exception.std);
+  if(mv_Exception.type) mf_table_dec_refcount(mv_Exception.type);
+  if(mv_Exception.value) mf_table_dec_refcount(mv_Exception.value);
+  if(mv_Exception.index) mf_table_dec_refcount(mv_Exception.index);
+
   mf_table_dec_refcount(mv_type_iterable);
   mf_table_dec_refcount((mt_table*)mv_empty);
-  mf_table_dec_refcount(mv_type_std_exception);
   mf_function_dec_refcount(global_function);
   
   mf_dec_refcount(&mv_exception);
@@ -861,13 +869,17 @@ int mf_vm_eval(unsigned char* a, long ip){
       sp--;
       mt_function* f = mf_new_function(a+ip+*(int32_t*)(a+ip+BC));
       v1 = *(int32_t*)(a+ip+BCp4);
-      if(v1<0){
-        f->argc=v1;
-        f->argc_min=-v1-1; f->argc_max=INT_MAX;
+      f->argc_max = *(int32_t*)(a+ip+BCp8);
+      if(v1 == f->argc_max){
+        f->argc = v1;
       }else{
-        f->argc=v1;
+        f->argc=-1;
+        f->argc_min=v1;
+        if(f->argc_max<0){
+          f->argc_max=INT_MAX;
+        }
       }
-      f->varcount = *(int32_t*)(a+ip+BCp8);
+      f->varcount = *(int32_t*)(a+ip+BCp12);
       // f->data = string_pool->a;
       // f->gtab = gvtab;
       f->data = function_self->data;
@@ -892,7 +904,7 @@ int mf_vm_eval(unsigned char* a, long ip){
       }
       p1->type=mv_function;
       p1->value.p=(mt_basic*)f;
-      ip+=BCp12;
+      ip+=BCp16;
       break;
     case LONG:
       assert(sp>0);
@@ -1197,40 +1209,49 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=*(int32_t*)(a+ip+BC);
       break;
     case JPZ:
-      if(stack[sp-1].type!=mv_bool){
-        mf_type_error("Type error in condition: expected boolean value.");
-        goto error;
-      }else{
+      if(stack[sp-1].type==mv_bool){
         if(stack[sp-1].value.b){
           ip+=BCp4;
         }else{
           ip+=*(int32_t*)(a+ip+BC);
         }
+      }else if(stack[sp-1].type==mv_null){
+        ip+=*(int32_t*)(a+ip+BC);
+      }else{
+        mf_dec_refcount(&stack[sp-1]);
+        ip+=BCp4;
       }
       sp--;
       break;
     case AND:
-      if(stack[sp-1].type!=mv_bool){
-        mf_type_error("Type error: operator 'and' expected boolean value.");
-        goto error;
-      }
-      if(stack[sp-1].value.b){
-        ip+=BCp4;
-        sp--;
-      }else{
+      if(stack[sp-1].type==mv_bool){
+        if(stack[sp-1].value.b){
+          ip+=BCp4;
+          sp--;
+        }else{
+          ip+=*(int32_t*)(a+ip+BC);
+        }
+      }else if(stack[sp-1].type==mv_null){
         ip+=*(int32_t*)(a+ip+BC);
+      }else{
+        ip+=BCp4;
+        mf_dec_refcount(&stack[sp-1]);
+        sp--;
       }
       break;
     case OR:
-      if(stack[sp-1].type!=mv_bool){
-        mf_type_error("Type error: operator 'or' expected boolean value.");
-        goto error;
-      }
-      if(stack[sp-1].value.b){
-        ip+=*(int32_t*)(a+ip+BC);
-      }else{
+      if(stack[sp-1].type==mv_bool){
+        if(stack[sp-1].value.b){
+          ip+=*(int32_t*)(a+ip+BC);
+        }else{
+          ip+=BCp4;
+          sp--;
+        }
+      }else if(stack[sp-1].type==mv_null){
         ip+=BCp4;
         sp--;
+      }else{
+        ip+=*(int32_t*)(a+ip+BC);
       }
       break;
     case CALL: // #stack
@@ -1282,17 +1303,27 @@ int mf_vm_eval(unsigned char* a, long ip){
             mf_argc_error_sub(argc,f);
             goto error;
           }
-          mt_list* list = mf_raw_list(argc-n);
-          sp=sp-argc+n;
-          for(i=0; i<argc-n; i++){
-            list->a[i]=stack[sp+i];
-            // CRITICAL
-            // list->a[i]->refcount++;
+          if(f->argc_max==INT_MAX){
+            mt_list* list = mf_raw_list(argc-n);
+            sp=sp-argc+n;
+            for(i=0; i<argc-n; i++){
+              list->a[i]=stack[sp+i];
+              // CRITICAL
+              // list->a[i]->refcount++;
+            }
+            argcp1=2+n;
+            stack[sp].type=mv_list;
+            stack[sp].value.p=(mt_basic*)list;
+            sp++;
+          }else{
+            int rest = f->argc_max-argc;
+            for(i=0; i<rest; i++){
+              stack[sp].type = mv_null;
+            }
+            sp+=rest;
+            argc+=rest;
+            argcp1+=rest;
           }
-          argcp1=2+n;
-          stack[sp].type=mv_list;
-          stack[sp].value.p=(mt_basic*)list;
-          sp++;
         }else{
           mf_argc_error_sub(argc,f);
           goto error;

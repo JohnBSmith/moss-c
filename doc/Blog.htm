@@ -66,7 +66,7 @@ to this, that HTML5 is more easy to use than LATEX2E.
 do not interfere with dictionary operations, them can be joined.
 Dictionaries with values absent can be considered as sets:
 </p>
-<pre>
+<pre class="moss">
   {1, 2} == {1: null, 2: null}
 </pre>
 <p>Multisets cannot be included as well, because
@@ -128,11 +128,11 @@ It is very well thought.
 <p>The standard syntax for formal self-arguments
 has a problem. The following is not possible,
 bacause the inner self-argument shadows the outer one:
-<pre>
-function.type.o = |g| |x| self(g(x))
+<pre class="moss">
+  function.type.o = |g| |x| self(g(x))
 </pre>
 <p>One is forced to write instead:
-<pre>
+<pre class="moss">
 function.type.o = sub|g|
   f=self
   return |x| f(g(x))
@@ -144,8 +144,122 @@ Now the idea is, to separate the self-argument via an semicolon
 from the other arguments. For actual arguments this syntax is
 already possible, but I will provide it also for formal
 arguments. Then we have:
+<pre class="moss">
+  function.type.o = |f;g| |x| f(g(x))
+</pre>
+
+<h3 data-date="20170509" id="about-modules"
+>About modules</h3>
+
+<p>What is the difference between what follows? Firstly:
+<pre class="moss">
+  m = load("m")
+</pre>
+<p>And secondly:
+<pre class="moss">
+  m = eval(read("m.moss"))
+</pre>
+<p>Behavior is different, because <code>eval</code>
+returns a value rather than a module object. But the question that
+comes into mind is: should they be equivalent? In order to achieve
+that, in a module a module object should be returned explicitely rather
+than implicitely. This would also solve another problem: How to
+state a module that consists only of a single class or a single
+function (to achieve advanced lazy loading and lazy evaluation)?
+The problem here is an oddly looking import statement:
+<pre class="moss">
+  use class_name: class_name
+  # vs.
+  use class_name
+</pre>
+<p>Note that <code>eval</code> can be made quite powerful. It can
+take an additional argument that specifies information about
+the environment. For example, global variable of the environment
+are used by default by <code>eval</code>. If a module would be loaded,
+<code>eval</code> had to take an empty environment.
+
+<h3 data-date="20170509" id="default-arguments"
+>Default arguments</h3>
+
+<p>The interpreter already supports default arguments for
+build in functions. Now a function's argument count can simply be
+a range. Not given arguments will be filled out with
+<code>null</code>. Now
+<pre class="moss">
+  sub f(x,y=expression)
+</pre>
+<p>is simply syntatic sugar for
+<pre class="moss">
+  sub f(x,y=null)
+    if y is null then y=expression end
+</pre>
+<p>An implementation is straightforward:
+<ol>
+<li>Let argument count be a range.
+<li>Take the assignment AST and obtain that desired if-AST from it.
+<li>Insert this if-AST before function body. To be more precise:
+At first, the function body is parsed, and then we have both:
+if-AST and body-AST.
+</ol>
+<p>Now construct:
 <pre>
-function.type.o = |f;g| |x| f(g(x))
+  * block-node
+    * if-node-1
+    * if-node-2
+      ...
+    * if-node-n
+    * body-node
+</pre>
+<p>Easy going. At next, default named arguments are stated as follows:
+<pre class="moss">
+  sub f(x,d={})
+    a = d["a"] if "a" in d else a0
+    b = d["b"] if "b" in d else b0
+    # ...
+  end
+</pre>
+<p>That's clumsy. I believe, default named arguments are very important
+for usability and thus should be supported by the language. Now let
+<pre class="moss">
+  {a=a0, b=b0} = d
+</pre>
+<p>be syntactic shugar for
+<pre class="moss">
+  a = d["a"] if "a" in d else a0
+  b = d["b"] if "b" in d else b0
+</pre>
+<p>Without default arguments it should be more strict: Let
+<pre class="moss">
+  {a,b} = d
+</pre>
+<p>be syntactic shugar for
+<pre class="moss">
+  a = d["a"]; b = d["b"]
+</pre>
+<p>I call this the <em>dictionary unpacking statement</em>.
+
+<p>It took me 100 lines of C&nbsp;code to implement dictionary
+unpacking, including construction of a temporary variable if the right
+hand side is an expression. I think it was a worthwhile effort.
+
+<p>Finally it could be moved into the arguments list:
+<pre class="moss">
+  sub f(x,{a=a0,b=b0})
+    # ...
+  end
+</pre>
+<p>Furthermore,
+<pre class="moss">
+  sub f([x,y])
+    # ...
+  end
+</pre>
+<p>could be
+<pre class="moss">
+  sub f(_t0_)
+    x,y = _t0_
+    # ...
+  end
 </pre>
 
 </body>

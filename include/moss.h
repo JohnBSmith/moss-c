@@ -32,6 +32,7 @@ void mf_insert_object(mt_map* m, const char* id, mt_object* x);
 mt_function* mf_insert_function(mt_map* m, int min, int max,
   const char* id, mt_plain_fn pf);
 mt_table* mf_table(mt_object* prototype);
+mt_table* mf_table_table(mt_table* t);
 mt_string* mf_cstr_to_str(const char* a);
 int mf_print(mt_object* x);
 int mf_isa(mt_object* x, void* prototype);

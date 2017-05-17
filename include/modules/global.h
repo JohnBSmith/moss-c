@@ -58,9 +58,7 @@ int mf_put_repr(mt_object* x);
 int mf_fput(mt_object* x, int argc, mt_object* v);
 int mf_fprint(mt_object* x, int argc, mt_object* v);
 
-mt_table* mf_table(mt_object* prototype);
 int mf_table_literal(mt_object* x, mt_object* prototype, mt_object* m);
-
 mt_range* mf_range(mt_object* a, mt_object* b, mt_object* step);
 mt_tuple* mf_tuple_raw(long n);
 mt_function* new_function(unsigned char* address);

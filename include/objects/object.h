@@ -137,5 +137,12 @@ typedef struct{
 typedef struct mt_long mt_long;
 typedef int (*mt_plain_fn)(mt_object* x, int argc, mt_object* v);
 
+typedef struct{
+  mt_table* std;
+  mt_table* type;
+  mt_table* value;
+  mt_table* index;
+} mt_exception;
+
 #endif
 

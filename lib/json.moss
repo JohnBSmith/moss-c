@@ -327,7 +327,7 @@ sub dump_rec(a,n,x)
       return null
     end
     a.push("{\n")
-    x = list(x).sort(|t| str(t[0]))
+    x = list(x.items()).sort(|t| str(t[0]))
     m = size(x)
     for i in 0..m-2
       a.push("\s"*(n+2))

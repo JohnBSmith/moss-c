@@ -16,6 +16,8 @@ extern int gv_argc;
 extern char** gv_argv;
 extern mt_list* mv_path_list;
 extern mt_module* mv_module;
+extern mt_exception mv_Exception;
+void mf_insert_table(mt_map* m, const char* id, mt_table* t);
 
 static
 int sys_exit(mt_object* x, int argc, mt_object* v){
@@ -67,6 +69,9 @@ mt_table* mf_sys_load(){
   }
   mf_insert_function(m,1,1,"exit",sys_exit);
   mf_insert_function(m,0,0,"main",sys_main);
+  mf_insert_table(m,"TypeError",mv_Exception.type);
+  mf_insert_table(m,"ValueError",mv_Exception.value);
+  mf_insert_table(m,"IndexError",mv_Exception.index);
   m->frozen=1;
   return sys;
 }

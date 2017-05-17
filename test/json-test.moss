@@ -1,0 +1,12 @@
+
+json = load("../lib/json")
+
+d = {a=1,b=[1,2],c={x=1,y=2}}
+
+s = json.dump(d)
+
+if d!=json.load(s)
+  print("Failed.");
+end
+
+

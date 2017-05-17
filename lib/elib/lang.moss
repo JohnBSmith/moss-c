@@ -4,23 +4,20 @@
 # words of general symbols: {[], [1,2], [3]}
 
 extend(dict.type,table
-  sub MPY(b)
-    set((list(self)*list(b)).map(|x,y| x+y))
+  sub MPY(L;b)
+    set((list(L)*list(b)).map(|x,y| x+y))
   end,
-  sub POW(n)
+  sub POW(L;n)
     if n==0
-      return {iter(self)()[1..0]}
+      return {iter(L)()[1..0]}
     else
-      L=self
       return (1..n-1).reduce(L,|x,y| x*L)
     end
   end,
-  sub star(n)
-    L=self
+  sub star(L;n)
     (0..n).map(|k| L^k).reduce({},|x,y| x|y)
   end,
-  sub plus(n)
-    L=self
+  sub plus(L;n)
     (1..n).map(|k| L^k).reduce({},|x,y| x|y)
   end,
   sub rev

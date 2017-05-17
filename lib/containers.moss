@@ -2,7 +2,7 @@
 sub deque(*argv)
   T = deque.type
   d = table[T] first=null, last=null end
-  destructor(d)=T.clear
+  destructor(d) = T.clear
   if size(argv)!=0
     for x in argv[0]
       d.push(x)
@@ -16,76 +16,78 @@ deque.type = table[iterable]
     self.last is null
   end,
   sub push(x)
-    if self.last is null
-      self.last = [x,null,null]
-      self.first = self.last
-    else
+    if self.last
       last = self.last
       t = [x,last,null]
-      last[2]=t
-      self.last=t
+      last[2] = t
+      self.last = t
+    else
+      self.last = [x,null,null]
+      self.first = self.last
     end
   end,
   sub shift(x)
-    if self.last is null
-      self.last = [x,null,null]
-      self.first = self.last
-    else
+    if self.last
       first = self.first
       t = [x,null,first]
-      first[1]=t
-      self.first=t
+      first[1] = t
+      self.first = t
+    else
+      self.last = [x,null,null]
+      self.first = self.last
     end
   end,
   sub pop
-    if self.last is null
-      raise "Empty deque"
-    end
-    last = self.last
-    if last[1] is null
-      self.first=null
-      self.last=null
-      return last[0]
+    if self.last
+      last = self.last
+      if last[1]
+        last[1][2] = null
+        self.last = last[1]
+        return last[0]
+      else
+        self.first = null
+        self.last = null
+        return last[0]
+      end
     else
-      last[1][2]=null
-      self.last=last[1]
-      return last[0]
+      raise "Empty deque"
     end
   end,
   sub unshift
-    if self.last is null
-      raise "Empty deque"
-    end
-    first = self.first
-    if first[2] is null
-      self.first=null
-      self.last=null
-      return first[0]
+    if self.last
+      first = self.first
+      if first[2]
+        first[2][1] = null
+        self.first = first[2]
+        return first[0]
+      else
+        self.first = null
+        self.last = null
+        return first[0]
+      end
     else
-      first[2][1]=null
-      self.first=first[2]
-      return first[0]
+      raise "Empty deque"
     end
   end,
   sub iter
     p = self.first
     return sub||
-      if p is null
-        raise empty
-      else
+      if p
         x=p[0]; p=p[2]
         return x
+      else
+        raise empty
       end
     end
   end,
   sub reverse
     p = self.last
     return sub||
-      if p is null
-        raise empty
-      else
+      if p
         x=p[0]; p=p[1]
         return x
+      else
+        raise empty
       end
     end
   end,
@@ -99,11 +101,11 @@ deque.type = table[iterable]
   end,
   sub clear
     p = self.last
-    self.last=null
-    self.first=null
-    while not p is null
+    self.last = null
+    self.first = null
+    while p
       h=p; p=p[1]; h[1]=null
-      if not p is null
+      if p
         p[2]=null
       end
     end

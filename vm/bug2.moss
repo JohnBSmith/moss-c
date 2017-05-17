@@ -1,0 +1,62 @@
+
+
+use sys, re
+
+scan = begin
+  r = re.compile("{d}+|[-+*/()]")
+  return sub|a|
+    return r.list(a)+["."]
+  end
+end
+
+sub REPL(ast)
+  while true
+    s = input("# ")
+    a = scan(s)
+    print(ast(0,a)[1])
+  end
+end
+
+sub syntax_error(i,s)
+  raise "Syntax error in col {}: {}."%[i,s]
+end
+
+sub atom(i,a)
+  if a[i]=="("
+    i,x = ast(i,a)
+    if a[i]!=")"
+      syntax_error(i,"expected ')'")
+    end
+  else
+    return i+1,a[i]
+  end
+end
+
+sub addend(i,a)
+  i,x = atom(i,a)
+  op = a[i]
+  if op in "*/"
+    i,y = atom(i+1,a)
+    return i,[op,[x,y]]
+  else
+    return i,x
+  end
+end
+
+sub ast(i,a)
+  i,x = addend(i,a)
+  op = a[i]
+  if op in "+-"
+    i,y = addend(i+1,a)
+    return i,[op,[x,y]]
+  else
+    return i,x
+  end
+end
+
+if sys.main()
+  # REPL(ast)
+  a = scan("2*(4+5)")
+  print(ast(0,a)[1])
+end
+

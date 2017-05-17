@@ -11,7 +11,9 @@
 #include <compiler.h>
 
 // TODO:
-// operators <<, >>
+// * operators <<, >>
+// * nesting_level seems to be too unreliable
+// (nesting_level only matters in command-line mode)
 
 // #define MV_PRINT
 // ^shows syntax trees and bytecode dump
@@ -22,12 +24,13 @@
 #define MV_ARGUMENT 2
 #define MV_CONTEXT 3
 #define MV_FN_NAME 4
-#define HAS_ELSE_CASE 1
 #define CATCH_ID 0
 #define CATCH_ID_EXP 1
 #define POP_VALUE 0
 #define RETURN_VALUE 1
 #define SELF 1
+#define WITHOUT_ELSE_CASE 0
+#define WITH_ELSE_CASE 1
 
 typedef struct{
   char* s;
@@ -39,7 +42,6 @@ typedef struct mt_var_tab mt_var_tab;
 struct mt_var_tab{
   mt_var_tab* context;
   mt_vec v,c,g,a;
-  int argc;
   unsigned char* fn_name;
   int fn_name_size;
 };
@@ -59,11 +61,13 @@ typedef struct{
 
 typedef struct ast_node ast_node;
 struct ast_node{
+  long refcount;
   int line;
   int col;
   char type;
   char value;
   int info;
+  int info2;
   int ownership;
   char* s;
   long size;
@@ -359,6 +363,13 @@ char* token_to_string(mt_token* t){
     snprintf(s,100,"token of unkown type");
   }
   return s;
+}
+
+static
+void print_token(mt_token* t){
+  char* s = token_to_string(t);
+  printf("[%s]\n",s);
+  mf_free(s);
 }
 
 static
@@ -794,15 +805,7 @@ int mf_scan(mt_vec* v, unsigned char* s, long n, int line){
         i++; col++;
         break;
       case '(': case '[': case '{':
-        if(sub_syntax(v)){
-        }else if(c=='(' && v->size>0){
-          mt_token* pt = mf_vec_get(v,-1);
-          if(pt->type==Tid || pt->type==Tbright){
-            push_token(v,line,col,Tapp,0);
-          }else if(pt->line==line && pt->type==Tkeyword && pt->value==Tend){
-            push_token(v,line,col,Tapp,0);
-          }
-        }
+        (void)sub_syntax(v);
         push_token(v,line,col,Tbleft,c);
         i++; col++;
         break;
@@ -955,6 +958,10 @@ int mf_scan(mt_vec* v, unsigned char* s, long n, int line){
 static
 void ast_delete(ast_node* t){
   if(t==NULL) return;
+  if(t->refcount!=1){
+    t->refcount--;
+    return;
+  }
   int i;
   for(i=0; i<t->n; i++){
     ast_delete(t->a[i]);
@@ -980,6 +987,7 @@ static
 ast_node* ast_new(long n, int line, int col){
   ast_node* y;
   y = mf_malloc(sizeof(ast_node)+n*sizeof(ast_node*));
+  y->refcount=1;
   y->n=n;
   y->line=line;
   y->col=col;
@@ -1011,6 +1019,7 @@ static
 ast_node* unary_operator(mt_token* t, ast_node* p){
   ast_node* op;
   op = mf_malloc(sizeof(ast_node)+sizeof(ast_node*));
+  op->refcount=1;
   op->line=t->line;
   op->col=t->col;
   op->type=Top;
@@ -1025,6 +1034,7 @@ static
 ast_node* binary_operator(mt_token* t, ast_node* p1, ast_node* p2){
   ast_node* op;
   op = mf_malloc(sizeof(ast_node)+2*sizeof(ast_node*));
+  op->refcount=1;
   op->line=t->line;
   op->col=t->col;
   op->type=Top;
@@ -1042,6 +1052,7 @@ ast_node* ternary_operator(mt_token* t,
 ){
   ast_node* op;
   op = mf_malloc(sizeof(ast_node)+3*sizeof(ast_node*));
+  op->refcount=1;
   op->line=t->line;
   op->col=t->col;
   op->type=Top;
@@ -1150,6 +1161,26 @@ mt_token* get_token(token_iterator* i){
 }
 
 static
+mt_token* get_visible_token(token_iterator* i){
+  while(1){
+    if(i->index>=i->size){
+      printf("Compiler error: unexpected end of stream.\n");
+      abort();
+    }
+    mt_token* t = i->a+i->index;
+    if(t->type==Tterminal && compiler_context.mode_cmd){
+      if(scan_line(t,i)) return NULL;
+      continue;
+    }
+    if(t->type==Tsep && t->value=='n'){
+      i->index++;
+      continue;
+    }
+    return t;
+  }
+}
+
+static
 int end_of(token_iterator* i, int value, const char* s){
   if(i->index>=i->size)return 0;
   mt_token* t=i->a+i->index;
@@ -1246,8 +1277,7 @@ ast_node* map_literal(token_iterator* i){
       }else if((t->type==Tsep && t->value==',')
         || (t->type==Tbright && t->value=='}')
       ){
-        p2 = ast_new(0,t->line,t->col);
-        p2->type=Tnull;
+        p2 = NULL;
         mf_vec_push(&v,&p2);
         goto comma;
       }else{
@@ -1367,42 +1397,24 @@ ast_node* object_literal(token_iterator* i){
 }
 
 static
-ast_node* function_application(ast_node* p1, token_iterator* i){
+ast_node* function_application(mt_token* t1, ast_node* p1, token_iterator* i){
   int self=0;
-  mt_token* t1;
-  if(i->index<i->size){
-    t1=i->a+i->index;
-    if(t1->type!=Tbleft || t1->value!='('){
-      syntax_error(t1->line,t1->col,"expected '('.");
-      return NULL;
-    }
-  }else{
-    if(i->size>0){
-      t1=i->a+i->size-1;
-      syntax_error(t1->line,t1->col,"expected '('.");
-    }else{
-      syntax_error(-1,-1,"expected '('.");
-    }
-    return NULL;
-  }
   ast_node* p;
   mt_vec v;
   mf_vec_init(&v,sizeof(ast_node*));
   mf_vec_push(&v,&p1);
 
-  i->index++;
-  if(i->index<i->size){
-    mt_token* t = i->a+i->index;
-    if(t->type==Tbright && t->value==')'){
-      i->index++;
-      goto end_of_loop;
-    }
+  mt_token* t = get_token(i);
+  if(t==NULL) goto error;
+  if(t->type==Tbright && t->value==')'){
+    i->index++;
+    goto end_of_loop;
   }
   while(1){
     p = expression(i);
     if(p==NULL) goto error;
     mf_vec_push(&v,&p);
-    mt_token* t = get_token(i);
+    t = get_token(i);
     if(t==NULL) goto error;
     if(t->type==Tsep && t->value==','){
       i->index++;
@@ -1437,74 +1449,14 @@ ast_node* function_application(ast_node* p1, token_iterator* i){
   return NULL;
 }
 
-/*
-static
-ast_node* if_expression2(token_iterator* i){
-  mt_token* t1 = i->a+i->index;
-  i->index++;
-  mt_vec v;
-  mf_vec_init(&v,sizeof(ast_node*));
-  ast_node* p;
-  mt_token* t;
-  while(1){
-    p = expression(i);
-    if(p==NULL) goto error;
-    mf_vec_push(&v,&p);
-    t = get_token(i);
-    if(t==NULL) goto error;
-    if(t->type!=Tkeyword || t->value!=Tthen){
-      syntax_error(t->line,t->col,"expected keyword 'then'.");
-      goto error;
-    }
-    i->index++;
-    p = comma_expression(i);
-    if(p==NULL) goto error;
-    mf_vec_push(&v,&p);
-    t = get_token(i);
-    if(t==NULL) goto error;
-    if(t->type==Tkeyword && t->value==Telif){
-      i->index++;
-      continue;
-    }else if(t->type==Tkeyword && t->value==Telse){
-      i->index++;
-      break;
-    }else{
-      syntax_error(t->line,t->col,"expected keyword 'elif' or 'else'.");
-      goto error;
-    }
-  }
-  p = comma_expression(i);
-  if(p==NULL) goto error;
-  mf_vec_push(&v,&p);
-  t = get_token(i);
-  if(t==NULL) goto error;
-  if(t->type!=Tkeyword || t->value!=Tend){
-    syntax_error(t->line,t->col,"expected keyword 'end'.");
-    goto error;
-  }
-  i->index++;
-  if(end_of(i,Tend,"expected 'end of if'")){
-    goto error;
-  }
-  ast_node* y;
-  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
-  y->type=Top;
-  y->value=Top_if;
-  y->info=HAS_ELSE_CASE;
-  mf_vec_delete(&v);
-  return y;
-
-  error:
-  ast_buffer_delete(&v);
-  return NULL;
-}
-// */
-
 static
 ast_node* concise_function_literal(token_iterator* i){
   mt_token* t1=i->a+i->index;
   i->index++;
+  bstack[bstack_sp]='b';
+  bstack_sp++;
   ast_node* p = argument_list(i);
+  bstack_sp--;
   if(p==NULL) return NULL;
   ast_node* b = expression(i);
   if(b==NULL){
@@ -1545,19 +1497,7 @@ ast_node* inline_statements(mt_token* t, ast_node* p, token_iterator* i){
 
 static
 ast_node* atom(token_iterator* i){
-  /*
-  if(i->index>=i->size){
-    if(i->size>0){
-      mt_token* t = i->a+i->size-1;
-      syntax_error(t->line,t->col,"expected operand.");
-    }else{
-      syntax_error(-1,-1,"expected operand.");
-    }
-    return NULL;
-  }
-  mt_token* t = i->a+i->index;
-  */
-  mt_token* t = get_token(i);
+  mt_token* t = get_visible_token(i);
   if(t==NULL) return NULL;
   ast_node* p;
   int type=t->type;
@@ -1629,13 +1569,6 @@ ast_node* atom(token_iterator* i){
     bstack_sp++;
     p = object_literal(i);
     bstack_sp--;
-  /*
-  }else if(type==Tkeyword && value==Tif){
-    bstack[bstack_sp]='b';
-    bstack_sp++;
-    p = if_expression2(i);
-    bstack_sp--;
-  // */
   }else if(type==Tkeyword && value==Tsub){
     p = function_literal(i);
   }else if(type==Tkeyword && value==Tbegin){
@@ -1695,26 +1628,26 @@ ast_node* atomic_expression(token_iterator* i){
   ast_node* p1 = atom(i);
   if(p1==NULL) return NULL;
   while(i->index<i->size){
-    mt_token* t = i->a+i->index;
-    if(t->type==Tapp){
+    mt_token* t = lookup_token(i);
+    if(t->type==Tbleft && t->value=='('){
       i->index++;
       bstack[bstack_sp]='b';
       bstack_sp++;
-      p1=function_application(p1,i);
+      p1 = function_application(t,p1,i);
       bstack_sp--;
       if(p1==NULL) return NULL;
     }else if(t->type==Tbleft && t->value=='['){
       i->index++;
       bstack[bstack_sp]='b';
       bstack_sp++;
-      p1=index_list(t,p1,i);
+      p1 = index_list(t,p1,i);
       bstack_sp--;
       if(p1==NULL) return NULL;
     }else if(t->type==Top && t->value==Top_dot){
       i->index++;
       ast_node* p2 = atom(i);
       if(p2==NULL) goto error;
-      p1=binary_operator(t,p1,p2);
+      p1 = binary_operator(t,p1,p2);
       if(p1==NULL) return NULL;
     }else{
       break;
@@ -1747,7 +1680,7 @@ ast_node* power(token_iterator* i){
 
 static
 ast_node* factor(token_iterator* i){
-  mt_token* t = get_token(i);
+  mt_token* t = get_visible_token(i);
   if(t==NULL) return NULL;
   ast_node *p,*op;
   if(t->type==Top){
@@ -1997,7 +1930,7 @@ ast_node* if_expression(ast_node* p1, token_iterator* i){
   if(p3==NULL) goto error2;
   y=ast_new(3,t1->line,t1->col);
   y->type=Top; y->value=Top_if;
-  y->info=HAS_ELSE_CASE;
+  y->info=WITH_ELSE_CASE;
   y->a[0]=p2;
   y->a[1]=p1;
   y->a[2]=p3;
@@ -2112,6 +2045,98 @@ ast_node* comma_expression(token_iterator* i){
 }
 
 static
+ast_node* index_ast(mt_token* t, ast_node* a, ast_node* i){
+  ast_node* op;
+  op = ast_new(2,t->line,t->col);
+  op->type=Top; op->value=Top_index;
+  op->a[0]=a;
+  op->a[1]=i;
+  return op;
+}
+
+static
+ast_node* strict_assignment(mt_token* t, ast_node* x, ast_node* d){
+  ast_node* key = ast_new(0,x->line,x->col);
+  key->type = Tstring;
+  key->s = x->s; key->size=x->size;
+  ast_node* get = index_ast(t,d,key);
+  ast_node* y = ast_new(2,t->line,t->col);
+  y->type = Top; y->value = Top_assignment;
+  y->a[0]=x; y->a[1]=get;
+  d->refcount++;
+  x->refcount++;
+  return y;
+}
+
+static
+ast_node* conditional_assignment(mt_token* t, ast_node* x, ast_node* x0, ast_node* d){
+  // x = d["x"] if "x" in d else x0
+  ast_node* get = index_ast(t,d,x);
+  ast_node* test = binary_operator(t,x,d);
+  test->value = Top_in;
+  ast_node* p = ast_new(3,t->line,t->col);
+  p->type = Top; p->value = Top_if;
+  p->info = WITH_ELSE_CASE;
+  p->a[0]=test; p->a[1]=get; p->a[2]=x0;
+  ast_node* y = ast_new(2,t->line,t->col);
+  y->type = Top; y->value = Top_assignment;
+
+  if(x->type==Tid){x->type=Tstring;}
+  ast_node* id = ast_new(0,x->line,x->col);
+  id->type = Tid;
+  id->s=x->s;
+  id->size=x->size;
+
+  y->a[0]=id;
+  y->a[1]=p;
+  x->refcount+=2;
+  d->refcount+=2;
+  x0->refcount++;
+  return y;
+}
+
+static
+ast_node* unpack_dict(mt_token* t, ast_node* d, ast_node* value){
+  long i,n;
+  ast_node* id;
+  ast_node* y;
+  ast_node** p;
+  n = d->n/2;
+  if(value->type==Tid){
+    id = value;
+    y = ast_new(n,t->line,t->col);
+    p = y->a;
+  }else{
+    id = ast_new(0,t->line,t->col);
+    id->type = Tid;
+    id->s = "_d0_";
+    id->size = 4;
+    ast_node* assignment = ast_new(2,t->line,t->col);
+    assignment->type = Top;
+    assignment->value = Top_assignment;
+    assignment->a[0] = id;
+    id->refcount++;
+    assignment->a[1] = value;
+    y = ast_new(n+1,t->line,t->col);
+    y->a[0] = assignment;
+    p = y->a+1;
+  }
+  y->type = Tblock;
+  for(i=0; i<n; i++){
+    ast_node* x = d->a[2*i];
+    ast_node* x0 = d->a[2*i+1];
+    if(x0==NULL){
+      p[i] = strict_assignment(t,x,id);
+    }else{
+      p[i] = conditional_assignment(t,x,x0,id);
+    }
+  }
+  ast_delete(id);
+  ast_delete(d);
+  return y;
+}
+
+static
 ast_node* assignment(token_iterator* i){
   ast_node* p1 = comma_expression(i);
   if(p1==NULL) return NULL;
@@ -2126,7 +2151,11 @@ ast_node* assignment(token_iterator* i){
       i->index++;
       ast_node* p2 = comma_expression(i);
       if(p2==NULL) goto error;
-      return binary_operator(t,p1,p2);
+      if(p1->type==Top && p1->value==Top_map){
+        return unpack_dict(t,p1,p2);
+      }else{
+        return binary_operator(t,p1,p2);
+      }
     }
   }
   return expression_statement(p1);
@@ -2273,7 +2302,7 @@ ast_node* if_statement(token_iterator* i){
   mf_vec_init(&v,sizeof(ast_node*));
   mt_token* t1 = i->a+i->index;
   i->index++;
-  int has_else_case=0;
+  int has_else_case = WITHOUT_ELSE_CASE;
   while(1){
     ast_node* p = expression(i);
     if(p==NULL) goto error;
@@ -2299,7 +2328,7 @@ ast_node* if_statement(token_iterator* i){
         i->index++;
         continue;
       }else if(t->value==Telse){
-        has_else_case=1;
+        has_else_case = WITH_ELSE_CASE;
         i->index++;
         syntax_nesting++;
         p = statement_list(i);
@@ -2335,9 +2364,9 @@ ast_node* if_statement(token_iterator* i){
   }
   ast_node* y;
   y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
-  y->type=Tkeyword;
-  y->value=Tif;
-  y->info=has_else_case;
+  y->type = Tkeyword;
+  y->value = Tif;
+  y->info = has_else_case;
   mf_vec_delete(&v);
   return y;
 
@@ -2862,17 +2891,20 @@ ast_node* argument_list(token_iterator* i){
   ast_node* y;
   mt_vec v;
   mf_vec_init(&v,sizeof(ast_node*));
-  ast_node* p = ast_new(0,-1,-1);
+  ast_node* p = ast_new(0,-1,-1); // todo
   p->type=Tnull;
   mf_vec_push(&v,&p);
-  int argc=0;
+  int argc_min=0;
+  int argc_max=0;
+  int variadic=0;
+  int optional=0;
   mt_token* t = get_token(i);
   if(t==NULL) goto error;
   if((t->type==Top && t->value==Top_bor) ||
     (t->type==Tbright && t->value==')')
   ){
     i->index++;
-    y = ast_new(0,-1,-1);
+    y = ast_new(0,-1,-1); // todo
     y->type=Top; y->value=Top_list;
     y->info=0;
     mf_vec_delete(&v);
@@ -2882,7 +2914,9 @@ ast_node* argument_list(token_iterator* i){
     t = get_token(i);
     if(t==NULL) goto error;
     if(t->type==Top && t->value==Top_mpy){
-      argc=-v.size;
+      argc_min = v.size-1;
+      argc_max = -1;
+      variadic = 1;
       i->index++;
     }
     t = get_token(i);
@@ -2892,7 +2926,24 @@ ast_node* argument_list(token_iterator* i){
       id->type=Tid;
       id->s=t->s;
       id->size=t->size;
+
       i->index++;
+      mt_token* t2 = get_token(i);
+      if(t2==NULL) goto error;
+      if(t2->type==Top && t2->value==Top_assignment){
+        if(optional==0) argc_min = v.size-1;
+        optional=1;
+        i->index++;
+        ast_node* x = band_expression(i);
+        if(x==NULL){
+          ast_delete(id);
+          goto error;
+        }
+        ast_node* p = ast_new(2,t2->line,t2->col);
+        p->type=Top; p->value=Top_assignment;
+        p->a[0]=id; p->a[1]=x;
+        id=p;
+      }
       t = get_token(i);
       if(t==NULL){
         ast_delete(id);
@@ -2921,7 +2972,7 @@ ast_node* argument_list(token_iterator* i){
       goto error;
     }
     if(t->type==Tsep && (t->value==',' || t->value==';')){
-      if(argc!=0){
+      if(variadic){
         syntax_error(t->line,t->col,"variadic argument must be the last one.");
         goto error;
       }
@@ -2941,10 +2992,15 @@ ast_node* argument_list(token_iterator* i){
   y = ast_buffer_to_node(v.size,(ast_node**)v.a,-1,-1);
   y->type=Top;
   y->value=Top_list;
-  if(argc==0){
-    y->info=v.size-1;
+  if(variadic){
+    y->info = argc_min;
+    y->info2 = argc_max;
+  }else if(optional){
+    y->info = argc_min;
+    y->info2 = v.size-1;
   }else{
-    y->info=argc;
+    y->info = v.size-1;
+    y->info2 = v.size-1;
   }
   // printf("y->info = %i\n",y->info);
   mf_vec_delete(&v);
@@ -3903,7 +3959,7 @@ int ast_compile_ifop(mt_vec* bv, ast_node* t){
     push_u32(bv,0xcafe);
     *(uint32_t*)(bv->a+index)=BC+bv->size-index;
   }
-  if(t->info==HAS_ELSE_CASE){
+  if(t->info==WITH_ELSE_CASE){
     if(ast_compile(bv,t->a[t->n-1])) return 1;
   }else{
     push_bc(bv,CONST_NULL,t);
@@ -4090,6 +4146,8 @@ int ast_argument_list(mt_var_tab* vtab, ast_node* t){
     if(id->type==Tnull){
       vtab_push(vtab,MV_ARGUMENT,"self",4,0);
       continue;
+    }else if(id->type==Top && id->value==Top_assignment){
+      id = id->a[0];
     }
     if(vtab_index(vtab,MV_LOCAL,id->s,id->size)>=0){
       syntax_error(t->line,t->col,"identifier occurs multiple times.");
@@ -4097,7 +4155,6 @@ int ast_argument_list(mt_var_tab* vtab, ast_node* t){
     }
     vtab_push(vtab,MV_ARGUMENT,id->s,id->size,0);
   }
-  vtab->argc=t->info;
   return 0;
 }
 
@@ -4161,49 +4218,80 @@ int gotos(mt_vec* bv){
 }
 
 static
+ast_node* if_null(ast_node* t){
+  ast_node* y = ast_new(3,t->line,t->col);
+  y->type=Tkeyword; y->value=Tif;
+  y->info = WITH_ELSE_CASE;
+  t->a[0]->refcount++;
+  y->a[0] = t->a[0];
+  y->a[1] = ast_new(0,t->line,t->col);
+  y->a[1]->type = Tblock;
+  t->refcount++;
+  y->a[2] = t;
+  return y;
+}
+
+static
+int ast_default_args(mt_vec* bv, ast_node* t){
+  int i;
+  ast_node** a = t->a;
+  for(i=0; i<t->n; i++){
+    if(a[i]->type==Top && a[i]->value==Top_assignment){
+      ast_node* y = if_null(a[i]);
+      int e = ast_compile(bv,y);
+      ast_delete(y);
+      if(e) return 1;
+    }
+  }
+  return 0;
+}
+
+static
 int ast_compile_function(mt_vec* bv, ast_node* t){
   mt_vec bv2;
   mf_vec_init(&bv2,sizeof(unsigned char));
   mt_var_tab vtab;
-  vtab.context=context;
-  vtab.fn_name=NULL;
+  vtab.context = context;
+  vtab.fn_name = NULL;
   mf_vec_init(&vtab.v,sizeof(mt_var_info));
   mf_vec_init(&vtab.c,sizeof(mt_var_info));
   mf_vec_init(&vtab.g,sizeof(mt_var_info));
   mf_vec_init(&vtab.a,sizeof(mt_var_info));
   // vtab_print(&vtab,4);
-  int e=ast_argument_list(&vtab,t->a[0]);
+  int e = ast_argument_list(&vtab,t->a[0]);
   if(e) return 1;
-  int argc=t->a[0]->info;
-  vtab.fn_name=(unsigned char*)t->s;
-  vtab.fn_name_size=t->size;
+  int argc_min = t->a[0]->info;
+  int argc_max = t->a[0]->info2;
+  vtab.fn_name = (unsigned char*)t->s;
+  vtab.fn_name_size = t->size;
   mt_vec indices;
   mf_vec_init(&indices,sizeof(int));
   mt_vec* tindices = const_fn_indices;
   const_fn_indices = &indices;
 
-  mt_vec* hlabel_tab=label_tab;
-  mt_vec* hgoto_tab=goto_tab;
-  label_tab=label_tab_new();
-  goto_tab=label_tab_new();
+  mt_vec* hlabel_tab = label_tab;
+  mt_vec* hgoto_tab = goto_tab;
+  label_tab = label_tab_new();
+  goto_tab = label_tab_new();
 
-  context=&vtab;
+  context = &vtab;
   // vtab_print(context,4);
   nesting_level++; scope++;
+  e = ast_default_args(&bv2,t->a[0]);
   e = ast_compile(&bv2,t->a[1]);
   nesting_level--; scope--;
-  context=vtab.context;
+  context = vtab.context;
 
   // printf("[%i,%i,%i]\n", bv2.size, bv_deposit.size, bv->size);
   offsets(&bv2,-bv_deposit.size,&indices);
   gotos(&bv2);
   label_tab_delete(label_tab);
   label_tab_delete(goto_tab);
-  label_tab=hlabel_tab;
-  goto_tab=hgoto_tab;
+  label_tab = hlabel_tab;
+  goto_tab = hgoto_tab;
 
 
-  const_fn_indices=tindices;
+  const_fn_indices = tindices;
   mf_vec_delete(&indices);
   push_bc(&bv2,CONST_NULL,t);
   push_bc(&bv2,RET,t);
@@ -4228,7 +4316,8 @@ int ast_compile_function(mt_vec* bv, ast_node* t){
   int index = bv->size;
   mf_vec_push(const_fn_indices,&index);
   push_u32(bv,bv_deposit.size);
-  push_u32(bv,argc); // argc
+  push_u32(bv,argc_min);
+  push_u32(bv,argc_max);
   push_u32(bv,vtab.v.size); // var_count
 
   bv_append(&bv_deposit,&bv2);
@@ -4551,7 +4640,11 @@ int ast_compile(mt_vec* bv, ast_node* t){
     case Top_map:{
       long i;
       for(i=0; i<t->n; i++){
-        if(ast_compile(bv,t->a[i])) return 1;
+        if(t->a[i]==NULL){
+          push_bc(bv,CONST_NULL,t);
+        }else{
+          if(ast_compile(bv,t->a[i])) return 1;
+        }
       }
       push_bc(bv,MAP,t);
       push_u32(bv,t->n);
@@ -4572,6 +4665,7 @@ int ast_compile(mt_vec* bv, ast_node* t){
         int e = ast_compile(bv,p);
         mf_free(p);
         if(e) return 1;
+        push_bc(bv,POP,t);
         break;
       }
       if(ast_compile(bv,t->a[1])) return 1;
@@ -4798,9 +4892,10 @@ void dump_program(unsigned char* bv, int n){
       i+=BC+4;
       break;
     case CONST_FN:
-      printf("CONST_FN %i, argc=%i, varcount=%i\n",
-        *(int*)(bv+i+BC),*(int*)(bv+i+BC+4),*(int*)(bv+i+BC+8));
-      i+=BC+12;
+      printf("CONST_FN %i, argc_min=%i, argc_max=%i, varcount=%i\n",
+        *(int*)(bv+i+BC),*(int*)(bv+i+BC+4),
+        *(int*)(bv+i+BC+8),*(int*)(bv+i+BC+12));
+      i+=BC+16;
       break;
     case ADD:
       i+=BC; printf("ADD\n");

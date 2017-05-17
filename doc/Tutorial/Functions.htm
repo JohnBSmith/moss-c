@@ -251,15 +251,11 @@ function call is as follows.
 
 <h2 id="opt">Optional arguments</h2>
 
-<p>Optional arguments can be simulated by
-a variadic function with obligatory arguments
-(the non-optional ones).
+<p>For the last formal argument, a default value may be specified.
+If the actual argument is omitted, this default value is taken.
 
 <pre class="moss">
-p = sub|x,y,*a|
-  sep = ", " if size(a)==0 else a[0]
-  return ["(",x,sep,y,")"].join()
-end
+p = |x,y,sep=", "| ["(",x,sep,y,")"].join()
 
 &gt; p(1,2)
 "(1, 2)"
@@ -271,13 +267,29 @@ end
 <h2 id="named">
 Named arguments</h2>
 
-<p>Currently the language does not support named arguments.
-But they can be simulated by dictionarys.
+<p>Named arguments can be simulated by dictionarys.
 
 <pre class="moss">
 &gt; p = |d| ["(",d["x"],d["sep"],d["y"],")"].join()
 &gt; p({x=1,y=2,sep="|"})
 "(1|2)"
+</pre>
+
+<p>For convenience, such an dictionary can be unpacked, allowing
+named default arguments:
+<pre class="moss">
+sub p(d)
+  {x,y,sep=", "}=d
+  return ["(",x,sep,y,")"].join()
+end
+</pre>
+
+<p>A default configuration could be given for everything:
+<pre class="moss">
+sub p(d={})
+  {x="x", y="y", sep=", "}=d
+  return ["(",x,sep,y,")"].join()
+end
 </pre>
 
 

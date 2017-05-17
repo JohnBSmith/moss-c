@@ -30,6 +30,7 @@ enum{
 #define BCp4 8
 #define BCp8 12
 #define BCp12 16
+#define BCp16 20
 
 int mf_vm_eval(unsigned char* data, long ip);
 int mf_vm_eval_global(mt_module* module, long ip);

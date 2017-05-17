@@ -77,7 +77,7 @@ mt_string* mf_str_strip(mt_string* s){
   i=0;
   for(k=0; k<s->size; k++){
     if(!mf_uisspace(s->a[k])){
-      y->a[i]=s->a[k];
+      y->a[i] = s->a[k];
       i++;
     }
   }
@@ -92,26 +92,26 @@ token_iterator* regex_scan(mt_string* s){
   regex_token x;
   x.line=0;
   x.col=0;
-  uint32_t* a=s->a;
+  uint32_t* a = s->a;
   for(k=0; k<s->size; k++){
     if(mf_uisspace(a[k])){
       if(a[k]=='\n'){
         x.line++;
-        x.col=0;
+        x.col = 0;
       }else{
         x.col++;
       }
     }else{
-      x.c=a[k];
-      x.index=k;
+      x.c = a[k];
+      x.index = k;
       mf_vec_push(&v,&x);
       x.col++;
     }
   }
   token_iterator* i = mf_malloc(sizeof(token_iterator));
   i->index=0;
-  i->size=v.size;
-  i->a=(regex_token*)v.a;
+  i->size = v.size;
+  i->a = (regex_token*)v.a;
   s->refcount++;
   i->s=s;
   return i;
@@ -122,8 +122,8 @@ regex_ast_node* new_node(size_t n, unsigned char type){
   regex_ast_node* y = mf_malloc(
     sizeof(regex_ast_node)+n*sizeof(regex_ast_node*)
   );
-  y->n=n;
-  y->type=type;
+  y->n = n;
+  y->type = type;
   return y;
 }
 
@@ -158,14 +158,18 @@ int empty(string_iterator* i){
 
 static
 void syntax_error(token_iterator* i, const char* s){
-  if(i->index>=i->size){
-    i->index=i->size-1;
+  long line, col;
+  if(i->size==0){
+    line = 0; col = 0;
+  }else{
+    long index = i->index<i->size? i->index: i->size-1;
+    regex_token* x = &i->a[index];
+    line = x->line; col = x->col;
   }
-  regex_token* x = &i->a[i->index];
   char buffer[200];
   snprintf(buffer,200,
     "Error in re.compile(s): syntax error in %li:%li: %s",
-    x->line+1,x->col+1,s);
+    line+1,col+1,s);
   mf_std_exception(buffer);
 }
 

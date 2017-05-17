@@ -48,24 +48,30 @@ sub runge_kutta_system(t)
   x=x0; y=copy(y0)
   a = [[x,y]]
   if "unilateral" not in t
+    f5 = |y,k| y-0.5*h*k
+    f1 = |y,k| y-h*k
+    fy = |y,k1,k2,k3,k4| y-h/6*(k1+2*(k2+k3)+k4)
     for k in 1..N
       k1 = g(x,y)
-      k2 = g(x-0.5*h,map(y,k1,|y,k1| y-0.5*h*k1))
-      k3 = g(x-0.5*h,map(y,k2,|y,k2| y-0.5*h*k2))
-      k4 = g(x-h,map(y,k3,|y,k3| y-h*k3))
-      y = map(y,k1,k2,k3,k4,|y,k1,k2,k3,k4| y-h/6*(k1+2*(k2+k3)+k4))
+      k2 = g(x-0.5*h,f5[y,k1])
+      k3 = g(x-0.5*h,f5[y,k2])
+      k4 = g(x-h,f1[y,k3])
+      y = fy[y,k1,k2,k3,k4]
       x = x0-k*h
       a.push([x,y])
     end
     a.rev()
     x=x0; y=copy(y0)
   end
+  f5 = |y,k| y+0.5*h*k
+  f1 = |y,k| y+h*k
+  fy = |y,k1,k2,k3,k4| y+h/6*(k1+2*(k2+k3)+k4)
   for k in 1..N
     k1 = g(x,y)
-    k2 = g(x+0.5*h,map(y,k1,|y,k1| y+0.5*h*k1))
-    k3 = g(x+0.5*h,map(y,k2,|y,k2| y+0.5*h*k2))
-    k4 = g(x+h,map(y,k3,|y,k3| y+h*k3))
-    y = map(y,k1,k2,k3,k4,|y,k1,k2,k3,k4| y+h/6*(k1+2*(k2+k3)+k4))
+    k2 = g(x+0.5*h,f5[y,k1])
+    k3 = g(x+0.5*h,f5[y,k2])
+    k4 = g(x+h,f1[y,k3])
+    y = fy[y,k1,k2,k3,k4]
     x = x0+k*h
     a.push([x,y])
   end

@@ -1,0 +1,8 @@
+
+
+clear = sub|| end
+
+x = table end
+destructor(x) = clear
+
+

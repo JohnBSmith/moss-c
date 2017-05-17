@@ -1,0 +1,13 @@
+
+
+# Sollte eine Ausnahme werfen.
+
+sub main
+  if false
+    x=4
+  end
+  print(x)
+end
+
+main()
+

@@ -394,6 +394,18 @@ void eval_cmd(void){
   mf_getline_clear();
 }
 
+const char help_text[] =
+"\n"
+"Usage: moss [options] [file] [arguments]\n\n"
+"Options:\n"
+"-i file    Execute a file, then run in interactive mode.\n"
+"-unsafe    Allow writing to files, execution of shell commands,\n"
+"           system functions and network communication.\n"
+"-v         Show version.\n";
+
+const char version_text[] = 
+"Moss interpreter -- version 0.1 (2017-05).\n";
+
 static
 int is_option(char* s, int size){
   return size>0 && s[0]=='-';
@@ -429,6 +441,12 @@ int main(int argc, char** argv){
         mode_network=1;
       }else if(strcmp(s,"-c")==0){
         option=OPTION_c;
+      }else if(strcmp(s,"-h")==0 || strcmp(s,"-help")==0){
+        puts(help_text);
+        goto out;
+      }else if(strcmp(s,"-v")==0){
+        puts(version_text);
+        goto out;
       }else{
         printf("Error: unknown option %s.\n",s);
         error=1;
@@ -474,5 +492,4 @@ int main(int argc, char** argv){
 
   return error;
 }
-
 

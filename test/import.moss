@@ -1,0 +1,16 @@
+
+PATH = "../lib/"
+
+a = [
+  "Bag", "cf", "containers", "fraction",
+  "functional", "json", "mod",
+  "ode", "plotlib", "stat", "turtle",
+  "elib/emath", "elib/itertools", "elib/lang",
+  "elib/ostools", "elib/pc", "elib/unit",
+  "cas/basic", "cas/syntax"
+]
+
+m = a.dict(|x| [x,load(PATH+x)])
+
+
+

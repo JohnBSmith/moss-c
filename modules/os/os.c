@@ -18,6 +18,7 @@
 extern int mode_unsafe;
 extern int mode_network;
 extern mt_object mv_exception;
+extern mt_exception mv_Exception;
 mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 extern mt_table* mv_type_std_exception;
 static mt_object not_found;
@@ -245,11 +246,8 @@ mt_table* mf_os_load(){
   os->m = mf_empty_map();
   mt_map* m = os->m;
 
-  mt_object type;
-  type.type = mv_table;
-  type.value.p = (mt_basic*) mv_type_std_exception;
   not_found.type = mv_table;
-  not_found.value.p = (mt_basic*)mf_table(&type);
+  not_found.value.p = (mt_basic*)mf_table_table(mv_Exception.std);
   mf_insert_object(m,"not_found",&not_found);
 
   mf_insert_function(m,0,1,"ls",os_ls);

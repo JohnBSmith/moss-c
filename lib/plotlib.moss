@@ -98,8 +98,7 @@ color_table = [
   [0, 0, 0]
 ]
 
-sub plot(f,*a)
-  d = {} if size(a)==0 else a[0]
+sub plot(f,d={})
   s = system(d)
   s.plot(f,d)
   s.idle()
@@ -114,12 +113,11 @@ tplot = table
     end
   end,
   
-  sub plot(a,*argv)
+  sub plot(a,t={})
     if type(a) is function.type
       a=[a]
     end
-    t = {} if size(argv)==0 else argv[0]
-    n = t["n"] if "n" in t else self.n
+    {n=self.n}=t
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     d = wx/n
@@ -143,11 +141,8 @@ tplot = table
     end
   end,
 
-  sub vplot(f,*argv)
-    t = {} if size(argv)==0 else argv[0]
-    n  = t["n"]  if "n"  in t else self.n
-    t1 = t["t1"] if "t1" in t else  0.0
-    t2 = t["t2"] if "t2" in t else 10.0
+  sub vplot(f,t={})
+    {n=self.n, t1=0.0, t2=10.0} = t
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     d = abs(t2-t1)/n
@@ -168,8 +163,7 @@ tplot = table
     end
   end,
 
-  sub scatter(a,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub scatter(a,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     c = self.canvas
@@ -185,8 +179,7 @@ tplot = table
     end
   end,
 
-  sub box(a,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub box(a,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     c = self.canvas
@@ -206,8 +199,7 @@ tplot = table
     self.index=i
   end,
 
-  sub interlace(f,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub interlace(f,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     x1 = px-wx
@@ -237,8 +229,7 @@ tplot = table
     end
   end of sub,
 
-  sub random(f,*argv)
-    t = {} if size(argv)==0 else argv[0]
+  sub random(f,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     x1 = px-wx
@@ -289,8 +280,7 @@ tplot = table
   end
 end of table
 
-sub system(*argv)
-  t = argv[0] if size(argv)!=0 else {}
+sub system(t={})
   c=gx.new(gw,gh,1)
   c.font(16)
   s = table[tplot] canvas=c, index=0 end
@@ -321,14 +311,10 @@ sub sigmoid(x)
   tanh(0.2*x)
 end
 
-sub cplot(f,*argv)
-  t = {} if size(argv)==0 else argv[0]
-  wx = t["wx"] if "wx" in t else 10.0
-  wy = t["wy"] if "wy" in t else 10.0
-  px = t["px"] if "px" in t else  0.0
-  py = t["py"] if "py" in t else  0.0
-  a=gw//4; b=gh//4
-  a2=gw/8; b2=gh/8
+sub cplot(f,t={})
+  {wx=10.0, wy=10.0, px=0.0, py=0.0}=t
+  a = gw//4; b = gh//4
+  a2 = gw/8; b2 = gh/8
   c = gx.new(gw,gh,1)
   c.font(16)
   c.clear(1,1,1)
@@ -351,15 +337,10 @@ sub cplot(f,*argv)
   end
 end
 
-sub contour_plot(f,*argv)
-  t = {} if size(argv)==0 else argv[0]
-  wx = t["wx"] if "wx" in t else 10.0
-  wy = t["wy"] if "wy" in t else 10.0
-  wz = t["wz"] if "wz" in t else  1.0
-  px = t["px"] if "px" in t else  0.0
-  py = t["py"] if "py" in t else  0.0
-  a=gw//4; b=gh//4
-  a2=gw/8; b2=gh/8
+sub contour_plot(f,t={})
+  {wx=10.0, wy=10.0, wz=1.0, px=0.0, py=0.0}=t
+  a = gw//4; b = gh//4
+  a2 = gw/8; b2 = gh/8
   c = gx.new(gw,gh,1)
   c.font(16)
   c.clear(1,1,1)
@@ -405,16 +386,16 @@ sub fractal(f,g)
   )
   px=0; py=0; m=1
   label new
-  pw=8; w=W//pw; h=H//pw
+  pw=8; w = W//pw; h = H//pw
   while true
     for y in h
       for x in w
         c = ((4*x/h-3)*m-px)-((4*y/h-2)*m-py)*1i
-        z=g(c)
+        z = g(c)
         canvas.cset(0,0,0)
         canvas.fill(pw*x,pw*y,pw,pw)
         for i in 100
-          z=f(z,c)
+          z = f(z,c)
           if abs(z)>2
             color = get_color(i/10)
             canvas.cset(color[0],color[1],color[2])

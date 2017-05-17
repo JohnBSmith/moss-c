@@ -997,11 +997,20 @@ int enum_next(mt_object* x, int argc, mt_object* v){
 
 static
 int iterable_enum(mt_object* x, int argc, mt_object* v){
-  if(argc!=0){
-    mf_argc_error(argc,0,0,"enum");
+  long start;
+  if(argc==0){
+    start=0;
+  }else if(argc==1){
+    if(v[1].type!=mv_int){
+      mf_type_error1("in a.enum(start): start (type: %s) is not an integer.",&v[1]);
+      return 1;
+    }
+    start = v[1].value.i;
+  }else{
+    mf_argc_error(argc,0,1,"enum");
     return 1;
   }
-  mt_function* i = mf_iter(v);
+  mt_function* i = mf_iter(&v[0]);
   if(i==NULL){
     mf_traceback("enum");
     return 1;
@@ -1010,7 +1019,7 @@ int iterable_enum(mt_object* x, int argc, mt_object* v){
   f->context=mf_raw_tuple(2);
   mt_object* a=f->context->a;
   a[0].type=mv_int;
-  a[0].value.i=0;
+  a[0].value.i=start;
   a[1].type=mv_function;
   a[1].value.p=(mt_basic*)i;
   f->argc=0;
@@ -1037,7 +1046,7 @@ void mf_init_type_iterable(mt_table* type){
   mf_insert_function(m,1,1,"dict",iterable_dict);
   mf_insert_function(m,1,1,"find",iterable_find);
   mf_insert_function(m,1,1,"until",iterable_until);
-  mf_insert_function(m,0,0,"enum",iterable_enum);
+  mf_insert_function(m,0,1,"enum",iterable_enum);
   mf_insert_function(m,0,1,"max",iterable_max);
   mf_insert_function(m,0,1,"min",iterable_min);
 }

@@ -111,8 +111,8 @@ sub slow
   # powmod_test(0..10,0..4000,1000)
 end
 
-# fast()
+fast()
 # slow()
 
-itos_test((0..1000:10).map(|x| 2^x))
+# itos_test((0..1000:10).map(|x| 2^x))
 
