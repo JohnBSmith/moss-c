@@ -1,7 +1,4 @@
 
-Tlist = list.type
-Tint = int.type
-Tstr = str.type
 
 cas_error = object()
 sub scan_error(s,i,info)
@@ -157,7 +154,7 @@ sub factor(i)
     if x[1]=="-"
       next_token(i)
       t = factor(i)
-      return -t if type(t) is Tint else ["*",[-1,t]]
+      return -t if type(t) is Int else ["*",[-1,t]]
     elif x[1]=="+"
       next_token(i)
       return factor(i)
@@ -206,7 +203,7 @@ sub add(i)
         elif x[1]=="-"
           next_token(i)
           t = mpy(i)
-          a.push(-t if type(t) is Tint else ["*",[-1,t]])
+          a.push(-t if type(t) is Int else ["*",[-1,t]])
         else
           break
         end
@@ -244,9 +241,9 @@ end
 
 sub ast_print(t,n)
   T=type(t)
-  if T is Tint or T is Tstr
+  if T is Int or T is Str
     print("\s"*n,t)
-  elif T is Tlist 
+  elif T is List
     print("\s"*n,t[0])
     for u in t[1]
       ast_print(u,n+2)
@@ -275,7 +272,7 @@ precedence = {
 
 sub parentheses(u,t)
   s = ast_to_string(u)
-  if type(u) is Tlist and u[0] in infix
+  if type(u) is List and u[0] in infix
     if precedence[u[0]]<precedence[t[0]]
       s=["(",s,")"].join()
     end
@@ -285,16 +282,16 @@ end
 
 sub summand_to_string(u,first)
   T = type(u)
-  if T is Tlist and u[0]=="*" and size(u[1])>0
+  if T is List and u[0]=="*" and size(u[1])>0
     f=u[1][0]
-    if type(f) is Tint and f<0
+    if type(f) is Int and f<0
       if f==-1
         return "-"+u[1][1..].map(|v| parentheses(v,u)).join("*")
       else
         return ast_to_string(u)
       end
     end
-  elif T is Tint
+  elif T is Int
     if u<0
       return str(u)
     end
@@ -316,9 +313,9 @@ sub ast_to_string(t)
     return null
   end
   T = type(t)
-  if T is Tint or T is Tstr
+  if T is Int or T is Str
     return str(t)
-  elif T is Tlist
+  elif T is List
     if t[0] in infix
       if t[0]=="+"
         a=[]; Lu=t[1]

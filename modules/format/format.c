@@ -169,7 +169,7 @@ mt_string* str_formatted(mt_object* x, mt_format_info* info){
   }
 }
 
-mt_string* mf_format(mt_string* s, mt_list* list){
+mt_string* mf_format(mt_string* s, long list_size, mt_object* list_buffer){
   mt_bu32 b;
   mf_bu32_init(&b,256);
   long counter=0;
@@ -193,11 +193,11 @@ mt_string* mf_format(mt_string* s, mt_list* list){
         info.index=counter;
         counter++;
       }
-      if(info.index<0 || info.index>=list->size){
+      if(info.index<0 || info.index>=list_size){
         mf_std_exception("Error in s%a: {} out of range.");
         goto error;
       }
-      mt_string* p=str_formatted(&list->a[info.index],&info);
+      mt_string* p=str_formatted(&list_buffer[info.index],&info);
       if(p==NULL){
         mf_traceback("template % list");
         goto error;

@@ -3,7 +3,7 @@
 # words of characters: {"a","ab"}
 # words of general symbols: {[], [1,2], [3]}
 
-extend(dict.type,table
+extend(Map,table
   sub MPY(L;b)
     set((list(L)*list(b)).map(|x,y| x+y))
   end,

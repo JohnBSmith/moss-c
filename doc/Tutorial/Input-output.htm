@@ -26,14 +26,14 @@ is used. It takes an optional argument: the prompt, that is
 simply a text printed before one can type input into the input
 line. And it returns a string, containing the text that was
 typed. Here is a most basic example:
-<pre class="moss">
+<pre class="moss indent">
 s = input("Please type something and press return: ")
 print("Input was: '", s, "'".)
 </pre>
 <p>That input string can be converted into an integer or
 a floating point number:
-<pre class="moss">
-s = input("> ")
+<pre class="moss indent">
+s = input("&gt; ")
 print([s,int(s),float(s)])
 </pre>
 
@@ -46,9 +46,9 @@ into strings and joins them together.
 # a12|3.4[1, 2]
 </pre>
 <p>That is to say, the equation
-<pre class="moss">
-  print(x,y,z) == print([x,y,z].join())
-  == print([x,y,z].map(str).join())
+<pre class="moss indent">
+print(x,y,z) == print([x,y,z].join())
+== print([x,y,z].map(str).join())
 </pre>
 <p>holds. This allows us to express an alternative version
 of <code>print</code> that takes a separator.
@@ -64,15 +64,15 @@ Print([1,2,3],"|")
 
 <h2 id="String-formatting">String formatting</h2>
 
-<p>Let us have a look one the following example.
-<pre class="moss">
+<p>Let us have a look on the following example.
+<pre class="moss indent">
 for x in 1..8
   print([x,2^x])
 end
 </pre>
 <p>We would like it to be printed in tabular format.
 This is achieved as follows.
-<pre class="moss">
+<pre class="moss indent">
 for x in 1..8
   print("{} | {3}" % [x,2^x])
 end
@@ -91,11 +91,17 @@ end
 right alignment by default. One can specify the template string
 parametrically by usage of <code>join</code>.
 
-<pre class="moss">
+<pre class="moss indent">
 padding = 3
 template = ["{} | {", padding, "(0)}"].join()
 for x in 1..8
   print(template % [x,2^x])
+end
+</pre>
+<p>Alternatively:
+<pre class="moss indent">
+for x in 1..8
+  print("{} | {}" % [x,str(2^x).rjust(3,'0')])
 end
 </pre>
 

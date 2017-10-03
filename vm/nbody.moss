@@ -1,0 +1,88 @@
+
+
+use plotlib: system
+use math: hypot, cos, sin, atan2
+
+begin
+  global Simulation
+
+  subtraction = |x,y| x-y
+  norm = |x| hypot(x[0],x[1])
+  G = 1.0
+  
+  sub gravitation(x,m,n,k)
+    y = [0,0]
+    for i in n
+      if i!=k
+        delta = subtraction[x[i],x[k]]
+        u = 1/norm(delta)^3
+        y[0] += m[i]*delta[0]*u
+        y[1] += m[i]*delta[1]*u
+      end
+    end
+    y[0]=G*y[0]
+    y[1]=G*y[1]
+    return y
+  end
+  
+  sub filter(x,v,m)
+    x2=[]; v2=[]; m2=[]
+    for k in size(x)
+      if norm(x[k])<20
+        x2.push(x[k])
+        v2.push(v[k])
+        m2.push(m[k])
+      end
+    end
+    return x2,v2,m2
+  end
+
+  sub Simulation(d={})
+    {n=10,h=0.001}=d
+    s = system()
+    r = rand()
+    # x = list(1..n).map(|k| [8*r()-4,8*r()-4])
+    # v = list(1..n).map(|k| [0,0])
+    # m = list(1..n).map(|k| 1)
+    x = []; v = []; m = []
+    
+    fv = |vk,gk| vk+h*gk
+    fx = |xk,vk| xk+h*vk
+    
+    c = s.canvas
+    N = 0
+    while true
+      c.clear(1,1,1)
+      s.palette(0)
+      s.scatter(x)
+      c.flush()
+
+      n = size(x)
+      for k in n
+        g = gravitation(x,m,n,k)
+        v[k] = fv[v[k],g]
+        x[k] = fx[x[k],v[k]]
+      end
+      if N%20==0
+        x,v,m = filter(x,v,m)
+        key = c.key()
+        if key=="q"
+          break
+        elif key=="space"
+          xn = list(1..10).map(|k| [4*r()-2,4*r()-2])
+          x = x+xn
+          v = v+xn.map(sub|xk| R=0.02*norm(xk)^2; [-xk[1]/R,xk[0]/R] end)
+          m = m+list(1..10).map(|k| 1)
+        elif key=="m"
+          x = x+[[0,0]]
+          v = v+[[0,0]]
+          m = m+[1000]
+        end
+      end
+      N++
+    end
+  end
+end
+
+Simulation(n=100)
+

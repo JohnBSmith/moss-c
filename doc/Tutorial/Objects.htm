@@ -17,6 +17,7 @@
 <li><a href="#Construction">Construction</a>
 <li><a href="#Literal">Object literal</a>
 <li><a href="#Prototypes">Prototypes</a>
+<li><a href="#Basic-data-types">Basic data types
 <li><a href="#Inheritance">Multiple inheritance</a>
 <li><a href="#Reflection">Reflection</a>
 <li><a href="#Monkey">Monkey patching</a>
@@ -95,15 +96,15 @@ Hermes.vmax = 25
 </pre>
 
 <p>Another way is to use a constructor <code>ship</code>
-and a metaobject <code>ship.type</code>.
+and a metaobject <code>Ship</code>.
 </p>
 
 <pre class="moss">
 ship = sub|id,vmax|
-  return object(ship.type,{"id": id, "vmax": vmax})
+  return object(Ship,{"id": id, "vmax": vmax})
 end
 
-ship.type = table
+Ship = table
   color = "gray blue",
   engine = "diesel",
   move = sub||
@@ -235,21 +236,48 @@ false
 true
 </pre>
 
+<h2 id="Basic-data-types">Basic data types</h2>
 
-<h2 id="Inheritance">Multiple inheritance
-</h2>
+<p>Variables of all basic data types as well as the data types
+itself are objects. Thus the object system applies
+to the basic data types too. Type checks are performed in one
+of three ways:
+<pre class="moss">
+&gt; x = 1
+&gt; x is in Int
+true
+&gt; type(x) is Int
+true
+&gt; str(type(x))=="Int"
+true
+</pre>
+
+<p>Here is a list of the basic data types:
+<pre>
+  Bool, Int, Long, Float, Complex,
+  Range, List, Map, Str, Function.
+</pre>
+
+<p>A data type is written capitalized, the corresponding constructor
+function in lower case.
+<pre class="moss">
+&gt; list(1..10) is in List
+true
+</pre>
+
+<h2 id="Inheritance">Multiple inheritance</h2>
 
 <p>An object can have more than one prototype.
 </p>
 
 <pre class="moss">
-plane_type = table
+Plane = table
   take_off = sub||
     print(self.id, " is in the sky.")
   end
 end
 
-sea_duck = table[[ship.type, plane_type]]
+sea_duck = table[[Ship, Plane]]
   id="Sea duck",
   vmax = 40
 end
@@ -261,8 +289,8 @@ sea_duck.take_off()
 # Sea duck is in the sky.
 </pre>
 
-<p>A method is searched at first in <code>ship.type</code>,
-and then, if not found, in <code>plane_type</code>.
+<p>A method is searched at first in <code>Ship</code>,
+and then, if not found, in <code>Plane</code>.
 </p>
 
 <h2 id="Reflection">
@@ -312,12 +340,13 @@ converts a string of numbers into the list of these numbers.
 </p>
 
 <pre class="moss">
-str.type.numbers = sub||
-  self.split(",").map(int)
-end
-
+&gt; Str.numbers = || self.split(",").map(int)
 &gt; "12, 14, 16".numbers()
 [12, 14, 16]
+
+&gt; List.pairs = || self.chunks(2)
+&gt; list(1..4).pairs()
+[[1,2], [3,4]]
 </pre>
 
 <h2 id="Overloading">
@@ -455,11 +484,11 @@ assigned to the object explicitly.
 
 <pre class="moss">
 sub ship(id,vmax)
-  t = table[ship.type] id=id end
-  destructor(t) = ship.type.delete
+  t = table[Ship] id=id end
+  destructor(t) = Ship.delete
 end
 
-ship.type = table
+Ship = table
   color = "gray blue",
   engine = "diesel",
   sub str

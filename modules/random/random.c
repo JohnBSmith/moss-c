@@ -110,7 +110,7 @@ static
 void rng_list(mt_object* x, mt_list* list, uint32_t seed){
   mt_function* f=mf_new_function(NULL);
   f->argc=0;
-  f->context=mf_raw_tuple(3);
+  f->context=mf_raw_tuple(2);
   mt_object* a=f->context->a;
   a[0].type=mv_native;
   a[0].value.p=(mt_basic*)mf_rand_state_new(seed);

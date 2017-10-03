@@ -48,7 +48,7 @@ int mf_fpow(mt_object* x, int argc, mt_object* v);
 int mf_fbool(mt_object* x, int argc, mt_object* v);
 int mf_fcomplex(mt_object* x, int argc, mt_object* v);
 int mf_fread(mt_object* x, int argc, mt_object* v);
-int mf_fassert(mt_object* x, int argc, mt_object* v);
+int mf_fassertion_failed(mt_object* x, int argc, mt_object* v);
 int mf_fhex(mt_object* x, int argc, mt_object* v);
 int mf_fbin(mt_object* x, int argc, mt_object* v);
 int mf_set_destructor(mt_object* x, int argc, mt_object* v);

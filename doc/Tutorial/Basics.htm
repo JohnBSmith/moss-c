@@ -19,7 +19,7 @@
 <li><a href="#functions">Functions</a>
 <li><a href="#strings">Strings</a>
 <li><a href="#lists">Lists</a>
-<li><a href="#dictionarys">Dictionarys</a>
+<li><a href="#maps">Maps</a>
 <li><a href="#sets">Sets</a>
 <li><a href="#interpreter">How to use the interpreter</a>
 <li><a href="#comments">Comments</a>
@@ -144,6 +144,7 @@ use the functions <code>min(x,y)</code> and <code>max(x,y)</code>.
 2624386837205668069376
 </pre>
 
+<!--
 <p>You can skip the rest of this section.</p>
 
 <p>The most significant digits (MSDs) are
@@ -210,6 +211,8 @@ in the following way.</p>
 &gt; 1366
 </pre>
 
+-->
+
 <h2 id="types">Basic data types</h2>
 
 <table class="bt">
@@ -218,43 +221,43 @@ in the following way.</p>
   <th>Example data
   <th>Meaning
 <tr>
-  <td><code>bool</code>
+  <td><code>Bool</code>
   <td><code>false, true</code>
   <td>logical values
 <tr>
-  <td><code>int</code>
+  <td><code>Int</code>
   <td><code>0, 1, 2, -1</code>
   <td>integer numbers
 <tr>
-  <td><code>float</code>
+  <td><code>Float</code>
   <td><code>0.0, 4.2, 1/3</code>
   <td>floating point numbers
 <tr>
-  <td><code>complex</code>
+  <td><code>Complex</code>
   <td><code>1i, 2+4i, -3.2i</code>
   <td>complex numbers
 <tr>
-  <td><code>str</code>
+  <td><code>Str</code>
   <td><code>"", "ab"</code>
   <td>strings of characters
 <tr>
-  <td><code>bstr</code>
-  <td><code>b{}, b{4142}</code>
+  <td><code>Bstr</code>
+  <td><code>b{}, b{41,42}</code>
   <td>strings of bytes
 <tr>
-  <td><code>list</code>
+  <td><code>List</code>
   <td><code>[], [1,2]</code>
   <td>lists of elements
 <tr>
-  <td><code>dict</code>
+  <td><code>Map</code>
   <td><code>{}, {a=1, b=2}</code>
-  <td>dictionarys of key-value pairs
+  <td>maps of key-value pairs
 <tr>
-  <td><code>range</code>
+  <td><code>Range</code>
   <td><code>1..10, (1..)</code>
   <td>ranges of elements
 <tr>
-  <td><code>function</code>
+  <td><code>Function</code>
   <td><code>|x| 2*x</code>
   <td>functions, subprograms
 </table>
@@ -363,7 +366,7 @@ end
 <h2 id="strings">Strings</h2>
 
 <p>In Moss, all kinds of objects can be stored in variables.
-A string of characters is also an object. The function
+A <i>string of characters</i> is also an object. The function
 <code>print</code> writes an object to the output.
 </p>
 
@@ -525,8 +528,8 @@ print(s)
 
 <h2 id="lists">Lists</h2>
 
-<p>In Moss, lists are dynamic arrays (not doubly linked lists). This
-is a fundamental, albeit easy to understand, data structure.
+<p>In Moss, <i>lists</i> are dynamic arrays (not doubly linked lists).
+This is a fundamental, albeit easy to understand, data structure.
 </p>
 
 <pre class="moss">
@@ -604,16 +607,16 @@ takes a list and returns the number of its elements.
 </pre>
 
 
-<h2 id="dictionarys">Dictionarys</h2>
+<h2 id="maps">Maps</h2>
 
-<p>A dictionary can be seen as a generalisation of a list. Like in a
-list an element of a dictionary belongs to an index, called <em>key</em>.
-But such a key is not restricted to integers.
-</p>
+<p>A <i>map</i> (also called <i>dictionary</i>) can be seen as a
+generalisation of a list. Like in a list an element of a map belongs
+to an index, called <em>key</em>. But such a key is not restricted to
+integers.
 
 <pre class="moss">
 &gt; d = {}
-# empty dictionary
+# empty map
 
 &gt; d = {0: "a", 1: "b", "alpha": "c"}
 &gt; d[0]
@@ -622,9 +625,8 @@ But such a key is not restricted to integers.
 "c"
 </pre>
 
-<p>The operator <code>"in"</code> is used to test whether a key
-is contained in a dictionary or not.
-</p>
+<p>The operation <code>"k in d"</code> is used to test whether the key
+<code>k</code> is contained in the map <code>d</code> or not.
 
 <pre class="moss">
 &gt; [0 in d, "alpha" in d, "beta" in d]
@@ -636,9 +638,8 @@ is contained in a dictionary or not.
 
 <p>The function call <code>list(d)</code> returns the list
 of keys contained in <code>d</code>.
-The keys can be in any order, because a dictionary
+The keys can be in any order, because a map
 is not (explicitly) ordered.
-</p>
 
 <pre class="moss">
 &gt; list(d)
@@ -647,7 +648,6 @@ is not (explicitly) ordered.
 
 <p>If you are interested in the values or key-value pairs, simply
 express this by methods.
-</p>
 
 <pre class="moss">
 &gt; list(d.values())
@@ -659,17 +659,18 @@ express this by methods.
 
 <p>If the key is an identifier, there is a shorthand notation.
 Instead of
-</p>
 <pre class="moss">
   {"x": 4, "y": 3}
 </pre>
+
 <p>one may write:
-</p>
 <pre class="moss">
   {x=4,y=3}
 </pre>
+
 <p>But note that this is not the same as <code>{x:4,y:3}.</code>
-Before a colon, <code>x,y</code> are itself variables that should contain keys.
+Before a colon, <code>x,y</code> are itself variables that should
+contain keys.
 <pre class="moss">
 &gt; x="u"; y="v"
 &gt; {x:4,y:3} == {u=4,v=3}
@@ -679,7 +680,7 @@ true
 <h2 id="sets">Sets</h2>
 <p>If the value of some key is omitted, <code>null</code> is
 taken as value.
-A dictionary with all values omitted can be used as a set.
+A map with all values omitted can be used as a set.
 All set operations are supported (e.g. union, intersection,
 subset relation, universal quantifier).
 <pre class="moss">
@@ -692,6 +693,7 @@ true
 [{1, 2, 3, 4}, {2, 3}, {1}, {1, 4}]
 # union, intersection, difference, symmetric difference
 </pre>
+
 <p>One can use <code>set(a)</code> to convert an iterable
 object <code>a</code> into a set. A set is itself iterable.
 For any iterable object, things like <code>map</code>
@@ -706,6 +708,7 @@ and universal quantifier <code>all</code> are defined.
 &gt; {2,4,6,8}.all(|x| x%2==0)
 true
 </pre>
+
 <p>But note that the elements of a set can be in any order.
 If you wish to pretty print a set, it should be converted into
 a list, so that it can be sorted.
@@ -875,7 +878,7 @@ end
 # b
 # c
 </pre>
-<p>Dictionarys are iterable.
+<p>Maps are iterable.
 </p>
 <pre class="moss">
 for key in {a=1,b=2}
@@ -1006,7 +1009,7 @@ can be defined recursively:
 <p>In this case the definition can be implemented without further
 ado:
 <pre class="moss">
-pow = |x,n| 1 if n==0 else x*pow(x,n-1)
+  pow = |x,n| 1 if n==0 else x*pow(x,n-1)
 </pre>
 
 <p>A more complicated example:

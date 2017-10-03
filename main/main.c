@@ -199,8 +199,8 @@ void mf_main_load(const char* id, mt_bstr* data){
   fclose(fp);
 }
 
-mt_table* mf_eval_module(mt_module* module, long ip);
-mt_table* mf_load_module(const char* id){
+int mf_eval_module(mt_object* x, mt_module* module, long ip);
+int mf_load_module(mt_object* x, const char* id){
   mt_vec v;
   mf_vec_init(&v,sizeof(mt_token));
   mt_bstr input;
@@ -210,7 +210,7 @@ mt_table* mf_load_module(const char* id){
     char buffer[200];
     snprintf(buffer,200,"Error: could not read file '%s'.",id);
     mf_std_exception(buffer);
-    return NULL;
+    return 1;
   }
   mt_compiler_context context;
   mf_compiler_context_save(&context);
@@ -228,17 +228,16 @@ mt_table* mf_load_module(const char* id){
     mf_std_exception(buffer);
     goto error;
   }
-  mt_table* t;
-  t = mf_eval_module(module,0);
+  e = mf_eval_module(x,module,0);
   mf_vec_delete(&v);
   mf_compiler_context_restore(&context);
   mf_module_dec_refcount(module);
-  return t;
+  return e;
   error:
   mf_compiler_context_restore(&context);
   mf_vec_delete(&v);
   mf_module_dec_refcount(module);
-  return NULL;
+  return 1;
 }
 
 int mf_eval_bytecode(mt_object* x, mt_module* module);

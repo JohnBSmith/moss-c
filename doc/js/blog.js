@@ -15,7 +15,9 @@ function toc(){
   b.push(begin);
   for(var i=0; i<a.length; i++){
     var h=a[i];
-    var date="<span style='color: #a09080'>["+h.getAttribute("data-date")+"]</span> ";
+    var data = h.getAttribute("data-date");
+    data = data.slice(0,4)+"-"+data.slice(4,6)+"-"+data.slice(6);
+    var date="<span style='color: #90908a'>["+data+"]</span> ";
     if(h.id){
       b.push("<li>"+date+" <a href='#"+h.id+"'>"+h.innerHTML+"</a>");
     }else{
@@ -27,6 +29,4 @@ function toc(){
   var t = document.getElementById("toc");
   t.innerHTML=b.join("");
 }
-
-window.onload = toc;
 

@@ -3,17 +3,17 @@ use nt: gcd
 
 sub fraction(n,d)
   t = gcd(n,d)
-  return table[fraction.type]
+  return table[Fraction]
     n=n//t, d=d//t
   end
 end
 
-fraction.type = table
+Fraction = table
   sub str
     [self.n, "/", self.d].join()
   end,
   sub ADD(b)
-    if b is in int.type
+    if b is in Int
       n = self.n+b*self.d
       d = self.d
       return fraction(n,d)
@@ -27,7 +27,7 @@ fraction.type = table
     return fraction(self*b.d+b.n,b.d)
   end,
   sub SUB(b)
-    if b is in int.type
+    if b is in Int
       n = self.n-b*self.d
       d = self.d
       return fraction(n,d)
@@ -41,7 +41,7 @@ fraction.type = table
     return fraction(self*b.d-b.n,b.d)
   end,
   sub MPY(b)
-    if b is in int.type
+    if b is in Int
       n = self.n*b
       d = self.d
       return fraction(n,d)
@@ -55,7 +55,7 @@ fraction.type = table
     return fraction(self*b.n,b.d)
   end,
   sub DIV(b)
-    if b is in int.type
+    if b is in Int
       n = self.n
       d = self.d*b
       return fraction(n,d)

@@ -1,13 +1,10 @@
 
-Tlist = list.type
-Tstr = str.type
-Tint = int.type
 
 sub isconst(t,id)
   T = type(t)
-  if T is Tstr
+  if T is Str
     return t!=id
-  elif T is Tlist
+  elif T is List
     return t[1].all(|u| isconst(u,id))
   end
   return true
@@ -15,11 +12,11 @@ end
 
 sub substitute(t,id,s)
   T = type(t)
-  if T is Tstr
+  if T is Str
     if t==id
       return s
     end
-  elif T is Tlist
+  elif T is List
     return [t[0],t[1].map(|u| substitute(u,id,s))]
   end
   return t
@@ -27,11 +24,11 @@ end
 
 sub diff(t,id)
   T = type(t)
-  if T is Tstr
+  if T is Str
     return (1 if t==id else 0)
-  elif T is Tint
+  elif T is Int
     return 0
-  elif T is Tlist
+  elif T is List
     if t[0]=="+"
       a = t[1].map(|u| diff(u,id)).filter(|u| u!=0)
       return (["+",a] if size(a)>1 else a[0] if size(a)>0 else 0)
@@ -71,13 +68,13 @@ associative = {
 
 sub flatten(t)
   T = type(t)
-  if T is Tlist
+  if T is List
     op = t[0]
     t = [op,t[1].map(flatten)]
     if op in associative
       a=[]
       for u in t[1]
-        if type(u) is Tlist and u[0]==op
+        if type(u) is List and u[0]==op
           a.extend(u[1])
         else
           a.push(u)
@@ -94,9 +91,9 @@ sub simplify_sum(a)
   for t in a
     t=simplify(t)
     T = type(t)
-    if T is Tint
+    if T is Int
       s+=t
-    elif T is Tlist and t[0]=="*" and type(t[1][0]) is Tint
+    elif T is List and t[0]=="*" and type(t[1][0]) is Int
       p = t[1][1..]
       p = p[0] if size(p)==1 else ["*",p]
       if p in d
@@ -119,9 +116,9 @@ sub simplify_prod(a)
   for t in a
     t = simplify(t)
     T = type(t)
-    if T is Tint
+    if T is Int
       p=p*t
-    elif T is Tlist and t[0]=="^" and type(t[1][1]) is Tint
+    elif T is List and t[0]=="^" and type(t[1][1]) is Int
       b=t[1][0]; e=t[1][1]
       if b in d
         d[p]+=e
@@ -141,7 +138,7 @@ end
 sub simplify(t)
   t = flatten(t)
   T = type(t)
-  if T is Tlist
+  if T is List
     if t[0]=="+"
       return simplify_sum(t[1])
     elif t[0]=="*"

@@ -775,7 +775,7 @@ int mf_map_items(mt_object* x, int argc, mt_object* v);
 int mf_map_values(mt_object* x, int argc, mt_object* v);
 
 void mf_init_type_dict(mt_table* type){
-  type->name = mf_cstr_to_str("dict");
+  type->name = mf_cstr_to_str("Map");
   type->m=mf_empty_map();
   mt_map* m=type->m;
   mf_insert_function(m,1,1,"add",map_add);

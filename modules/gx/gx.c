@@ -59,12 +59,12 @@ mt_canvas* gx_new(int w, int h, int size){
   mt_canvas* canvas = mf_malloc(sizeof(mt_canvas));
   canvas->refcount=1;
   canvas_type->refcount++;
-  canvas->prototype.type=mv_table;
-  canvas->prototype.value.p=(mt_basic*)canvas_type;
-  canvas->del=gx_delete;
+  canvas->prototype.type = mv_table;
+  canvas->prototype.value.p = (mt_basic*)canvas_type;
+  canvas->del = gx_delete;
   canvas->h=h;
   canvas->w=w;
-  canvas->size=size;
+  canvas->size = size;
   canvas->cx=10;
   canvas->cy=10;
   canvas->add=1;
@@ -92,17 +92,17 @@ mt_canvas* gx_new(int w, int h, int size){
   SDL_SetRenderDrawColor(canvas->rdr,0,0,0,255);
   SDL_RenderClear(canvas->rdr);
   SDL_SetRenderDrawColor(canvas->rdr,0xa0,0xa0,0xa0,255);
-  canvas->r=0xa0;
-  canvas->g=0xa0;
-  canvas->b=0xa0;
-  canvas->a=255;
+  canvas->r = 0xa0;
+  canvas->g = 0xa0;
+  canvas->b = 0xa0;
+  canvas->a = 255;
   return canvas;
 }
 
 static
 void gx_pset(mt_canvas* canvas, unsigned int x, unsigned int y){
-  int w=canvas->w;
-  int h=canvas->h;
+  int w = canvas->w;
+  int h = canvas->h;
   if(x>=w || y>=h) return;
   int size = canvas->size;
   SDL_Rect r;
@@ -110,9 +110,9 @@ void gx_pset(mt_canvas* canvas, unsigned int x, unsigned int y){
   r.w=size; r.h=size;
   SDL_RenderFillRect(canvas->rdr,&r);
   mt_pixel* p = canvas->buffer+y*w+x;
-  p->r=canvas->r;
-  p->g=canvas->g;
-  p->b=canvas->b;
+  p->r = canvas->r;
+  p->g = canvas->g;
+  p->b = canvas->b;
 }
 
 static
@@ -133,13 +133,13 @@ void gx_pseta(mt_canvas* canvas, unsigned int x, unsigned int y, unsigned char a
   if(y>=w) return;
   mt_pixel* p = canvas->buffer+y*w+x;
   if(canvas->add){
-    p->r=max(canvas->r*a/255,p->r);
-    p->g=max(canvas->g*a/255,p->g);
-    p->b=max(canvas->b*a/255,p->b);
+    p->r = max(canvas->r*a/255,p->r);
+    p->g = max(canvas->g*a/255,p->g);
+    p->b = max(canvas->b*a/255,p->b);
   }else{
-    p->r=min((canvas->r-255)*a/255+255,p->r);
-    p->g=min((canvas->g-255)*a/255+255,p->g);
-    p->b=min((canvas->b-255)*a/255+255,p->b);
+    p->r = min((canvas->r-255)*a/255+255,p->r);
+    p->g = min((canvas->g-255)*a/255+255,p->g);
+    p->b = min((canvas->b-255)*a/255+255,p->b);
   }
   SDL_SetRenderDrawColor(canvas->rdr,p->r,p->g,p->b,255);
   int size = canvas->size;
@@ -164,7 +164,7 @@ void gx_clear(mt_canvas* canvas, int r, int g, int b){
   SDL_RenderClear(canvas->rdr);
   SDL_SetRenderDrawColor(canvas->rdr,
     canvas->r,canvas->g,canvas->b,canvas->a);
-  int size=canvas->w*canvas->h;
+  int size = canvas->w*canvas->h;
   int i;
   mt_pixel* a = canvas->buffer;
   for(i=0; i<size; i++){
@@ -189,12 +189,12 @@ int mf_gx_new(mt_object* x, int argc, mt_object* v){
     mf_type_error("Type error: new takes only integers.");
     return 1;
   }
-  long w=v[1].value.i;
-  long h=v[2].value.i;
-  long size=v[3].value.i;
+  long w = v[1].value.i;
+  long h = v[2].value.i;
+  long size = v[3].value.i;
   mt_canvas* canvas = gx_new(w,h,size);
-  x->type=mv_native;
-  x->value.p=(mt_basic*)canvas;
+  x->type = mv_native;
+  x->value.p = (mt_basic*)canvas;
   return 0;
 }
 

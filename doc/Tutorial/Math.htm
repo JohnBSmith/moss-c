@@ -6,6 +6,12 @@
   <link rel="stylesheet" href="../css/main.css">
   <script src = "../js/syntax.js">
   </script>
+  <style>
+table.bt td {
+  padding-top: 0.8em;
+  padding-bottom: 0.8em;
+}
+  </style>
 </head>
 <body>
 
@@ -32,79 +38,57 @@
 
 <tr>
 <td><img src="../img/assignment.png">
-<td><pre class="moss">
-x=a, x:=a
-</pre>
+<td><code class="moss">x=a, x:=a</code>
 <td>assignment
 
 <tr>
 <td><img src="../img/eq.png">
-<td><pre class="moss">
-a==b
-</pre>
+<td><code class="moss">a==b</code>
 <td>comparison
 
 <tr>
 <td><img src="../img/pow.png">
-<td><pre class="moss">
-x^n
-</pre>
+<td><code class="moss">x^n</code>
 <td>to the power of
 
 <tr>
 <td><img src="../img/index.png">
-<td><pre class="moss">
-a[i]
-</pre>
+<td><code class="moss">a[i]</code>
 <td>index
 
 <tr>
 <td><img src="../img/mod.png">
-<td><pre class="moss">
-a%m
-</pre>
+<td><code class="moss">a%m</code>
 <td>modulo
 
 <tr>
 <td><img src="../img/not.png">
-<td><pre class="moss">
-not a
-</pre>
+<td><code class="moss">not a</code>
 <td>logical negation
 
 <tr>
 <td><img src="../img/andor.png">
-<td><pre class="moss">
-a and b, a or b
-</pre>
+<td><code class="moss">a and b, a or b</code>
 <td>logical and, or
 
 <tr>
 <td><img src="../img/in.png">
-<td><pre class="moss">
-x in A
-</pre>
+<td><code class="moss">x in A</code>
 <td>is an element of
 
 <tr>
 <td><img src="../img/subset.png">
-<td><pre class="moss">
-A&lt;=B, A&lt;B
-</pre>
+<td><code class="moss">A&lt;=B, A&lt;B</code>
 <td>subset, proper subset
 
 <tr>
 <td><img src="../img/capcup.png">
-<td><pre class="moss">
-A&amp;B, A|B
-</pre>
+<td><code class="moss">A&amp;B, A|B</code>
 <td>intersection, union
 
 <tr>
 <td><img src="../img/natural.png">
-<td><pre class="moss">
-(0..), (1..)
-</pre>
+<td><code class="moss">(0..), (1..)</code>
 <td>non-negative integers, positive integers
 
 <tr>
@@ -116,37 +100,27 @@ a if c else b
 
 <tr>
 <td><img src="../img/mapsto.png">
-<td><pre class="moss">
-|x| 2*x
-</pre>
+<td><code class="moss">|x| 2*x</code>
 <td>anonymous function
 
 <tr>
 <td><img src="../img/fpow.png">
-<td><pre class="moss">
-(f^n)(x)
-</pre>
+<td><code class="moss">(f^n)(x)</code>
 <td>iterated function
 
 <tr>
 <td><img src="../img/dom.png">
-<td><pre class="moss">
-f.dom = a..b
-</pre>
+<td><code class="moss">f.dom = a..b</code>
 <td>specify a function's domain
 
 <tr>
 <td><img src="../img/tuple.png">
-<td><pre class="moss">
-[a,b,c]
-</pre>
+<td><code class="moss">[a,b,c]</code>
 <td>tuples
 
 <tr>
 <td><img src="../img/cart.png">
-<td><pre class="moss">
-A*B, A^n
-</pre>
+<td><code class="moss">A*B, A^n</code>
 <td>cartesian product, power
 </table>
 
@@ -188,37 +162,27 @@ a.sum()
 
 <tr>
 <td><img src="../img/forall.png">
-<td><pre class="moss">
-M.all(|x| p(x))
-</pre>
+<td><code class="moss">M.all(|x| p(x))</code>
 <td>universal quantifier
 
 <tr>
 <td><img src="../img/exists.png">
-<td><pre class="moss">
-M.any(|x| p(x))
-</pre>
+<td><code class="moss">M.any(|x| p(x))</code>
 <td>existential quantifier
 
 <tr>
 <td><img src="../img/filter.png">
-<td><pre class="moss">
-M.filter(|x| p(x))
-</pre>
+<td><code class="moss">M.filter(|x| p(x))</code>
 <td>set builder notation
 
 <tr>
 <td><img src="../img/count.png">
-<td><pre class="moss">
-M.count(|x| p(x))
-</pre>
+<td><code class="moss">M.count(|x| p(x))</code>
 <td>counting
 
 <tr>
 <td><img src="../img/image.png">
-<td><pre class="moss">
-f[A]
-</pre>
+<td><code class="moss">f[A]</code>
 <td>image of a function
 </table>
 
@@ -236,9 +200,7 @@ use cmath: conj, re, im
 
 <tr>
 <td><img src="../img/root.png">
-<td><pre class="moss">
-sqrt(x), root(n,x)
-</pre>
+<td><code class="moss">sqrt(x), root(n,x)</code>
 <td>square root and general root
 
 <tr>
@@ -264,30 +226,22 @@ integral(a,b,|x| f(x))
 
 <tr>
 <td><img src="../img/inv.png">
-<td><pre class="moss">
-inv(f,x,a,b)
-</pre>
+<td><code class="moss">inv(f,x,a,b)</code>
 <td>inverse function
 
 <tr>
 <td><img src="../img/complex.png">
-<td><pre class="moss">
-a+b*1i
-</pre>
+<td><code class="moss">a+b*1i</code>
 <td>complex numbers
 
 <tr>
 <td><img src="../img/absconj.png">
-<td><pre class="moss">
-abs(z), conj(z)
-</pre>
+<td><code class="moss">abs(z), conj(z)</code>
 <td>absolute value, conjugation
 
 <tr>
 <td><img src="../img/reim.png">
-<td><pre class="moss">
-re(z), im(z)
-</pre>
+<td><code class="moss">re(z), im(z)</code>
 <td>real part, imaginary part
 
 </table>

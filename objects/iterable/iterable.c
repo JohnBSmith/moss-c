@@ -1029,8 +1029,86 @@ int iterable_enum(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
+static
+int cycle_range(mt_object* x, int argc, mt_object* v){
+  mt_object* a = function_self->context->a;
+  long y = a[3].value.i;
+  long step = a[2].value.i;
+  a[3].value.i+=step;
+  if(step<0){
+    if(a[3].value.i<a[1].value.i){
+      a[3].value.i=a[0].value.i;
+    }
+  }else{
+    if(a[3].value.i>a[1].value.i){
+      a[3].value.i=a[0].value.i;
+    }
+  }
+  x->type=mv_int;
+  x->value.i=y;
+  return 0;
+}
+
+static
+int cycle_list(mt_object* x, int argc, mt_object* v){
+  mt_object* a = function_self->context->a;
+  mt_list* list = (mt_list*)a[0].value.p;
+  long index = a[1].value.i;
+  if(index==list->size-1){
+    a[1].value.i=0;
+  }else{
+    a[1].value.i=index+1;
+  }
+  mf_copy_inc(x,&list->a[index]);
+  return 0;
+}
+
+int mf_fcycle(mt_object* x, int argc, mt_object* v){
+  mt_function* f;
+  if(v[1].type==mv_range){
+    mt_range* r = (mt_range*)v[1].value.p;
+    if(r->a.type==mv_int && r->b.type==mv_int){
+      f = mf_new_function(NULL);
+      f->context = mf_raw_tuple(4);
+      mt_object* a = f->context->a;
+      a[0].type = mv_int;
+      a[0].value.i = r->a.value.i;
+      a[1].type = mv_int;
+      a[1].value.i = r->b.value.i;
+      a[2].type = mv_int;
+      if(r->step.type==mv_int){
+        a[2].value.i = r->step.value.i;
+      }else{
+        a[2].value.i = 1;
+      }
+      a[3].type = mv_int;
+      a[3].value.i = r->a.value.i;
+      f->fp = cycle_range;
+      goto ret;
+    }
+  }
+  f = mf_new_function(NULL);
+  f->context = mf_raw_tuple(2);
+  mt_object* a = f->context->a;
+  mt_list* list = mf_list(&v[1]);
+  if(list==NULL){
+    mf_traceback("cycle");
+    return 1;
+  }
+  a[0].type = mv_list;
+  a[0].value.p = (mt_basic*)list;
+  a[1].type = mv_int;
+  a[1].value.i=0;
+  f->fp = cycle_list;
+  ret:
+  f->argc=0;
+  x->type = mv_function;
+  x->value.p = (mt_basic*)f;
+  return 0;
+}
+
 void mf_init_type_iterable(mt_table* type){
-  type->name=mf_cstr_to_str("iterable");
+  type->name=mf_cstr_to_str("Iterable");
   type->m=mf_empty_map();
   mt_map* m=type->m;
   mf_insert_function(m,0,1,"sum",iterable_sum);

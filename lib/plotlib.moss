@@ -114,7 +114,7 @@ tplot = table
   end,
   
   sub plot(a,t={})
-    if type(a) is function.type
+    if type(a) is Function
       a=[a]
     end
     {n=self.n}=t

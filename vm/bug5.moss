@@ -1,0 +1,24 @@
+
+# == Bug ==
+
+begin
+  global math
+  math_tab = {"sin", "cos", "tan", "exp", "ln"}
+  math = table
+    sub get(key)
+      if key in math_tab
+        m = load("math")
+        extend(self,m)
+        return record(self)[key]
+      else
+        raise "cannot load {}"%[key]
+      end
+    end
+  end
+end
+
+return math
+
+# use bug5
+# bug5.la
+

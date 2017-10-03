@@ -163,7 +163,7 @@ prod = |*a| a.reduce(|x,y| (x*y).map(|t| t.chain()))
 <p>We will extend the functionality of the dictionary data type.
 </p>
 <pre class="moss">
-extend(dict.type,table
+extend(Map,table
   sub MPY(b)
     set(list(self)*list(b))
   end,
@@ -199,7 +199,7 @@ powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
 <p>We will extend the functionality of the dictionary data type.
 </p>
 <pre class="moss">
-extend(dict.type,table
+extend(Map,table
   sub RPOW(a)
     if self==2
       return a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
@@ -273,9 +273,9 @@ end
 A function will be represented as a dictionary.
 </p>
 <pre class="moss">
-extend(dict.type,table
+extend(Map,table
   sub POW(n)
-    if type(n) is int.type
+    if n: Int
       return set(list(self)^n)
     else
       a = list(n)

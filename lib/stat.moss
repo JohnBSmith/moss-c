@@ -13,14 +13,14 @@ sub sample(a)
   end
   max=a.max()
   min=a.min()
-  return table[sample.type]
+  return table[Sample]
     mean=m, sigma=sigma,
     max=max, min=min, range=max-min,
     median=median
   end
 end
 
-sample.type = table
+Sample = table
   str = sub STR||
     ["mean: "+str(self.mean),
      "sigma: {E1}"%[self.sigma],

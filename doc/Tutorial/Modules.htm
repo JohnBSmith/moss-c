@@ -13,10 +13,201 @@
 <div class="toc">
 <h2>Table of contents</h2>
 <ol>
-<li><a href="#Main">Main program</a>
+<li><a href="#Use">The use statement</a>
+<li><a href="#Private-variables">Private variables</a>
 <li><a href="#Dynamic-loading">Dynamic loading</a>
+<li><a href="#Main">Main program</a>
 </ol>
 </div>
+
+
+<h2 id="Use">The use statement</h2>
+<table class="bt">
+<tr>
+<th>Statement
+<th>Meaning
+<tr>
+<td><pre class="moss">
+use math
+</pre>
+<td><pre class="moss">
+# a simple import
+math = load("math")
+</pre>
+<tr>
+<td><pre class="moss">
+use math, sys
+</pre>
+<td><pre class="moss">
+# an import of more
+# than one module
+math = load("math")
+sys = load("sys")
+</pre>
+<tr>
+<td><pre class="moss">
+use lib.package.math
+</pre>
+<td><pre class="moss">
+# from a subdirectory
+math = load("lib/package/math")
+</pre>
+<tr>
+<td><pre class="moss">
+use m = math
+</pre>
+<td><pre class="moss">
+# an alias import
+m = load("math")
+</pre>
+<tr>
+<td><pre class="moss">
+use math: sin, cos
+</pre>
+<td><pre class="moss">
+# a qualified import
+math = load("math")
+sin = math.sin
+cos = math.cos
+</pre>
+<tr>
+<td><pre class="moss">
+use math: s=sin, c=cos
+</pre>
+<td><pre class="moss">
+# qualified aliases
+math = load("math")
+s = math.sin
+c = math.cos
+</pre>
+<tr>
+<td><pre class="moss">
+use[math]: sin, cos
+</pre>
+<td><pre class="moss">
+# a qualification
+# without import
+sin = math.sin
+cos = math.cos
+</pre>
+<tr>
+<td><pre class="moss">
+use math:*
+</pre>
+<td><pre class="moss">
+# the qualification of
+# everything in math
+math = load("math")
+gtab().update(record(math))
+</pre>
+<tr>
+<td><pre class="moss">
+expression = "math"
+use math = (expression)
+</pre>
+<td><pre class="moss">
+# import by a custom
+# path expression
+expression = "math"
+math = load(expression)
+</pre>
+</table>
+<p>The different forms of the statement may be mixed freely,
+provied it makes any sense.
+
+
+<h2 id="Private-variables">Private variables</h2>
+
+<p>A complicated program may have some internal variables that
+should not be made public. Let us have a look on the following
+program.
+
+<pre class="moss indent">
+sub tabulate_row(t)
+  t.map(|x| str(x).rjust(4)).join("\s|")
+end
+
+sub tabulate(a)
+  a.map(tabulate_row).join("\n")
+end
+</pre>
+
+<p>Here, <code>tabulate_row</code> is just for internal use
+and not meant to be accessible outside of the module.
+It is possible to express internal variables in Moss.
+
+<pre class="moss indent">
+begin
+  global tabulate
+
+  sub tabulate_row(t)
+    t.map(|x| str(x).rjust(4)).join("\s|")
+  end
+
+  sub tabulate(a)
+    a.map(tabulate_row).join("\n")
+  end
+end
+</pre>
+
+<p>Every variable that is declared as <code>global</code> belongs to
+the module interface and is publicly available. All other
+variables are only visible inside of <code>begin ... end</code>.
+
+<pre class="moss indent">
+use my_module: tabulate
+
+a = list(1..20).map(|x| [x,x^2])
+print(tabulate(a))
+</pre>
+
+
+<h2 id="Dynamic-loading">Dynamic loading</h2>
+
+<p>Usually, all modules are loaded at the start of a program.
+If there are many of them, initialization can take quite an amount
+of time. Also a module might need a large amount of memory space.
+
+<pre class="moss indent">
+use math
+
+sub main
+  print(math.exp(1))
+end
+</pre>
+
+<p>We can achive, that module <code>math</code> is only loaded,
+if we call <code>main</code>:
+
+<pre class="moss indent">
+sub main
+  use math
+  print(math.exp(1))
+end
+</pre>
+
+<p>This technique is known as <em>dynamic loading</em>.
+
+<p>Per default, a module is loaded
+only once. The behavior can be described as follows.
+
+<pre class="moss indent">
+begin
+  global load
+  module_table = {}
+  sub load(name)
+    path = __full_path__(name)
+    if path in module_table
+      m = module_table[path]
+    else
+      m = __evaluate_module__(read(path))
+      module_table[path] = m
+    end
+    return m
+  end
+end
+</pre>
+
 
 <h2 id="Main">Main program</h2>
 
@@ -26,7 +217,7 @@ The root program shall be called <em>main</em>. It is located in the
 used a main program as well. The following construction makes it
 possible:
 
-<pre class="moss">
+<pre class="moss indent">
 # File m1.moss
 use sys
 
@@ -42,43 +233,16 @@ end
 <p>That variable <code>argv</code> (<em>argument vector</em>)
 contains the arguments that are given, if the program is called
 by an command-line interface. So
-<pre>
+<pre class="indent">
 $ moss m1 alpha beta gamma
 </pre>
 
 <p>performs as it would be called as follows:
-<pre class="moss">
+<pre class="moss indent">
 use m1
 
 m1.main(["m1", "alpha", "beta", "gamma"])
 </pre>
-
-
-<h2 id="Dynamic-loading">Dynamic loading</h2>
-
-<p>Usually, all modules are loaded at the start of a program.
-If there are many of them, initialization can take quite an amount
-of time. Also a module might need a large amount of memory space.
-
-<pre class="moss">
-use math
-
-sub main
-  print(math.exp(1))
-end
-</pre>
-
-<p>We can achive that module <code>math</code> is only loaded,
-if we call <code>main</code>:
-
-<pre class="moss">
-sub main
-  math = load("math")
-  print(math.exp(1))
-end
-</pre>
-
-<p>This technique is known as <em>dynamic loading</em>.
 
 </body>
 </html>

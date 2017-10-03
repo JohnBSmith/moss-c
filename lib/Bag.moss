@@ -1,11 +1,11 @@
 
 sub bag(d)
-  table[bag.type]
+  table[Bag]
     d=dict(d.items().filter(|t| t[1]!=0))
   end
 end
 
-bag.type = table
+Bag = table
   str = sub||
     str(self.d)
   end,
@@ -31,19 +31,19 @@ bag.type = table
   end,
   sub ADD(a;b)
     m = set(a)|set(b)
-    table[bag.type]
+    table[Bag]
       d=dict(m.map(|x| [x,a[x]+b[x]]))
     end
   end,
   sub BOR(a;b)
     m = set(a)|set(b)
-    table[bag.type]
+    table[Bag]
       d=dict(m.map(|x| [x,max(a[x],b[x])]))
     end
   end,
   sub BAND(b)
     a = self.d
-    table[bag.type]
+    table[Bag]
       d = dict(a.map(sub|x|
         [x,min(a[x],b[x])]
       end).filter(|t| t[1]!=0))
@@ -51,7 +51,7 @@ bag.type = table
   end,
   sub MPY(b)
     a = self.d
-    table[bag.type]
+    table[Bag]
       d = dict(a.map(sub|x|
         [x,a[x]*b[x]]
       end).filter(|t| t[1]!=0))
@@ -59,7 +59,7 @@ bag.type = table
   end,
   sub SUB(b)
     a = self.d
-    table[bag.type]
+    table[Bag]
       d = dict(a.map(sub|x|
         [x,a[x]-b[x]]
       end).filter(|t| t[1]>0))

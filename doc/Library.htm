@@ -17,7 +17,7 @@
 <li><a href="#global">Global functions</a>
 <li><a href="#list">Type list</a>
 <li><a href="#string">Type string</a>
-<li><a href="#dict">Type dictionary</a>
+<li><a href="#map">Type map</a>
 <li><a href="#function">Type function</a>
 <li><a href="#iterable">Type iterable</a>
 <li><a href="#sys">Module sys</a> &mdash; runtime system interface
@@ -83,12 +83,12 @@ s = str(math.pi,"f",4)
 [1, 2, 3, 4]
 </pre>
 
-<dt>dict(x)
+<dt>map(x)
 <dd>Convert the iterable object <code>x</code> of
-<code>[key,value]</code> pairs into a dictionary.
+<code>[key,value]</code> pairs into a map.
 <pre class="moss">
-&gt; {"a": 1, "b": 2} == dict([["a",1],["b",2]])
-true
+&gt; map([["a",1],["b",2]])
+{"a": 1, "b": 2}
 </pre>
 
 <dt>set(x)
@@ -194,14 +194,6 @@ prototype and dictionary <code>d</code> as its slot table.
 table of <code>a</code>. Already existent slots
 of <code>a</code> will not be overwritten.
 
-<dt>assert(e,s)
-<dd>If <code>e</code> is false, raise an assertion failed exception
-with informational text <code>s</code>.
-
-<dt>map(a1,...,an,f)
-<dd>Take the lists <code>a1,...,an</code> and return
-a list with the elements <code>f(a1[i],...,an[i])</code>.
-
 <dt>zip(a1,...,an)
 <dd>Take the lists <code>a1,...,an</code> and return the list of
 lists <code>[a1[i],...,an[i]]</code>.
@@ -228,6 +220,9 @@ is given, use it as an environment for free variables.
 &gt; eval("x*y",{x=360,y=240})
 86400
 </pre>
+
+<dt>Bool, Int, Float, Complex, List, Map, Str, Bstr, Range, Function
+<dd>Data types.
 </dl>
 
 
@@ -399,38 +394,39 @@ until a character is found, that is not contained in
 <dd>Remove withespace from the left and right side.
 </dl>
 
-<h2 id="dict">Type dictionary  (<a href="#iterable">iterable</a>)</h2>
+<h2 id="map">Type map  (<a href="#iterable">iterable</a>)</h2>
 
 <dl class="code">
-<dt>d.list()
+<dt>m.list()
 <dd>Return the list of keys.</dd>
 
-<dt>d.values()
+<dt>m.values()
 <dd>Return an iterator of the values.</dd>
 
-<dt>d.items()
+<dt>m.items()
 <dd>Return an iterator of the key-value pairs.</dd>
 
-<dt>d.update(d2)
-<dd>Insert all items of <code>d2</code> into
-<code>d</code>. Already in <code>d</code> contained items
+<dt>m.update(m2)
+<dd>Insert all items of <code>m2</code> into
+<code>d</code>. Already in <code>m</code> contained items
 are overwritten.</dd>
 
-<dt>d.extend(d2)
-<dd>Insert all items of <code>d2</code> into
-<code>d</code>, but do not overwrite already in <code>d</code>
+<dt>m.extend(m2)
+<dd>Insert all items of <code>m2</code> into
+<code>m</code>, but do not overwrite already in <code>m</code>
 contained items.</dd>
 
-<dt>d.add(key)
-<dd>Add a key to the dictionary.</dd>
+<dt>m.add(key)
+<dd>Add a key to the map.</dd>
 
-<dt>d.remove(key)
-<dd>Remove an item from the dictionary. Raise an exception
+<dt>m.remove(key)
+<dd>Remove an item from the map. Raise an exception
 if the key is not found.</dd>
 
-<dt>d.clear()
-<dd>Remove all items of <code>d</code>.
+<dt>m.clear()
+<dd>Remove all items of <code>m</code>.
 </dl>
+
 
 <h2 id="function">Type function (<a href="#iterable">iterable</a>)</h2>
 
@@ -439,7 +435,7 @@ if the key is not found.</dd>
 <dd>Return an iterator that produces
 <code>[x,f(x),f(f(x)),...]</code>.
 <pre class="moss">
-&gt; (|x|2*x).orbit(2).list(10)
+&gt; (|x| 2*x).orbit(2).list(10)
 [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 </pre>
 
@@ -573,7 +569,7 @@ together with <code>sep</code> inserted between.
 </pre>
 
 <dt>a.dict(f)
-<dd>Equivalent to <code>dict(a.map(f))</code>.
+<dd>Equivalent to <code>map(a.map(f))</code>.
 
 <dt>a.enum(), a.enum(start)
 <dd>Return an iterator that enumerates the elements of <code>a</code>.
@@ -666,7 +662,7 @@ argument, the nodes in the working directory are listed.
 directory was not found.
 <pre class="moss">
 try
-  a = os.ls("documents/computer/network")
+  a = os.ls("documents/computer/network/")
 catch e: os.not_found
   print("oops: ",e.value)
 end
@@ -738,6 +734,9 @@ end
 
 <dt>sgngamma(x)
 <dd>Return <code>sgn(gamma(x))</code>.
+
+<dt>erf(x)
+<dd>Error function.
 
 <dt>hypot(x1,...,xn)
 <dd>Return <code>sqrt(x1^2+...+xn^2)</code>.</dd>
@@ -906,7 +905,7 @@ ln = |x| integral(1,x,|t| 1/t)
 by vertex path <code>c</code>. Integral of a complex valued
 function <code>f</code> by <code>c=[a,b]</code>.
 <pre class="moss">
-ln = |z| vint([1,im(z)&lt;0?-1i:1i,z],|s| 1/s)
+ln = |z| vint([1, -1i if im(z)&lt;0 else 1i, z],|s| 1/s)
 
 cint = |gamma,f| vint([0,1],|t| f(gamma(t))*diff(gamma,t))
 </pre>

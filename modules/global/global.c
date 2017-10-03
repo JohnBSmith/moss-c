@@ -15,10 +15,10 @@
 #include <objects/function.h>
 #include <modules/la.h>
 
-mt_table* mf_load_module(const char* id);
+int mf_load_module(mt_object* x, const char* id);
 // void mf_module_dec_refcount(mt_module* m);
 mt_tuple* mf_raw_tuple(long size);
-mt_string* mf_format(mt_string* s, mt_list* list);
+mt_string* mf_format(mt_string* s, long list_size, mt_object* list_buffer);
 mt_string* mf_long_to_string(mt_long* x, int base);
 
 extern mt_table* mv_type_bool;
@@ -31,6 +31,7 @@ extern mt_table* mv_type_list;
 extern mt_table* mv_type_function;
 extern mt_table* mv_type_dict;
 extern mt_table* mv_type_long;
+extern mt_table* mv_type_range;
 extern mt_table* mv_type_array;
 
 extern mt_list* mv_traceback_list;
@@ -431,35 +432,35 @@ const char* mf_type_to_str(mt_object* a){
   case mv_null:
     return "null";
   case mv_bool:
-    return "bool";
+    return "Bool";
   case mv_int:
-    return "int";
+    return "Int";
   case mv_float:
-    return "float";
+    return "Float";
   case mv_complex:
-    return "complex";
+    return "Complex";
   case mv_long:
-    return "long";
+    return "Long";
   case mv_list:
-    return "list";
+    return "List";
   case mv_tuple:
-    return "tuple";
+    return "Tuple";
   case mv_string:
-    return "str";
+    return "Str";
   case mv_bstring:
-    return "bstr";
+    return "Bstr";
   case mv_map:
-    return "map";
+    return "Map";
   case mv_array:
-    return "array";
+    return "Array";
   case mv_range:
-    return "range";
+    return "Range";
   case mv_function:
-    return "function";
+    return "Function";
   case mv_table:
     return "table";
   case mv_native:
-    return "native";
+    return "Native";
   default:
     return "object";
   }
@@ -1388,22 +1389,25 @@ int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b){
       goto rmod;
     }
   }
-  case mv_string:
+  case mv_string:{
+    mt_string* template = (mt_string*)a->value.p;
+    mt_string* s;
     switch(b->type){
     case mv_list:{
-      mt_string* template=(mt_string*)a->value.p;
       mt_list* list = (mt_list*)b->value.p;
-      mt_string* s = mf_format(template,list);
-      mf_str_dec_refcount(template);
-      mf_list_dec_refcount(list);
-      if(s==NULL) return 1;
-      x->type=mv_string;
-      x->value.p=(mt_basic*)s;
-      return 0;
+      s = mf_format(template,list->size,list->a);
+      break;
     }
     default:
-      goto rmod;
+      s = mf_format(template,1,b);
     }
+    mf_str_dec_refcount(template);
+    mf_dec_refcount(b);
+    if(s==NULL) return 1;
+    x->type = mv_string;
+    x->value.p = (mt_basic*)s;
+    return 0;
+  }
   default:
     goto mod;
   }
@@ -1497,15 +1501,13 @@ int mf_not_dec(mt_object* x, mt_object* a){
     x->type = mv_bool;
     x->value.b = !a->value.b;
     return 0;
-  }else if(a->type==mv_null){
-    x->type = mv_bool;
-    x->value.b = 1;
-    return 0;
   }else{
-    x->type = mv_bool;
-    x->value.b = 0;
+    mf_type_error1(
+      "in not a: 'not' is not defined for a (type: %s).",a
+    );
     mf_dec_refcount(a);
-    return 0;
+    x->type = mv_null;
+    return 1;
   }
 }
 
@@ -2576,6 +2578,16 @@ int is_table(mt_object* a, mt_table* t){
 }
 
 static
+int is_table2(mt_object* a, mt_table* t1, mt_table* t2){
+  if(a->type==mv_table){
+    mt_table* p = (mt_table*)a->value.p;
+    return p==t1 || p==t2;
+  }else{
+    return 0;
+  }
+}
+
+static
 int mf_is(mt_object* a, mt_object* b){
   if(a->type!=b->type) return 0;
   switch(a->type){
@@ -2610,16 +2622,20 @@ int mf_isin(mt_object* x, mt_object* a, mt_object* b){
     x->value.b=is_table(b,mv_type_int);
     x->type=mv_bool;
     return 0;
+  case mv_long:
+    x->value.b=is_table(b,mv_type_long);
+    x->type=mv_bool;
+    return 0;
   case mv_float:
     x->value.b=is_table(b,mv_type_float);
     x->type=mv_bool;
     return 0;
   case mv_complex:
     x->value.b=is_table(b,mv_type_complex);
-    x->type=mv_complex;
+    x->type=mv_bool;
     return 0;
   case mv_string:
-    x->value.b=is_table(b,mv_type_string);
+    x->value.b=is_table2(b,mv_type_string,mv_type_iterable);
     x->type=mv_bool;
     return 0;
   case mv_bstring:
@@ -2627,11 +2643,19 @@ int mf_isin(mt_object* x, mt_object* a, mt_object* b){
     x->type=mv_bool;
     return 0;
   case mv_list:
-    x->value.b=is_table(b,mv_type_list);
+    x->value.b=is_table2(b,mv_type_list,mv_type_iterable);
     x->type=mv_bool;
     return 0;
   case mv_function:
     x->value.b=is_table(b,mv_type_function);
+    x->type=mv_bool;
+    return 0;
+  case mv_range:
+    x->value.b=is_table2(b,mv_type_range,mv_type_iterable);
+    x->type=mv_bool;
+    return 0;
+  case mv_map:
+    x->value.b=is_table2(b,mv_type_dict,mv_type_iterable);
     x->type=mv_bool;
     return 0;
   case mv_table:{
@@ -3272,15 +3296,22 @@ void mf_cstr_exception(mt_table* type, const char* a){
   mf_str_exception(type,s);
 }
 
-void mf_argc_error(int argc, int min, int max, const char* s){
+void mf_new_traceback_list(void){
+  if(mv_traceback_list){
+    mf_list_dec_refcount(mv_traceback_list);
+  }
   mv_traceback_list = mf_raw_list(0);
+}
+
+void mf_argc_error(int argc, int min, int max, const char* s){
+  mf_new_traceback_list();
   char a[200];
   if(min==max){
     if(min==0){
       snprintf(a,200,"Error in %s: expected no argument, but got %i.",s,argc);
     }else if(min==1){
       snprintf(a,200,"Error in %s: expected exactly 1 argument, but got %i.",s,argc);
-    }else if(min==2){
+    }else{
       snprintf(a,200,"Error in %s: expected exactly %i arguments, but got %i.",s,min,argc);
     }
   }else{
@@ -3295,13 +3326,6 @@ void mf_argc_error(int argc, int min, int max, const char* s){
     }
   }
   mf_cstr_exception(mv_Exception.std,a);
-}
-
-void mf_new_traceback_list(void){
-  if(mv_traceback_list){
-    mf_list_dec_refcount(mv_traceback_list);
-  }
-  mv_traceback_list = mf_raw_list(0);
 }
 
 void mf_type_error(const char* s){
@@ -3448,18 +3472,19 @@ mt_load_tab_element* load_tab_find(int size, const char* a){
 }
 
 static
-mt_table* mf_load(mt_object* x){
-  if(x->type!=mv_string){
+int mf_load(mt_object* x, mt_object* m){
+  if(m->type!=mv_string){
     mf_type_error1("in load(id): id (type: %s) is not a string.",x);
-    return NULL;
+    return 1;
   }
-  mt_string* s = (mt_string*)x->value.p;
+  mt_string* s = (mt_string*)m->value.p;
   mt_bstr id;
   mf_encode_utf8(&id,s->size,s->a);
-  mt_table* t;
   mt_load_tab_element* p;
   p=load_tab_find(id.size,(char*)id.a);
+  int e;
   if(p){
+    mt_table* t;
     if(p->t){
       t=p->t;
       t->refcount++;
@@ -3467,11 +3492,14 @@ mt_table* mf_load(mt_object* x){
       p->t=p->load();
       t=p->t;
     }
+    x->type=mv_table;
+    x->value.p=(mt_basic*)t;
+    e=0;
   }else{
-    t=mf_load_module((char*)id.a);
+    e=mf_load_module(x,(char*)id.a);
   }
   mf_free(id.a);
-  return t;
+  return e;
 }
 
 int mf_fload(mt_object* x, int argc, mt_object* v){
@@ -3479,16 +3507,15 @@ int mf_fload(mt_object* x, int argc, mt_object* v){
     mf_argc_error(argc,1,1,"load");
     return 1;
   }
-  mt_table* t=mf_load(v+1);
-  if(t==NULL){
+  int e = mf_load(x,&v[1]);
+  if(e){
     mf_traceback("load");
     return 1;
   }
-  x->type=mv_table;
-  x->value.p=(mt_basic*)t;
   return 0;
 }
 
+/*
 static
 int mf_map_has_memory(mt_map* m, long size, const char* a){
   mt_string* s = mf_str_new(size,a);
@@ -3504,10 +3531,21 @@ int mf_map_has_memory(mt_map* m, long size, const char* a){
 }
 
 static
-int mf_use(mt_table* t, mt_map* d){
+int mf_use(mt_object* module, mt_map* d){
+  mt_map* m;
+  if(module->type==mv_table){
+    mt_table* t = (mt_table*) module->value.p;
+    m = t->m;
+  }else if(module->type==mv_function){
+    mt_function* f = (mt_function*) module->value.p;
+    m = f->m;
+  }else{
+    mf_type_error("type error in use: module is not of type table.");
+    return 1;
+  }
+
   mt_htab_element* a = d->htab.a;
   int n = d->htab.capacity;
-  mt_map* m = t->m;
   char buffer[200];
   if(m==NULL){
     puts("Error in mf_use.");
@@ -3581,40 +3619,40 @@ int mf_fimport(mt_object* x, int argc, mt_object* v){
   mt_htab_element* a = d->htab.a;
   long n = d->htab.capacity;
   long i;
-  mt_table* module;
-  mt_object t;
+  mt_object module;
+  module.type=mv_null;
   mt_string* id;
   for(i=0; i<n; i++){
     if(a[i].taken==2){
       if(a[i].key.type!=mv_string) abort();
+      int e;
       if(a[i].value.type==mv_string){
-        module = mf_load(&a[i].value);
+        e = mf_load(&module,&a[i].value);
         id = (mt_string*)a[i].key.value.p;
         id->refcount++;
       }else{
-        module = mf_load(&a[i].key);
+        e = mf_load(&module,&a[i].key);
         id = get_module_id((mt_string*)a[i].key.value.p);
       }
-      if(module==NULL){
+      if(e){
         mf_str_dec_refcount(id);
         mf_traceback("import");
         return 1;
       }
-      t.type=mv_table;
-      t.value.p=(mt_basic*)module;
-      mf_map_set_str(mv_gvtab,id,&t);
-      module->refcount--;
+      mf_map_set_str(mv_gvtab,id,&module);
+      module.value.p->refcount--;
       mf_str_dec_refcount(id);
     }
   }
-  if(argc==2 && module){
-    if(mf_use(module,(mt_map*)v[2].value.p)){
+  if(argc==2 && module.type!=mv_null){
+    if(mf_use(&module,(mt_map*)v[2].value.p)){
       return 1;
     }
   }
   x->type=mv_null;
   return 0;
 }
+*/
 
 int mf_eval_string(mt_object* x, mt_string* s, mt_map* d);
 int mf_feval(mt_object* x, int argc, mt_object* v){
@@ -4289,43 +4327,20 @@ int mf_fread(mt_object* x, int argc, mt_object* v){
   return 0;
 }
 
-int mf_fassert1(mt_object* x, int argc, mt_object* v){
-  if(v[1].type!=mv_bool){
-    mf_type_error1("in assert(e,s): e (type: %s) is not a boolean.",&v[1]);
+int mf_fassertion_failed(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"assertion_failed");
     return 1;
   }
-  if(v[1].value.b!=0){
-    x->type=mv_null;
-    return 0;
-  }
-  mf_std_exception("Assertion failed.");
-  return 1;
-}
-
-int mf_fassert(mt_object* x, int argc, mt_object* v){
-  if(argc==1){
-    return mf_fassert1(x,argc,v);
-  }else if(argc!=2){
-    mf_argc_error(argc,2,2,"assert");
-    return 1;
-  }
-  if(v[1].type!=mv_bool){
-    mf_type_error1("in assert(e,s): e (type: %s) is not a boolean.",&v[1]);
-    return 1;
-  }
-  if(v[1].value.b!=0){
-    x->type=mv_null;
-    return 0;
-  }
-  if(v[2].type!=mv_string){
-    mf_type_error1("in assert(e,s): s (type: %s) is not a string.",&v[2]);
+  if(v[1].type!=mv_string){
+    mf_type_error1("in assertion_failed(s): s (type: %s) is not a string.",&v[1]);
     return 1;
   }
   mt_list* list=mf_raw_list(3);
   mt_object* a=list->a;
   a[0].type=mv_string;
   a[0].value.p=(mt_basic*)mf_cstr_to_str("Assertion failed: ");
-  mf_copy_inc(&a[1],&v[2]);
+  mf_copy_inc(&a[1],&v[1]);
   a[2].type=mv_string;
   a[2].value.p=(mt_basic*)mf_cstr_to_str(".");
 
@@ -4345,6 +4360,7 @@ int mf_fassert(mt_object* x, int argc, mt_object* v){
   mf_str_exception(mv_Exception.std,s);
   return 1;
 }
+
 
 static
 mt_string* prefix(long size, const char* pf, mt_string* s){

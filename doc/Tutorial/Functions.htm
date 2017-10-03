@@ -297,9 +297,8 @@ end
 >List unpacking</h2>
 
 <p>Sometimes we want a variadic function <code>f</code> to take the
-elements of a list as its arguments.
-To make this task simple, there is an
-alternative application operation <code>f[a]</code>.
+elements of a list as its arguments. To make this task simple,
+there is an generalized application operation <code>f.apply(a)</code>.
 
 <pre class="moss">
 # variadic summation function
@@ -311,7 +310,7 @@ alternative application operation <code>f[a]</code>.
 
 # unpacking call
 &gt; a = [1,2,3,4]
-&gt; s[a]
+&gt; s.apply(a)
 10
 </pre>
 
@@ -380,20 +379,20 @@ self argument. Viewed this way, <code>m</code> is called
 [0, 1, 2]
 </pre>
 
-<p>If <code>m</code> is inserted in <code>str.type</code>,
+<p>If <code>m</code> is inserted in <code>Str</code>,
 all strings will have <code>m</code> as a method.
 <pre class="moss">
-&gt; str.type.m=m
+&gt; Str.m=m
 &gt; "alpha".m(1,2)
 ["alpha", 1, 2]
 </pre>
 
 <p>Conversely, we can extract some method of
-<code>str.type</code>.
+<code>Str</code>.
 <pre class="moss">
 &gt; "tree".upper()
 "TREE"
-&gt; upper = str.type.upper
+&gt; upper = Str.upper
 &gt; upper("tree";)
 "TREE"
 </pre>
@@ -420,19 +419,19 @@ reads:
 <p>This is needed in case an inner function literal shadows
 an outer one. So, for example
 <pre class="moss">
-function.type.ADD = |g| |x| self(x)+g(x)
+Function.ADD = |g| |x| self(x)+g(x)
 </pre>
 
 <p>will no work as intended. Instead one has to state
 this as
 <pre class="moss">
-function.type.ADD = |f;g| |x| f(x)+g(x)
+Function.ADD = |f;g| |x| f(x)+g(x)
 </pre>
 
 <p>wich, in this case, also looks clearly more likeable.
 One could have written:
 <pre class="moss">
-function.type.ADD = sub|g|
+Function.ADD = sub|g|
   f = self
   return |x| f(x)+g(x)
 end
@@ -466,7 +465,7 @@ a[k](x) means a[k] applied to x
 <p>Let us define addition of functions pointwise.
 Look what that means.
 <pre class="moss">
-function.type.ADD = |f;g| |x| f(x)+g(x)
+Function.ADD = |f;g| |x| f(x)+g(x)
 </pre>
 
 <p>Now one can write <code>(f+g)(x)</code>.
@@ -530,6 +529,7 @@ end
 
 <p>It is wiser to clarify more clearly that <code>c</code> belongs
 to the function. Here is the way to go.
+
 <pre class="moss">
 sub counter
   counter.c++
@@ -549,6 +549,21 @@ c3 = copy(c2)
 
 <p>There is an alternative construction that is more didactical.
 It is secure against any kind of misuse.
+At first we want <code>c</code> to be a private variable
+of <code>counter</code>.
+<pre class="moss">
+begin
+  global counter
+  c=0
+  sub counter
+    c++
+    return c
+  end
+end
+</pre>
+
+<p>The last program can be turned into a function that creates
+a counter based on a start value.
 <pre class="moss">
 sub new_counter(c)
   return sub||
@@ -640,7 +655,7 @@ print([force(2), force(t)])
 In such cases we can simply check for a function.
 <pre class="moss">
 sub force(x)
-  x() if type(x) is function.type else x
+  x() if type(x) is Function else x
 end
 print([force(2), force(|| 1+2)])
 </pre>
@@ -687,7 +702,7 @@ simply syntactic sugar.
 method that assigns a value to a key, but implicitly converts
 the key into a string in before.
 <pre class="moss">
-extend(dict.type,table
+extend(Map,table
   sub get(key)
     return self[str(key)]
   end,

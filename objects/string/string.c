@@ -1224,7 +1224,7 @@ int str_split(mt_object* x, int argc, mt_object* v){
 }
 
 void mf_init_type_string(mt_table* type){
-  type->name = mf_cstr_to_str("str");
+  type->name = mf_cstr_to_str("Str");
   type->m=mf_empty_map();
   mt_map* m=type->m;
   mf_insert_function(m,0,0,"upper",str_upper);

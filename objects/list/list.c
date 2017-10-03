@@ -1943,7 +1943,7 @@ int mf_list_eq(mt_list* La, mt_list* Lb){
 }
 
 void mf_init_type_list(mt_table* type){
-  type->name=mf_cstr_to_str("list");
+  type->name=mf_cstr_to_str("List");
   type->m=mf_empty_map();
   mt_map* m=type->m;
   mf_insert_function(m,1,-1,"push",list_push);

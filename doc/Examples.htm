@@ -81,7 +81,7 @@ fac = fix(|f,n| 1 if n==0 else n*f(n-1))
 # Tail-recursive
 sub call(f,m,n)
   x=f(m,n)
-  while type(x) is function.type
+  while type(x) is Function
     x=x()
   end
   return x
@@ -202,7 +202,7 @@ compose = |f,g| |x| f(g(x))
 f = |x| 2*x
 print(compose(f,f)(10))
 
-function.type.MPY = |f;g| |x| f(g(x))
+Function.MPY = |f;g| |x| f(g(x))
 print((f*f*f)(10))
 </pre>
 
@@ -729,9 +729,10 @@ factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
   .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
 
 # Zeller's congruence
-day_of_the_week = begin
+begin
   w = ["Satur", "Sun", "Mon", "Tues", "Wednes", "Thurs", "Fri"]
-  return sub|d,m,a|
+  global day_of_the_week
+  sub day_of_the_week(d,m,a)
     J = a//100
     K = (a if m in 3..12 else a-1)%100
     m = (m if m in 3..12 else m+12)
@@ -790,9 +791,10 @@ end
 <h2 id="rot13">ROT13</h2>
 
 <pre class="moss">
-rot13 = begin
+begin
   a = ord('a'); A = ord('A')
-  return |s| s.map(|c|
+  global rot13
+  rot13 = |s| s.map(|c|
     chr((ord(c)-a+13)%26+a) if c in 'a'..'z' else
     chr((ord(c)-A+13)%26+A) if c in 'A'..'Z' else
     c).join()

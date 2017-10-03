@@ -192,9 +192,9 @@ end
 
 sub combinations(m,s)
   T = type(s)
-  if T is dict.type
+  if T is Map
     return comb(m,list(s)).map(set)
-  elif T is str.type
+  elif T is Str
     return comb(m,s)
   else
     return comb(m,list(s))

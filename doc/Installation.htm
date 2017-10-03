@@ -27,6 +27,11 @@ From source:
 
 <tr>
 <td>C99
+<td>Declaration of variables is not restricted to the beginning
+of a scope block
+
+<tr>
+<td>C99
 <td>Flexible array as a structs last member
 
 <tr>
@@ -44,12 +49,12 @@ From source:
 
 <tr>
 <td>C11
-<td><code>CMPLX (complex.h)</code>
+<td><code>CMPLX (complex.h)</code> (if available)
 
 <tr>
 <td>Clang, GCC
 <td><code>__builtin_add_overflow, __builtin_sub_overflow,
-  __builtin_mul_overflow (if available)
+  __builtin_mul_overflow</code> (if available)
 </table>
 
 <p>Currently the Moss interpreter depends more or less

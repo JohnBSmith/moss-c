@@ -1,0 +1,48 @@
+
+
+sub minimize(f,a,b)
+  x = null
+  for i in 1..20
+    d = (b-a)/10
+    L = list(a..b: d)
+    if size(L)==0
+      return x
+    end
+    x = L.map(|x| [x,f(x)]).min(|x,y| y)[0]
+    a = a if x==a else x-d
+    b = b if x==b else x+d
+  end
+  return x
+end
+
+sub maximize(f,a,b)
+  return minimize(|x| -f(x),a,b)
+end
+
+sub solve(f,a,b)
+  return minimize(|x| abs(f(x)),a,b)
+end
+
+sub all(f,a,b,n,e=1E-6)
+  d = (b-a)/n
+  L = []
+  g = |x| abs(f(x))
+  last = -1E100
+  for x1 in a..b-d: d
+    x2 = x1+d
+    x = minimize(g,x1,x2)
+    if g(x)<e and abs(last-x)>1E-4
+      last = x
+      L.push(x)
+    end
+  end
+  return L
+end
+
+f = |x| sin(pi*x)
+
+L = all(f,-10,10,4)
+print(L)
+
+
+

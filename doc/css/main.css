@@ -101,3 +101,12 @@ table.bt th{
 table td.r{
   text-align: right;
 }
+
+p.footnote {
+  line-height: 1.2em;
+  font-size: 80%;
+}
+
+pre.indent {
+  margin-left: 1.6em;
+}

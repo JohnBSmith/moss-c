@@ -29,6 +29,7 @@
 #define POP_VALUE 0
 #define RETURN_VALUE 1
 #define SELF 1
+#define NO_SELF 0
 #define WITHOUT_ELSE_CASE 0
 #define WITH_ELSE_CASE 1
 
@@ -119,7 +120,7 @@ enum{
 enum{
   Tbegin, Tbreak, Tcatch, Tcontinue, Tdo, Telif, Telse, Tend,
   Tfor, Tglobal, Tgoto, Tif, Tlabel, Tof, Traise, Treturn,
-  Tsub, Ttable, Tthen, Ttry, Twhile, Tyield, Timport
+  Tsub, Ttable, Tthen, Ttry, Twhile, Tyield, Timport, Tassert
 };
 
 mt_compiler_context compiler_context={
@@ -144,6 +145,7 @@ static int bstack_sp;
 static mt_vec* label_tab;
 static mt_vec* goto_tab;
 static int line_counter;
+static int colon=1;
 
 static
 void push_token(mt_vec* v, int line, int col, char type, char value){
@@ -279,6 +281,7 @@ void kw_print(char* s){
 static
 const char* keyword_to_string(char value){
   switch(value){
+    case Tassert: return "assert";
     case Tbegin: return "begin";
     case Tbreak: return "break";
     case Tcatch: return "catch";
@@ -322,10 +325,10 @@ char* token_to_string(mt_token* t){
     snprintf(s,t->size+10,"%.*si",(unsigned int)t->size,t->s);
   }else if(type==Tstring){
     s = mf_malloc(t->size+10);
-    snprintf(s,t->size+10,"\"%.*si\"",(unsigned int)t->size,t->s);
+    snprintf(s,t->size+10,"\"%.*s\"",(unsigned int)t->size,t->s);
   }else if(type==Tbstring){
     s = mf_malloc(t->size+10);
-    snprintf(s,t->size+10,"b\"%.*si\"",(unsigned int)t->size,t->s);
+    snprintf(s,t->size+10,"b\"%.*s\"",(unsigned int)t->size,t->s);
   }else if(type==Tnull){
     s = mf_malloc(10);
     snprintf(s,10,"null");
@@ -389,6 +392,7 @@ void print_vtoken(mt_vec* v){
 
 mt_keyword keywords[]={
   {3, "and", Top, Top_and},
+  {6, "assert", Tkeyword, Tassert},
   {5, "begin", Tkeyword, Tbegin},
   {5, "break", Tkeyword, Tbreak},
   {5, "catch", Tkeyword, Tcatch},
@@ -398,7 +402,8 @@ mt_keyword keywords[]={
   {4, "else", Tkeyword, Telse},
   {3, "end", Tkeyword, Tend},
   {5, "false", Tbool, 0},
-  {3, "for",Tkeyword, Tfor},
+  {3, "for", Tkeyword, Tfor},
+  {8, "function", Tkeyword, Tsub},
   {6, "global",Tkeyword, Tglobal},
   {4, "goto", Tkeyword, Tgoto},
   {2, "if", Tkeyword, Tif},
@@ -1227,6 +1232,12 @@ ast_node* list_literal(token_iterator* i){
     mt_token* t = i->a+i->index;
     if(t->type==Tsep && t->value==','){
       i->index++;
+      t = get_token(i);
+      if(t==NULL) goto error;
+      if(t->type==Tbright && t->value==']'){
+        i->index++;
+        break;
+      }
     }else if(t->type==Tbright && t->value==']'){
       i->index++;
       break;
@@ -1260,8 +1271,11 @@ ast_node* map_literal(token_iterator* i){
     i->index++;
     goto end_of_loop;
   }
+  int hcolon;
   while(1){
+    hcolon=colon; colon=0;
     p1 = expression(i);
+    colon=hcolon;
     if(p1==NULL) goto error;
     mf_vec_push(&v,&p1);
     t = get_token(i);
@@ -1300,6 +1314,12 @@ ast_node* map_literal(token_iterator* i){
       goto error;
     }
     i->index++;
+    t = get_token(i);
+    if(t==NULL) goto error;
+    if(t->type==Tbright && t->value=='}'){
+      i->index++;
+      break;
+    }
   }
 
   ast_node* y;
@@ -1343,8 +1363,11 @@ ast_node* object_literal(token_iterator* i){
   if(t->type==Tkeyword && t->value==Tend){
     goto keyword_end;
   }
+  int hcolon;
   while(1){
+    hcolon=colon; colon=0;
     ast_node* p1 = expression(i);
+    colon=hcolon;
     if(p1==NULL) goto error;
     mf_vec_push(&v,&p1);
     t = get_token(i);
@@ -1403,6 +1426,7 @@ ast_node* function_application(mt_token* t1, ast_node* p1, token_iterator* i){
   mt_vec v;
   mf_vec_init(&v,sizeof(ast_node*));
   mf_vec_push(&v,&p1);
+  mt_vec* vmap=NULL;
 
   mt_token* t = get_token(i);
   if(t==NULL) goto error;
@@ -1413,9 +1437,29 @@ ast_node* function_application(mt_token* t1, ast_node* p1, token_iterator* i){
   while(1){
     p = expression(i);
     if(p==NULL) goto error;
-    mf_vec_push(&v,&p);
     t = get_token(i);
     if(t==NULL) goto error;
+    if(t->type==Top && t->value==Top_assignment){
+      if(p->type==Tid){
+        p->type=Tstring;
+      }else{
+        syntax_error(t->line,t->col,"expected identifier before '='.");
+      }
+    
+      i->index++;
+      ast_node* p2 = expression(i);
+      if(vmap==NULL){
+        vmap=mf_malloc(sizeof(mt_vec));
+        mf_vec_init(vmap,sizeof(ast_node*));
+      }
+      mf_vec_push(vmap,&p);
+      mf_vec_push(vmap,&p2);
+      
+      t = get_token(i);
+      if(t==NULL) goto error;
+    }else{
+      mf_vec_push(&v,&p);
+    }
     if(t->type==Tsep && t->value==','){
       i->index++;
     }else if(t->type==Tsep && t->value==';'){
@@ -1437,6 +1481,14 @@ ast_node* function_application(mt_token* t1, ast_node* p1, token_iterator* i){
   }
   ast_node* y;
   end_of_loop:
+  if(vmap){
+    ast_node* map = ast_buffer_to_node(vmap->size,(ast_node**)vmap->a,t1->line,t1->col);
+    map->type=Top; map->value=Top_map;
+    mf_vec_push(&v,&map);
+    mf_vec_delete(vmap);
+    mf_free(vmap);
+  }
+
   y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
   y->type=Tapp;
   y->value=0;
@@ -1445,6 +1497,10 @@ ast_node* function_application(mt_token* t1, ast_node* p1, token_iterator* i){
   return y;
 
   error:
+  if(vmap){
+    ast_buffer_delete(vmap);
+    mf_free(vmap);
+  }
   ast_buffer_delete(&v);
   return NULL;
 }
@@ -1860,7 +1916,12 @@ ast_node* eq_expression(token_iterator* i){
   if(i->index<i->size){
     mt_token* t = i->a+i->index;
     int value=t->value;
-    if(t->type==Top && Top_eq<=value && value<=Top_isin){
+    if((t->type==Top && Top_eq<=value && value<=Top_isin) ||
+       (t->type==Tsep && value==':' && colon)
+    ){
+      if(t->type==Tsep){
+        t->type=Top; t->value=Top_isin;
+      }
       i->index++;
       ast_node* p2 = cmp_expression(i);
       if(p2==NULL){
@@ -2219,6 +2280,7 @@ ast_node* identifier(mt_token* t){
   }
   ast_node* y = ast_new(0,t->line,t->col);
   y->type=Tid; y->s=t->s; y->size=t->size;
+  // TODO: ownership initialization forgotten?
   return y;
 }
 
@@ -2309,7 +2371,7 @@ ast_node* if_statement(token_iterator* i){
     mf_vec_push(&v,&p);
     mt_token* t = get_token(i);
     if(t==NULL) goto error;
-    if((t->type!=Tsep || (t->value!='n' && t->value!=':')) &&
+    if((t->type!=Tsep || t->value!='n') &&
       (t->type!=Tkeyword || t->value!=Tthen)
     ){
       syntax_error(t->line,t->col,"expected 'then' or newline.");
@@ -2581,8 +2643,8 @@ ast_node* global_statement(token_iterator* i){
 }
 
 static
-ast_node* null_literal(mt_token *t){
-  ast_node* p = ast_new(0,t->line,t->col);
+ast_node* null_literal(int line, int col){
+  ast_node* p = ast_new(0,line,col);
   p->type=Tnull;
   return p;
 }
@@ -2607,15 +2669,13 @@ static
 ast_node* construct_app(
   char* id, ast_node* arg1, ast_node* arg2, mt_token* t
 ){
-  int n = arg2? 3: 2;
+  int n = arg1? (arg2? 3: 2): 1;
   ast_node* y = ast_new(n,t->line,t->col);
   y->type=Tapp; y->value=0;
-  y->info=0;
+  y->info=NO_SELF;
   y->a[0]=id_to_ast(id,t);
-  y->a[1]=arg1;
-  if(arg2){
-    y->a[2]=arg2;
-  }
+  if(arg1) y->a[1]=arg1;
+  if(arg2) y->a[2]=arg2;
   return y;
 }
 
@@ -2629,16 +2689,17 @@ ast_node* construct_statement(ast_node* p, mt_token* t){
 }
 
 static
-ast_node* path(mt_token* t1, token_iterator* i){
+ast_node* get_path(mt_token* t1, token_iterator* i, ast_node** id){
   mt_bs bs;
   mt_token* t;
-  t = get_token(i);
-  if(t==NULL) return NULL;
-  if(t->type==Tid){
+  mt_token* tid;
+  tid = get_token(i);
+  if(tid==NULL) return NULL;
+  if(tid->type==Tid){
     mf_bs_init(&bs);
-    mf_bs_push(&bs,t->size,(unsigned char*)t->s);
+    mf_bs_push(&bs,tid->size,(unsigned char*)tid->s);
   }else{
-    syntax_error(t->line,t->col,"expected identifier.");
+    syntax_error(tid->line,tid->col,"expected identifier.");
     return NULL;
   }
   i->index++;
@@ -2650,13 +2711,13 @@ ast_node* path(mt_token* t1, token_iterator* i){
     }
     mf_bs_push(&bs,1,(unsigned char*)"/");
     i->index++;
-    t = get_token(i);
-    if(t==NULL) goto error;
-    if(t->type!=Tid){
+    tid = get_token(i);
+    if(tid==NULL) goto error;
+    if(tid->type!=Tid){
       syntax_error(t->line,t->col,"expected identifier.");
       goto error;
     }
-    mf_bs_push(&bs,t->size,(unsigned char*)t->s);
+    mf_bs_push(&bs,tid->size,(unsigned char*)tid->s);
     i->index++;
   }
   mf_bs_push(&bs,1,(unsigned char*)"\0");
@@ -2667,6 +2728,14 @@ ast_node* path(mt_token* t1, token_iterator* i){
   y->size=bs.size;
   y->s = (char*)bs.a;
   y->ownership=1;
+
+  if(*id==NULL){
+    *id = ast_new(0,tid->line,tid->col);
+    (*id)->type=Tid;
+    (*id)->s=tid->s; (*id)->size=tid->size;
+    (*id)->ownership=0;
+  }
+
   return y;
 
   error:
@@ -2674,57 +2743,126 @@ ast_node* path(mt_token* t1, token_iterator* i){
   return NULL;
 }
 
-static
-int qualification;
+static int qualification;
 
 static
-ast_node* import_list(mt_token* t1, token_iterator* i){
-  ast_node* p;
-  mt_vec v;
-  mf_vec_init(&v,sizeof(ast_node*));
+ast_node* construct_assignment(mt_token* t, ast_node* id, ast_node* value){
+  ast_node* p = ast_new(2,t->line,t->col);
+  p->type = Top; p->value = Top_assignment;
+  p->a[0]=id;
+  p->a[1]=value;
+  return p;
+}
+
+static
+ast_node* module_import(mt_token* t, ast_node* id, ast_node* path, ast_node* context){
+  return construct_assignment(t,id,construct_app("load",path,NULL,t));
+}
+
+static
+ast_node* module_qualification(mt_token* t, ast_node* id, ast_node* path, ast_node* context){
+  ast_node* dot = ast_new(2,t->line,t->col);
+  dot->type=Top; dot->value=Top_dot;
+  dot->a[0]=context;
+  dot->a[1]=path;
+  context->refcount++;
+  return construct_assignment(t,id,dot);
+}
+
+static
+ast_node* import_list(mt_vec* v, mt_token* t1, token_iterator* i,
+  ast_node* context, ast_node* (*f)(mt_token*, ast_node*, ast_node*, ast_node*)
+){
+  ast_node* id;
+  ast_node* path;
+  mt_token* ta;
   qualification=0;
   while(1){
     mt_token* t = get_token(i);
     if(t==NULL) goto error;
-    ast_node* id;
     if(t->type==Top && t->value==Top_mpy){
-      id = ast_new(0,t->line,t->col);
-      id->type=Tstring; id->s="*"; id->size=1;
-      i->index++;
+      if(context){
+        context->refcount++;
+        mt_token dot;
+        dot.line=t1->line; dot.col=t1->col;
+        dot.value=Top_dot;
+        ast_node* op = binary_operator(&dot,
+          construct_app("gtab",NULL,NULL,t1),
+          id_to_ast("update",t1));        
+        ast_node* arg = construct_app("record",context,NULL,t1);
+
+        ast_node* app = ast_new(2,t->line,t->col);
+        app->type=Tapp; app->value=0;
+        app->info=NO_SELF;
+        app->a[0]=op;
+        app->a[1]=arg;
+        
+        ast_node* p = construct_statement(app,t1);
+        mf_vec_push(v,&p);
+
+        i->index++;
+        ta = lookup_token(i);
+        if(ta==NULL) goto error;
+        goto next;
+      }else{
+        syntax_error(t->line,t->col,"unexpected token.");
+        goto error;
+      }
     }else if(t->type==Tid){
-      // id = ast_new(0,t->line,t->col);
-      // id->type=Tstring; id->s=t->s; id->size=t->size;
-      // i->index++;
-      id = path(t,i);
-      if(id==NULL) goto error;
+      id = NULL;
+      path = get_path(t,i,&id);
+      if(path==NULL) goto error;
+    }else if(t->type==Tbleft && t->value=='['){
+      i->index++;
+      path = expression(i);
+      if(path==NULL) goto error;
+      t = get_token(i);
+      if(t==NULL) return NULL;
+      if(t->type!=Tbright && t->value!=']'){
+        syntax_error(t->line,t->col,"expected ']'.");
+        ast_delete(path);
+        goto error;
+      }
+      i->index++;
+      qualification=1;
+      return path;
     }else{
       syntax_error(t->line,t->col,"expected identifier.");
       goto error;
     }
-    mf_vec_push(&v,&id);
-    mt_token* ta = lookup_token(i);
+
+    ta = lookup_token(i);
     if(ta==NULL) goto error;
     if(ta->type==Top && ta->value==Top_assignment){
+      ast_delete(path);
       i->index++;
       t = get_token(i);
       if(t==NULL) goto error;
-      if(t->type!=Tid){
+      if(t->type==Tid){
+        path = get_path(t,i,&id);
+      }else if(t->type==Tbleft && t->value=='('){
+        i->index++;
+        path = expression(i);
+        if(path==NULL) goto error;
+        t = get_token(i);
+        if(t==NULL) goto error;
+        if(t->type!=Tbright || t->value!=')'){
+          syntax_error(t->line,t->col,"expected ')'.");
+          goto error;
+        }
+        i->index++;
+      }else{
         syntax_error(t->line,t->col,"expected identifier.");
         goto error;
       }
 
-      // p = ast_new(0,t->line,t->col);
-      // p->type=Tstring; p->s=t->s; p->size=t->size;
-      // i->index++;
-      p = path(t,i);
-      mf_vec_push(&v,&p);
-
       ta = lookup_token(i);
       if(ta==NULL) goto error;
-    }else{
-      p = null_literal(ta);
-      mf_vec_push(&v,&p);
     }
+    ast_node* y = f(t1,id,path,context);
+    mf_vec_push(v,&y);
+    
+    next:
     if(ta->type==Tterminal || (ta->type==Tsep && ta->value=='n')){
       break;
     }else if(ta->type==Tsep && ta->value==':'){
@@ -2738,23 +2876,19 @@ ast_node* import_list(mt_token* t1, token_iterator* i){
     }
     i->index++;
   }
-
-  ast_node* y;
-  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
-  y->type=Top; y->value=Top_map;
-  mf_vec_delete(&v);
-  return y;
+  return id;
 
   error:
-  ast_buffer_delete(&v);
   return NULL;
 }
 
 static
 ast_node* import_statement(mt_token* t1, token_iterator* i){
+  mt_vec v;
+  mf_vec_init(&v,sizeof(token_iterator*));
   i->index++;
   mt_token* t = get_token(i);
-  if(t==NULL) return NULL;
+  if(t==NULL) goto error;
   int parens;
   if(t->type==Tbleft && t->value=='('){
     bstack[bstack_sp]='b';
@@ -2764,18 +2898,12 @@ ast_node* import_statement(mt_token* t1, token_iterator* i){
   }else{
     parens=0;
   }
-  ast_node* a = import_list(t1,i);
-  if(a==NULL) return NULL;
-  ast_node* b;
+  ast_node* context;
+  context = import_list(&v,t1,i,NULL,module_import);
+  if(context==NULL) goto error;
   if(qualification){
     i->index++;
-    b=import_list(t1,i);
-    if(b==NULL){
-      ast_delete(a);
-      return NULL;
-    }
-  }else{
-    b=NULL;
+    if(import_list(&v,t1,i,context,module_qualification)==NULL) goto error;
   }
   if(parens){
     t = get_token(i);
@@ -2787,13 +2915,43 @@ ast_node* import_statement(mt_token* t1, token_iterator* i){
     bstack_sp--;
     i->index++;
   }
-  return construct_statement(
-    construct_app("__import__",a,b,t1),t1
-  );
+
+  ast_node* y;
+  y = ast_buffer_to_node(v.size,(ast_node**)v.a,t1->line,t1->col);
+  y->type=Tblock;
+  mf_vec_delete(&v);
+  return y;
+
+  error:
+  ast_buffer_delete(&v);
+  return NULL;
+}
+
+static
+ast_node* assert_statement(mt_token* t0, token_iterator* i){
+  i->index++;
+  ast_node* a = expression(i);
+  if(a==NULL) return NULL;
+  mt_token* t = get_token(i);
+  if(t==NULL) goto error;
+  if(t->type!=Tsep || t->value!=','){
+    syntax_error(t->line,t->col,"expected ','.");
+    goto error;
+  }
+  i->index++;
+  ast_node* b = expression(i);
+  if(b==NULL) goto error;
+  ast_node* negation = unary_operator(t0,a);
+  negation->value=Top_not;
+  ast_node* y = ast_new(2,t0->line,t0->col);
+  y->type = Tkeyword; y->value = Tif;
+  y->info = WITHOUT_ELSE_CASE;
+  y->a[0]=negation;
+  y->a[1]=construct_app("assertion_failed",b,NULL,t0);
+  return y;
 
   error:
   ast_delete(a);
-  ast_delete(b);
   return NULL;
 }
 
@@ -2846,6 +3004,8 @@ ast_node* statement_list(token_iterator* i){
       p = label_statement(t,i);
     }else if(type==Tkeyword && value==Timport){
       p = import_statement(t,i);
+    }else if(type==Tkeyword && value==Tassert){
+      p = assert_statement(t,i);
     }else{
       p = assignment(i);
     }
@@ -2907,6 +3067,7 @@ ast_node* argument_list(token_iterator* i){
     y = ast_new(0,-1,-1); // todo
     y->type=Top; y->value=Top_list;
     y->info=0;
+    y->info2=0;
     mf_vec_delete(&v);
     return y;
   }
@@ -3031,6 +3192,7 @@ ast_node* function_literal(token_iterator* i){
     p = ast_new(0,t1->line,t1->col);
     p->type=Top; p->value=Top_list;
     p->info=0;
+    p->info2=0;
   }else if((t->type==Top && t->value==Top_bor) ||
     (t->type==Tbleft && t->value=='(')
   ){
@@ -3201,6 +3363,9 @@ void ast_print(ast_node* t, int indent){
   }else if(type==Tkeyword && value==Timport){
     print_space(indent);
     printf("import\n");
+  }else if(type==Tkeyword && value==Tassert){
+    print_space(indent);
+    printf("assert\n");
   }else{
     print_space(indent);
     printf("AST of unknown type\n");
@@ -4219,16 +4384,18 @@ int gotos(mt_vec* bv){
 
 static
 ast_node* if_null(ast_node* t){
-  ast_node* y = ast_new(3,t->line,t->col);
-  y->type=Tkeyword; y->value=Tif;
-  y->info = WITH_ELSE_CASE;
+  ast_node* y = ast_new(2,t->line,t->col);
+  y->type = Tkeyword; y->value=Tif;
+  y->info = WITHOUT_ELSE_CASE;
+  ast_node* condition = ast_new(2,t->line,t->col);
+  condition->type = Top;
+  condition->value = Top_is;
   t->a[0]->refcount++;
-  y->a[0] = t->a[0];
-  y->a[1] = ast_new(0,t->line,t->col);
-  y->a[1]->type = Tblock;
+  condition->a[0] = t->a[0];
+  condition->a[1] = null_literal(t->line,t->col);
+  y->a[0] = condition;
   t->refcount++;
-  y->a[2] = t;
-  return y;
+  y->a[1] = t;
 }
 
 static
@@ -4622,7 +4789,7 @@ int ast_compile(mt_vec* bv, ast_node* t){
     } break;
     case Top_dot:
       if(ast_compile(bv,t->a[0])) return 1;
-      if(t->a[1]->type!=Tid){
+      if(t->a[1]->type!=Tid && t->a[1]->type!=Tstring){
         syntax_error(t->line,t->col,"expected an identifier behind a dot operator.");
         return 1;
       }
@@ -4758,7 +4925,7 @@ int ast_compile(mt_vec* bv, ast_node* t){
     }else if(value==Tglobal){
       ast_global(t);
     }else if(value==Ttable){
-      if(t->info==0){
+      if(t->info==0){ // todo
         push_bc(bv,CONST_NULL,t);
       }
       int i;
@@ -4861,6 +5028,7 @@ void prefix_line_col(unsigned char* a){
 void dump_program(unsigned char* bv, int n){
   char c;
   int i=0;
+  int32_t a;
   while(i<n){
     c = bv[i];
     if(i<10) printf("0");
@@ -4868,14 +5036,14 @@ void dump_program(unsigned char* bv, int n){
     prefix_line_col(bv+i);
     switch(c){
     case CONST_INT:
-      printf("CONST_INT %i\n",*(int*)(bv+i+BC));
+      printf("CONST_INT %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LONG:
       i+=BC; printf("LONG\n");
       break;
     case CONST_STR:
-      printf("CONST_STR (%i)\n",*(int*)(bv+i+BC));
+      printf("CONST_STR (%i)\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case CONST_FLOAT:
@@ -4888,13 +5056,13 @@ void dump_program(unsigned char* bv, int n){
       i+=BC; printf("CONST_NULL\n");
       break;
     case CONST_BOOL:
-      printf("CONST_BOOL %i\n",*(int*)(bv+i+BC));
+      printf("CONST_BOOL %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case CONST_FN:
       printf("CONST_FN %i, argc_min=%i, argc_max=%i, varcount=%i\n",
-        *(int*)(bv+i+BC),*(int*)(bv+i+BC+4),
-        *(int*)(bv+i+BC+8),*(int*)(bv+i+BC+12));
+        i+*(int32_t*)(bv+i+BC),*(int32_t*)(bv+i+BC+4),
+        *(int32_t*)(bv+i+BC+8),*(int32_t*)(bv+i+BC+12));
       i+=BC+16;
       break;
     case ADD:
@@ -4969,15 +5137,15 @@ void dump_program(unsigned char* bv, int n){
       i+=BC+4;
       break;
     case LIST:
-      printf("LIST %i\n",*(int*)(bv+i+BC));
+      printf("LIST %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case MAP:
-      printf("MAP %i\n",*(int*)(bv+i+BC));
+      printf("MAP %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case TUPLE:
-      printf("TUPLE %i\n",*(int*)(bv+i+BC));
+      printf("TUPLE %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case TABLE:
@@ -4996,7 +5164,7 @@ void dump_program(unsigned char* bv, int n){
       i+=BC; printf("STORE_LOCAL\n");
       break;
     case STN:
-      printf("STN %i\n",*(int*)(bv+i+BC));
+      printf("STN %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case STORE_INDEX:
@@ -5004,11 +5172,11 @@ void dump_program(unsigned char* bv, int n){
       i+=BC+4;
       break;
     case LOAD:
-      printf("LOAD %i\n",*(int*)(bv+i+BC));
+      printf("LOAD %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_REF:
-      printf("LOAD_REF %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_REF %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case GET:
@@ -5019,23 +5187,23 @@ void dump_program(unsigned char* bv, int n){
       i+=BC; printf("GETREF\n");
       break;
     case JMP:
-      printf("JMP %i\n",*(int*)(bv+i+BC));
+      printf("JMP %i\n",i+*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case JPZ:
-      printf("JPZ %i\n",*(int*)(bv+i+BC));
+      printf("JPZ %i\n",i+*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case AND:
-      printf("AND %i\n",*(int*)(bv+i+BC));
+      printf("AND %i\n",i+*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case OR:
-      printf("OR %i\n",*(int*)(bv+i+BC));
+      printf("OR %i\n",i+*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LIST_POP:
-      printf("LIST_POP %i\n",*(int*)(bv+i+BC));
+      printf("LIST_POP %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case POP:
@@ -5045,31 +5213,31 @@ void dump_program(unsigned char* bv, int n){
       i+=BC; printf("RET\n");
       break;
     case CALL:
-      printf("CALL, argc = %i\n",*(int*)(bv+i+BC));
+      printf("CALL, argc = %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_LOCAL:
-      printf("LOAD_LOCAL %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_LOCAL %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_REF_LOCAL:
-      printf("LOAD_REF_LOCAL %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_REF_LOCAL %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_ARG:
-      printf("LOAD_ARG %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_ARG %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_CONTEXT:
-      printf("LOAD_CONTEXT %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_CONTEXT %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_REF_CONTEXT:
-      printf("LOAD_REF_CONTEXT %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_REF_CONTEXT %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_ARG_REF:
-      printf("LOAD_ARG_REF %i\n",*(int*)(bv+i+BC));
+      printf("LOAD_ARG_REF %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case LOAD_POINTER:
@@ -5097,7 +5265,7 @@ void dump_program(unsigned char* bv, int n){
       i+=BC; printf("ITER_VALUE\n");
       break;
     case TRY:
-      printf("TRY, catch address: %i\n",*(int*)(bv+i+BC));
+      printf("TRY, catch address: %i\n",*(int32_t*)(bv+i+BC));
       i+=BC+4;
       break;
     case TRYEND:

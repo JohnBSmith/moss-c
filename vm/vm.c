@@ -17,8 +17,6 @@
 #include <modules/global.h>
 
 // TODO: reverse iterator
-// TODO: cycle
-
 // BUG: hash values of integers and corresponding
 // long integers are different
 // TODO: no weak references for
@@ -82,6 +80,7 @@ void mf_init_type_function(mt_table* t);
 void mf_init_type_iterable(mt_table* t);
 mt_function* mf_new_function(unsigned char* address);
 int mf_fiter(mt_object* x, int argc, mt_object* v);
+int mf_fcycle(mt_object* x, int argc, mt_object* v);
 int mf_fdict(mt_object* x, int argc, mt_object* v);
 int mf_frand(mt_object* x, int argc, mt_object* v);
 int mf_finput(mt_object* x, int argc, mt_object* v);
@@ -196,6 +195,21 @@ int mf_object_get(mt_object* x, mt_object* a, mt_object* key){
     }
   }
   return 0;
+}
+
+static
+int mf_object_dynamic_get(mt_object* x, mt_object* a, mt_object* key){
+  int e = mf_object_get_memory(x,a,3,"get");
+  if(e) return e;
+  if(x->type!=mv_function){
+    mf_type_error1("in object.get(key): get is not a function.",x);
+    return 1;
+  }
+  mt_function* get = (mt_function*) x->value.p;
+  mt_object argv[2];
+  mf_copy(&argv[0],a);
+  mf_copy(&argv[1],key);
+  return mf_call(get,x,1,argv);
 }
 
 static
@@ -381,66 +395,40 @@ void mf_vm_init_gvtab(void){
   mt_map* m=mv_mvtab;
   mt_function* f;
 
-  f=mf_insert_function(m,1,1,"bool",mf_fbool);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_bool);
+  mf_insert_table(m,"Bool",mv_type_bool);
+  mf_insert_table(m,"Int",mv_type_int);
+  mf_insert_table(m,"Long",mv_type_long);
+  mf_insert_table(m,"Float",mv_type_float);
+  mf_insert_table(m,"Complex",mv_type_complex);
+  mf_insert_table(m,"List",mv_type_list);
+  mf_insert_table(m,"Map",mv_type_dict);
+  mf_insert_table(m,"Str",mv_type_string);
+  mf_insert_table(m,"Bstr",mv_type_bstring);
+  mf_insert_table(m,"Range",mv_type_range);
+  mf_insert_table(m,"Function",mv_type_function);
+  mf_insert_table(m,"Tuple",mv_type_tuple);
 
-  f=mf_insert_function(m,1,1,"int",mf_fint);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_int);
-  
-  f=mf_insert_function(m,1,1,"float",mf_ffloat);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_float);
+  mf_insert_table(m,"Iterable",mv_type_iterable);
+  mf_insert_table(m,"Exception",mv_Exception.std);
+  mf_insert_table(m,"empty",(mt_table*)mv_empty);
 
-  f=mf_insert_function(m,1,1,"long",mf_flong);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_long);
-
-  f=mf_insert_function(m,2,2,"complex",mf_fcomplex);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_complex);
-
-  f=mf_insert_function(m,1,2,"list",mf_flist);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_list);
-
-  f=mf_insert_function(m,1,1,"str",mf_fstr);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_string);
-
-  mt_table* tuple = mf_table(NULL);
-  tuple->m=mf_empty_map();
-  mf_insert_table(tuple->m,"type",mv_type_tuple);
-  mf_insert_table(m,"tuple",tuple);
-  tuple->refcount--;
-
-  mt_table* function = mf_table(NULL);
-  function->m=mf_empty_map();
-  mf_insert_table(function->m,"type",mv_type_function);
-  mf_insert_table(m,"function",function);
-  function->refcount--;
-
-  mt_table* range = mf_table(NULL);
-  range->m=mf_empty_map();
-  mf_insert_table(range->m,"type",mv_type_range);
-  mf_insert_table(m,"range",range);
-  range->refcount--;
-
-  f = mf_insert_function(m,1,1,"bstr",mf_bstring);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_bstring);
-
-  f=mf_insert_function(m,1,1,"dict",mf_fdict);
-  f->m=mf_empty_map();
-  mf_insert_table(f->m,"type",mv_type_dict);
+  mf_insert_function(m,1,1,"bool",mf_fbool);
+  mf_insert_function(m,1,1,"int",mf_fint);
+  mf_insert_function(m,1,1,"float",mf_ffloat);
+  mf_insert_function(m,1,1,"long",mf_flong);
+  mf_insert_function(m,2,2,"complex",mf_fcomplex);
+  mf_insert_function(m,1,2,"list",mf_flist);
+  mf_insert_function(m,1,1,"str",mf_fstr);
+  mf_insert_function(m,1,1,"bstr",mf_bstring);
+  mf_insert_function(m,1,1,"map",mf_fdict);
 
   mf_insert_function(m,0,-1,"put",mf_fput);
   mf_insert_function(m,0,-1,"print",mf_fprint);
-  mf_insert_function(m,2,-1,"map",mf_fmap);
+  // mf_insert_function(m,2,-1,"map",mf_fmap);
   mf_insert_function(m,2,-1,"zip",mf_fzip);
   mf_insert_function(m,1,1,"unzip",mf_funzip);
   mf_insert_function(m,1,1,"iter",mf_fiter);
+  mf_insert_function(m,1,1,"cycle",mf_fcycle);
   mf_insert_function(m,1,1,"copy",mf_fcopy);
   mf_insert_function(m,0,3,"rand",mf_frand);
   mf_insert_function(m,1,1,"size",mf_fsize);
@@ -448,7 +436,6 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,0,2,"object",mf_fobject);
   mf_insert_function(m,1,1,"type",mf_ftype);
   mf_insert_function(m,1,1,"load",mf_fload);
-  mf_insert_function(m,1,2,"__import__",mf_fimport);
   mf_insert_function(m,1,2,"eval",mf_feval);
   mf_insert_function(m,0,1,"input",mf_finput);
   mf_insert_function(m,0,1,"gtab",mf_fgtab);
@@ -463,15 +450,11 @@ void mf_vm_init_gvtab(void){
   mf_insert_function(m,2,3,"pow",mf_fpow);
   mf_insert_function(m,0,-1,"compose",mf_fcompose);
   mf_insert_function(m,1,2,"read",mf_fread);
-  mf_insert_function(m,2,2,"assert",mf_fassert);
+  mf_insert_function(m,2,2,"assertion_failed",mf_fassertion_failed);
   mf_insert_function(m,1,1,"hex",mf_fhex);
   mf_insert_function(m,1,1,"bin",mf_fbin);
   mf_insert_function(m,1,1,"set",mf_fset);
   mf_insert_function(m,2,2,"set_destructor",mf_set_destructor);
-
-  mf_insert_table(m,"empty",(mt_table*)mv_empty);
-  mf_insert_table(m,"iterable",mv_type_iterable);
-  mf_insert_table(m,"Exception",mv_Exception.std);
 }
 
 void mf_vm_init(void){
@@ -492,23 +475,23 @@ void mf_vm_init(void){
   iterable.value.p=(mt_basic*)mv_type_iterable;
 
   mv_type_bool = mf_table(NULL);
-  mv_type_bool->name = mf_cstr_to_str("bool");
+  mv_type_bool->name = mf_cstr_to_str("Bool");
   mv_type_bool->m = mf_empty_map();
 
   mv_type_int = mf_table(NULL);
-  mv_type_int->name = mf_cstr_to_str("int");
+  mv_type_int->name = mf_cstr_to_str("Int");
   mv_type_int->m = mf_empty_map();
 
   mv_type_float = mf_table(NULL);
-  mv_type_float->name = mf_cstr_to_str("float");
+  mv_type_float->name = mf_cstr_to_str("Float");
   mv_type_float->m = mf_empty_map();
 
   mv_type_complex = mf_table(NULL);
-  mv_type_complex->name = mf_cstr_to_str("complex");
+  mv_type_complex->name = mf_cstr_to_str("Complex");
   mv_type_complex->m = mf_empty_map();
 
   mv_type_long = mf_table(NULL);
-  mv_type_long->name = mf_cstr_to_str("long");
+  mv_type_long->name = mf_cstr_to_str("Long");
   mv_type_long->m = mf_empty_map();
 
   mv_type_string = mf_table(&iterable);
@@ -530,11 +513,11 @@ void mf_vm_init(void){
   mf_init_type_dict(mv_type_dict);
 
   mv_type_range = mf_table(&iterable);
-  mv_type_range->name = mf_cstr_to_str("range");
+  mv_type_range->name = mf_cstr_to_str("Range");
   mv_type_range->m = mf_empty_map();
 
   mv_type_array = mf_table(NULL);
-  mv_type_array->name = mf_cstr_to_str("array");
+  mv_type_array->name = mf_cstr_to_str("Array");
   mv_type_array->m = mf_empty_map();
   
   mv_Exception.std = mf_table(NULL);
@@ -1209,49 +1192,40 @@ int mf_vm_eval(unsigned char* a, long ip){
       ip+=*(int32_t*)(a+ip+BC);
       break;
     case JPZ:
-      if(stack[sp-1].type==mv_bool){
+      if(stack[sp-1].type!=mv_bool){
+        mf_type_error("Type error in condition: expected a boolean value.");
+        goto error;
+      }else{
         if(stack[sp-1].value.b){
           ip+=BCp4;
         }else{
           ip+=*(int32_t*)(a+ip+BC);
         }
-      }else if(stack[sp-1].type==mv_null){
-        ip+=*(int32_t*)(a+ip+BC);
-      }else{
-        mf_dec_refcount(&stack[sp-1]);
-        ip+=BCp4;
       }
       sp--;
       break;
     case AND:
-      if(stack[sp-1].type==mv_bool){
-        if(stack[sp-1].value.b){
-          ip+=BCp4;
-          sp--;
-        }else{
-          ip+=*(int32_t*)(a+ip+BC);
-        }
-      }else if(stack[sp-1].type==mv_null){
-        ip+=*(int32_t*)(a+ip+BC);
-      }else{
+      if(stack[sp-1].type!=mv_bool){
+        mf_type_error("Type error: operator 'and' expected a boolean value.");
+        goto error;
+      }
+      if(stack[sp-1].value.b){
         ip+=BCp4;
-        mf_dec_refcount(&stack[sp-1]);
         sp--;
+      }else{
+        ip+=*(int32_t*)(a+ip+BC);
       }
       break;
     case OR:
-      if(stack[sp-1].type==mv_bool){
-        if(stack[sp-1].value.b){
-          ip+=*(int32_t*)(a+ip+BC);
-        }else{
-          ip+=BCp4;
-          sp--;
-        }
-      }else if(stack[sp-1].type==mv_null){
+      if(stack[sp-1].type!=mv_bool){
+        mf_type_error("Type error: operator 'or' expected a boolean value.");
+        goto error;
+      }
+      if(stack[sp-1].value.b){
+        ip+=*(int32_t*)(a+ip+BC);
+      }else{
         ip+=BCp4;
         sp--;
-      }else{
-        ip+=*(int32_t*)(a+ip+BC);
       }
       break;
     case CALL: // #stack
@@ -1418,21 +1392,27 @@ int mf_vm_eval(unsigned char* a, long ip){
       e = mf_object_get(&x1,stack+sp-2,stack+sp-1);
       if(e){
         if(e==1){
-          p1 = stack+sp-1;
-          if(p1->type==mv_string){
-            mt_string* s = (mt_string*)p1->value.p;
-            mt_bstr buffer;
-            mf_encode_utf8(&buffer,s->size,s->a);
-            char a[200];
-            snprintf(a,200,"Error: cannot find member '%s' in prototype chain.",buffer.a);
-            mf_free(buffer.a);
-            mf_std_exception(a);
+          e = mf_object_dynamic_get(&x1,stack+sp-2,stack+sp-1);
+          if(e){
+            if(e==1){
+              p1 = stack+sp-1;
+              if(p1->type==mv_string){
+                mt_string* s = (mt_string*)p1->value.p;
+                mt_bstr buffer;
+                mf_encode_utf8(&buffer,s->size,s->a);
+                char a[200];
+                snprintf(a,200,"Error: cannot find member '%s' in prototype chain.",buffer.a);
+                mf_free(buffer.a);
+                mf_std_exception(a);
+              }
+              goto error;
+            }else{
+              goto error;
+            }
           }
+        }else{
+          goto error;
         }
-        // mf_dec_refcount(stack+sp-2);
-        // mf_dec_refcount(stack+sp-1);
-        // sp-=2;
-        goto error;
       }
       mf_inc_refcount(&x1);
       mf_dec_refcount(stack+sp-2);
@@ -1818,23 +1798,35 @@ void new_fiber(mt_fiber* fiber){
   fiber->stack_pointer=0;
 }
 
-mt_table* mf_eval_module(mt_module* module, long ip){
+int mf_eval_module(mt_object* x, mt_module* module, long ip){
   mt_fiber fiber;
   new_fiber(&fiber);
   mt_map* m = mv_gvtab;
   mv_gvtab = mf_empty_map();
   int e = mf_eval_fiber(&fiber,module,ip);
+  if(e) goto error;
+
+  // printf("fiber.stack_pointer: %i\n",fiber.stack_pointer);
+  if(fiber.stack_pointer>0){
+    mf_copy(x,&fiber.stack[fiber.stack_pointer-1]);
+    // todo: delete gvtab
+  }else{
+    mt_table* t = mf_table(NULL);
+    t->m=mv_gvtab;
+    mv_gvtab = m;
+    x->type=mv_table;
+    x->value.p=(mt_basic*)t;
+  }
   // todo: memory leak
   mf_free(fiber.stack);
   mf_free(fiber.frame);
-  if(e){
-    // todo: delete gvtab
-    return NULL;
-  }
-  mt_table* t = mf_table(NULL);
-  t->m=mv_gvtab;
-  mv_gvtab = m;
-  return t;
+  return 0;
+  error:
+  // todo: memory leak
+  mf_free(fiber.stack);
+  mf_free(fiber.frame);
+  // todo: delete gvtab
+  return 1;
 }
 
 int mf_eval_bytecode(mt_object* x, mt_module* module){

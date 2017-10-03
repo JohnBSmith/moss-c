@@ -1,6 +1,6 @@
 
 
-extend(dict.type,table
+extend(Map,table
   sub MPY(b)
     set(list(self)*list(b))
   end,
@@ -43,7 +43,7 @@ extend(dict.type,table
   end
 end)
 
-extend(type(list.type),table
+extend(Iterable,table
   sub uniq(*argv)
     if size(argv)==0
       return list(set(self))
@@ -60,7 +60,7 @@ extend(type(list.type),table
   end
 end)
 
-extend(function.type,table
+extend(Function,table
   sub MPY(g;f)
     |x| g(f(x))
   end

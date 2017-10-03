@@ -4,7 +4,13 @@
   <meta charset="UTF-8">
   <title>Blog</title>
   <link rel="stylesheet" href="css/main.css">
-  <script src="js/blog.js">
+  <script src="js/syntax.js"></script>
+  <script src="js/blog.js"></script>
+  <script>
+window.onload = function(){
+  toc();
+  main();
+}
   </script>
 </head>
 <body>
@@ -54,17 +60,17 @@ print(s)
 information structure (1), formatting (2) and stdout (3).
 </p>
 <p>Note: to have advanced output, libraries should be provided
-that return tables as HTML5, LATEX2E and plots as PNG, SVG
+that return tables as HTML5, LaTeX2e and plots as PNG, SVG
 as automatically as possible. Whole documents or books (libraries?)
 could be generated automatically from data. But one must say
-to this, that HTML5 is more easy to use than LATEX2E.
+to this, that HTML5 is more easy to use than LaTeX2e.
 </p>
 
 <h3 data-date="20160920" id="set-dict-joined"
->Joined datatypes dictionary and set</h3>
-<p>As sets are a special case of dictionaries and set operations
-do not interfere with dictionary operations, them can be joined.
-Dictionaries with values absent can be considered as sets:
+>Joined datatypes map and set</h3>
+<p>As sets are a special case of maps (dictionaries) and set operations
+do not interfere with map operations, them can be joined.
+Maps with values absent can be considered as sets:
 </p>
 <pre class="moss">
   {1, 2} == {1: null, 2: null}
@@ -72,9 +78,10 @@ Dictionaries with values absent can be considered as sets:
 <p>Multisets cannot be included as well, because
 they introduce problems. For example, '<code>==</code>' behaves
 differently if there are keys with <code>d[key]==0</code>.
-But it is clear that dictionaries will be used as internal data
-structures of multisets.
-</p>
+But it is clear that maps may be used as internal data
+structures of multisets. An alternative is, to simpliy monkey patch
+the neccessary operations into <code>Map</code>
+(<code>Map</code> is the data type of maps).
 
 <h3 data-date="20160930" id="assignment-to-application"
 >Assignments to function applications</h3>
@@ -94,18 +101,21 @@ and (4) would blow it up. It is definitely much harder to
 implement than (1,2,3) which required less than 40 lines of code.
 </p>
 
-<h3 data-date="20161006" id="print-float">
-Printing floating point numbers</h3>
+<h3 data-date="20161006" id="print-float"
+>Printing floating point numbers</h3>
 
-<pre>
-There is a problem with standard printing of floating point
+<p>There is a problem with standard printing of floating point
 numbers. For example, one can get
+<pre class="moss">
 &gt; list(0..1:0.2)
 [0.0, 0.2, 0.4, 0.6000000000000001, 0.8, 1.0]
+</pre>
 
+<pre>
 So we can have output of the form 000000000...some digit
 and (under other circuumstances)  999999999...some digit.
-This is because of printf("%.16g\n",x)
+This is because of printf("%.16g\n",x).
+
 In most cases one has engineering tasks and does not suffer
 from slightly lower precision. So I think I will change that
 to %.14g to make output more stable. One can always get full
@@ -113,14 +123,33 @@ precision by "{g16}"%[x] or even "{g17}"%[x].
 (#include &lt;float.h&gt;: DBL_DECIMAL_DIG==17)
 </pre>
 
-<h3 data-date="20161107" id="Rust">
-Reimplementation in Rust</h3>
+
+<h3 data-date="20161107" id="Rust"
+>Reimplementation in Rust</h3>
 
 <p>It is clear for me now, that the Moss interpreter must be
 rewritten in Rust. I&nbsp;have to struggle with segmentation faults
-too often. Rust is one of the strictest languages I know.
-It is very well thought.
-</p>
+too often. 
+
+<p><b>Security.</b>
+Maybe it is possible to achieve a type safe implementation.
+
+<p><b>Security.</b>
+Access to files will be realized by a mandatory access control
+system. In that system the main program obtains a <i>right</i> to
+access files in some path. This right is given explicitly to the
+subprograms that do the task. The difference to the flat model is,
+that in the flat model a third party library routine can do anything,
+once the main program got the right.
+
+<p><b>Security.</b>
+What makes the most headache is a general call of shell commands.
+Any call of an external program (e.g. in a scripting language)
+can undermine the access control system. Thus such a call is
+ill behaved and shall only be possible in the <i>unsafe mode</i>.
+Ideally, the unsafe mode is made forbidden outside of a
+sandbox environment.
+
 
 <h3 data-date="20161107" id="self"
 >New syntax for a formal self-argument</h3>
@@ -129,14 +158,14 @@ It is very well thought.
 has a problem. The following is not possible,
 bacause the inner self-argument shadows the outer one:
 <pre class="moss">
-  function.type.o = |g| |x| self(g(x))
+  Function.o = |f| |x| self(f(x))
 </pre>
 <p>One is forced to write instead:
 <pre class="moss">
-function.type.o = sub|g|
-  f=self
-  return |x| f(g(x))
-end
+  Function.o = sub|f|
+    g = self
+    return |x| g(f(x))
+  end
 </pre>
 <p>This problem occurs often if one uses methods, because
 closures and higher order functions are frequently used.
@@ -145,7 +174,7 @@ from the other arguments. For actual arguments this syntax is
 already possible, but I will provide it also for formal
 arguments. Then we have:
 <pre class="moss">
-  function.type.o = |f;g| |x| f(g(x))
+  Function.o = |g;f| |x| g(f(x))
 </pre>
 
 <h3 data-date="20170509" id="about-modules"
@@ -165,8 +194,8 @@ comes into mind is: should they be equivalent? In order to achieve
 that, in a module a module object should be returned explicitely rather
 than implicitely. This would also solve another problem: How to
 state a module that consists only of a single class or a single
-function (to achieve advanced lazy loading and lazy evaluation)?
-The problem here is an oddly looking import statement:
+function (e.g. to achieve advanced lazy loading and lazy
+evaluation)? The problem here is an oddly looking import statement:
 <pre class="moss">
   use class_name: class_name
   # vs.
@@ -223,7 +252,7 @@ for usability and thus should be supported by the language. Now let
 <pre class="moss">
   {a=a0, b=b0} = d
 </pre>
-<p>be syntactic shugar for
+<p>be syntactic sugar for
 <pre class="moss">
   a = d["a"] if "a" in d else a0
   b = d["b"] if "b" in d else b0
@@ -232,7 +261,7 @@ for usability and thus should be supported by the language. Now let
 <pre class="moss">
   {a,b} = d
 </pre>
-<p>be syntactic shugar for
+<p>be syntactic sugar for
 <pre class="moss">
   a = d["a"]; b = d["b"]
 </pre>
@@ -261,6 +290,180 @@ hand side is an expression. I think it was a worthwhile effort.
     # ...
   end
 </pre>
+
+<p>In addition I realized (by 30 lines of C&nbsp;Code) syntactic sugar
+for named actual arguments:
+<pre class="moss">
+  f(x,y,a=e1,b=e2) == f(x,y,{a=e1,b=e2})
+</pre>
+<p>They may appear in any order, independently from positional
+arguments. That is a little more welfare than simply omitting
+the curly brackets.
+
+<h3 data-date="20170525" id="private-variables"
+>Private variables</h3>
+
+<p>At first I recall that
+<pre class="moss">
+  begin ... end
+</pre>
+<p>is syntatic sugar for:
+<pre class="moss">
+  (sub|| ... end)()
+</pre>
+
+<p>Often we want to create a local variable, use it in one or
+more functions, and forget it afterwarts. Thus we want to have
+a <i>local scope</i>, so that the variable does not exist outside
+of this scope. In Moss I have used this ugly construction so far:
+<pre class="moss">
+  f = begin
+    n = 42
+    return |x| n*x
+  end
+</pre>
+<p>But if one wants to bind some value to more than one function,
+this construction becomes even more unpleasant:
+<pre class="moss">
+  f,g = begin
+    n = 42
+    f = |x| n*x
+    g = |x| x+n
+    return f,g
+  end
+</pre>
+
+<p>In Lua it is possible to restrict variables to a local scope:
+<pre>
+  do
+    local n = 42
+    function f(x)
+      return n*x
+    end
+    function g(x)
+      return x+n
+    end
+  end
+
+  print(f(2))
+</pre>
+
+<p>I did not realize until now that this is perfectly possible in
+my own programming language too:
+<pre class="moss">
+  begin
+    global f,g
+    n = 42
+    f = |x| n*x
+    g = |x| x+n
+  end
+
+  print(f(2))
+</pre>
+<p>Furthermore, this actually solves the problem of having variables
+that are restricted to a module.<sup>1</sup> And fortunately these
+variables can be accessed faster, since local variables are stored in
+a stack frame rather than the dictionary of global variables.
+
+<p>A problem that remains is mutual recursion. In JavaScript this
+is solved by making it possible to use a local variable that
+is defined later on. For now, in Moss one would need to switch to
+global variables for this purpose.
+
+<p class="footnote">Footnote 1: It would be possible to achieve that
+a variable may be declared to be local to a module (<i>module scope</i>).
+In&nbsp;C known as a <i>static</i> variable. Such a variable would also
+be stored inside an array rather than a dictionary. But to me
+<code>begin-end</code> is nicer and more powerful as it leads
+to more fine-grained constructions.
+
+<h3 data-date="20170924" id="use"
+>Definition of the import statement</h3>
+
+<p>In Moss, a module, for example <i>math</i>, is made available by
+the following statement:
+<pre class="moss">
+  use math
+</pre>
+<p>The implementation so far was an internal import-function that
+added <i>math</i> to the dictionary of global variables.
+A change to this behavior will be proposed now. The import-statement
+will be made syntactic sugar to:
+<pre class="moss">
+  math = load("math")
+</pre>
+<p>This has the advantage that <i>math</i> can be a local variable
+now. We recapitulate that a private variable is a (can be modeled
+as a) local variable of a block (in Moss: <code>begin-end</code>).
+
+<p>The full syntax is as follows:
+<pre class="moss">
+  # (A)
+  use pathnode.pathnode.m: f,g
+
+  # (B)
+  use malias=pathnode.pathnode.m: falias=f, galias=g
+</pre>
+<p>This is defined to be syntactic sugar to:
+<pre class="moss">
+  # (A)
+  m = load("pathnode/pathnode/m")
+  f = m.f
+  g = m.g
+
+  # (B)
+  malias = load("pathnode/pathnode/m")
+  falias = malias.f
+  galias = malias.g
+</pre>
+<p>In Addition:
+<pre class="moss">
+  use m:*
+# is meant to be
+  m = load("m")
+  gtab().update(record(m))
+
+# and
+
+  use m=(expression): f, g
+# is meant to be
+  m = load(expression)
+  f = m.f; g = m.g
+</pre>
+<p>In theory, <code>expression</code> could also be an URL etc.
+
+
+<h3 data-date="20170930" id="assert"
+>Assert statement</h3>
+
+<p>The assert statement was added to the language:
+<pre class="moss">
+  assert condition, text
+</pre>
+<p>It is implemented as syntatic sugar, because <code>text</code>
+shall be lazily evaluated. So we have:
+<pre class="moss">
+  if not condition
+    assertion_failed(text)
+  end
+</pre>
+<p>Example of usage:
+<pre class="moss">
+sub pow(x,n)
+  assert type(n) is Int and n&gt;=0, "pow(x,n), n: Int, n&gt;=0"
+  y=1
+  for k in 1..n
+    y=y*x
+  end
+  return y
+end
+
+print(pow(2,-2))
+# Assertion failed: pow(x,n), n: Int, n&gt;=0.
+</pre>
+
+<p>A failed assertion results in an ordinary exception
+that is shown together with a stack trace.
 
 </body>
 </html>

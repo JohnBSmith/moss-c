@@ -1456,7 +1456,7 @@ int function_next(mt_object* x, int argc, mt_object* v){
 }
 
 void mf_init_type_function(mt_table* type){
-  type->name = mf_cstr_to_str("function");
+  type->name = mf_cstr_to_str("Function");
   type->m= mf_empty_map();
   mt_map* m = type->m;
 
