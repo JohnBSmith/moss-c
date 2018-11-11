@@ -53,7 +53,7 @@ print(x,y,z) == print([x,y,z].join())
 <p>holds. This allows us to express an alternative version
 of <code>print</code> that takes a separator.
 <pre class="moss">
-sub Print(a,sep)
+function Print(a,sep)
   print(a.join(sep))
 end
 

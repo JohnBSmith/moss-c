@@ -27,7 +27,7 @@
 use gx, time
 use cmath: re, im
 
-sub fractal(f,g)
+function fractal(f,g)
   w=360; h=240
   canvas = gx.new(w,h,2)
   for y in h
@@ -48,7 +48,7 @@ sub fractal(f,g)
   while canvas.key()!="q"
     time.sleep(0.1)
   end
-end of sub
+end
 
 # Mandelbrot set
 fractal(|z,c| z^2+c, |c| 0)
@@ -68,7 +68,7 @@ fractal(|z,c| z^2-1, |c| c)
 
 use gx, time
 
-sub main
+function main
   w=120; h=80
   a = w*h*[0]/w
   d=0; px=w//2; py=h//2
@@ -86,16 +86,16 @@ sub main
     if k%10==0
       canvas.flush()
       time.sleep(0.1)
-      if canvas.key()=="q": break end
+      if canvas.key()=="q" then break end
     end
-    if d==0: px=(px+1)%w
-    elif d==1: py=(py-1)%h
-    elif d==2: px=(px-1)%w
+    if   d==0 then px=(px+1)%w
+    elif d==1 then py=(py-1)%h
+    elif d==2 then px=(px-1)%w
     else py=(py+1)%h
     end
-    k++
-  end of while
-end of sub
+    k+=1
+  end
+end
 
 main()
 </pre>
@@ -107,13 +107,13 @@ main()
 # Sudoku solver
 # for simple sudokus
 
-sub str_to_list(s)
+function str_to_list(s)
   k=0; a=[]; b=[]
   for c in s
     if c.isdigit()
-      k++; a.push(int(c))
+      k+=1; a.push(int(c))
     elif c=='.'
-      k++; a.push(0)
+      k+=1; a.push(0)
     end
     if k==9
       k=0; b.push(a); a=[]
@@ -122,32 +122,32 @@ sub str_to_list(s)
   return b
 end
 
-sub list_to_str(a)
-  a.map(sub|x|
-    x.chunks(3).map(sub|y|
+function list_to_str(a)
+  a.map(fn|x|
+    x.chunks(3).map(fn|y|
       y.map(|d| '.' if d==0 else str(d)).join()
     end).join("|")
-  end).chunks(3).map(sub|y|
+  end).chunks(3).map(fn|y|
     y.join("\n")
   end).join("\n---+---+---\n")
 end
 
-sub row_set(a,i)
+function row_set(a,i)
   set(a[i].filter(|x| x!=0))
 end
 
-sub col_set(a,j)
+function col_set(a,j)
   set(list(0..8).map(|i| a[i][j]).filter(|x| x!=0))
 end
 
-sub box_set(a,i,j)
+function box_set(a,i,j)
   i=(i//3)*3; j=(j//3)*3
-  set(list(0..2).map(sub|x|
+  set(list(0..2).map(fn|x|
     list(0..2).map(|y| a[i+x][j+y])
   end).chain().filter(|x| x!=0))
 end
 
-sub step(a)
+function step(a)
   for i in 0..8
     for j in 0..8
       if a[i][j]==0
@@ -162,14 +162,14 @@ sub step(a)
   return false
 end
 
-sub solve(a)
+function solve(a)
   t=true
   while t
     t=step(a)
   end
 end
 
-sub main(s)
+function main(s)
   a = str_to_list(s)
   solve(a)
   print(list_to_str(a))
@@ -177,7 +177,7 @@ end
 
 # Backtracking 
 
-sub bsolve(a)
+function bsolve(a)
   # solve(a)
   for i in 0..8
     for j in 0..8
@@ -196,7 +196,7 @@ sub bsolve(a)
   return [a.map(copy)]
 end
 
-sub bmain(s)
+function bmain(s)
   a = bsolve(str_to_list(s))
   print("Number of solutions: ", size(a), ".")
   for i in 0..size(a)-1
@@ -297,23 +297,16 @@ bmain(s1)
 
 use math: isnan, isinf
 
-Tbool = bool.type
-Tint = int.type
-Tfloat = float.type
-Tstr = str.type
-Tlist = list.type
-Tdict = dict.type
-
-Tbracket = object()
-Tsep = object()
-mode_nan=null
+Bracket = object()
+Separator = object()
+mode_nan = null
 
 keyword_tab = {
   "null": [null,null],
-  "true": [Tbool,true],
-  "false": [Tbool,false],
-  "NaN": [Tfloat,math.nan],
-  "Infinity": [Tfloat,math.inf]
+  "true": [Bool,true],
+  "false": [Bool,false],
+  "NaN": [Float,math.nan],
+  "Infinity": [Float,math.inf]
 }
 
 escape_tab = {
@@ -337,11 +330,11 @@ json_repr_tab = {
   "\b": "\b\b"
 }
 
-sub syntax_error(line,col,s)
+function syntax_error(line,col,s)
   raise "Line {}, col {}\nSyntax error: {}"%[line+1,col+1,s]
 end
 
-sub encode_escape(s)
+function encode_escape(s)
   if '\b' in s
     a=[]
     sequence=false
@@ -362,7 +355,7 @@ sub encode_escape(s)
   end
 end
 
-sub scan(s)
+function scan(s)
   i=0
   n=size(s)
   a=[]
@@ -379,23 +372,23 @@ sub scan(s)
         elif not s[i].isdigit()
           break
         end
-        i++; col++
+        i+=1; col+=1
       end
       x = (float if f else int)(s[j..i-1])
       if negate
         negate=false
         x=-x
       end
-      a.push([Tfloat if f else Tint, x, line, hcol])
+      a.push([Float if f else Int, x, line, hcol])
     elif c.isalpha()
       j=i; hcol=col
       while i&lt;n and s[i].isalpha()
-        i++; col++
+        i+=1; col+=1
       end
       w = s[j..i-1]
       if w in keyword_tab
         T,value = keyword_tab[w]
-        if T is Tfloat and negate
+        if T is Float and negate
           negate=false
           value=-value
         end
@@ -405,34 +398,34 @@ sub scan(s)
           "unexpected identifier '{}'.")%[line+1,col+1,w]
       end
     elif c in "{}[]"
-      a.push([Tbracket,c,line,col])
-      i++; col++
+      a.push([Bracket,c,line,col])
+      i+=1; col+=1
     elif c in ",:"
-      a.push([Tsep,c,line,col])
-      i++; col++
+      a.push([Separator,c,line,col])
+      i+=1; col+=1
     elif c=='"'
       hcol=col
-      i++; col++; j=i
+      i+=1; col+=1; j=i
       while i&lt;n
         if s[i]=='\b'
           i+=2; col+=2
         elif s[i]=='"'
           break
         else
-          i++; col++
+          i+=1; col+=1
         end
       end
-      a.push([Tstr,s[j..i-1],line,hcol])
-      i++; col++
+      a.push([String,s[j..i-1],line,hcol])
+      i+=1; col+=1
     elif c.isspace()
       if c=='\n'
-        line++; col=0
+        line+=1; col=0
       else
-        col++
+        col+=1
       end
-      i++
+      i+=1
     elif c=='-'
-      i++; col++
+      i+=1; col+=1
       negate = not negate
     else
       raise ("Line {}, col {}\nSyntax error:\s"+
@@ -442,7 +435,7 @@ sub scan(s)
   return a
 end
 
-sub get_token(i)
+function get_token(i)
   n,a=i
   if n&gt;=size(a)
     if size(a)&gt;0
@@ -455,34 +448,34 @@ sub get_token(i)
   end
 end
 
-sub atom(x)
-  if x[0] is Tint or x[0] is Tfloat
+function atom(x)
+  if x[0] is Int or x[0] is Float
     return x[1]
-  elif x[0] is Tstr
+  elif x[0] is String
     return encode_escape(x[1])
-  elif x[0] is Tbool or x[0] is null
+  elif x[0] is Bool or x[0] is null
     return x[1]
   else
     syntax_error(x[2],x[3],"unknown atom.")
   end
 end
 
-sub List(i)
+function list_expression(i)
   a=[]
   x = get_token(i)
-  if x[0] is Tbracket and x[1]==']'
-    i[0]++
+  if x[0] is Bracket and x[1]==']'
+    i[0]+=1
     return a
   end
   while true
     t = expression(i)
     a.push(t)
     x = get_token(i)
-    if x[0] is Tsep and x[1]==','
-      i[0]++
+    if x[0] is Separator and x[1]==','
+      i[0]+=1
       continue
-    elif x[0] is Tbracket and x[1]==']'
-      i[0]++
+    elif x[0] is Bracket and x[1]==']'
+      i[0]+=1
       break
     else
       syntax_error(x[2],x[3],"expected ',' or ']'.")
@@ -491,28 +484,28 @@ sub List(i)
   return a
 end
 
-sub Dict(i)
+function map_expression(i)
   d={}
   x = get_token(i)
-  if x[0] is Tbracket and x[1]=='}'
-    i[0]++
+  if x[0] is Bracket and x[1]=='}'
+    i[0]+=1
     return d
   end
   while true
     key = expression(i)
     x = get_token(i)
-    if not x[0] is Tsep or x[1]!=':'
+    if not x[0] is Separator or x[1]!=':'
       syntax_error(x[2],x[3],"expected ':'.")
     end
-    i[0]++
+    i[0]+=1
     value = expression(i)
     d[key]=value
     x = get_token(i)
-    if x[0] is Tsep and x[1]==','
-      i[0]++
+    if x[0] is Separator and x[1]==','
+      i[0]+=1
       continue
-    elif x[0] is Tbracket and x[1]=='}'
-      i[0]++
+    elif x[0] is Bracket and x[1]=='}'
+      i[0]+=1
       break
     else
       syntax_error(x[2],x[3],"expected ',' or '}'.")
@@ -521,36 +514,36 @@ sub Dict(i)
   return d
 end
 
-sub expression(i)
+function expression(i)
   x = get_token(i)
-  if x[0] is Tbracket
+  if x[0] is Bracket
     if x[1]=='['
-      i[0]++
-      return List(i)
+      i[0]+=1
+      return list_expression(i)
     elif x[1]=='{'
-      i[0]++
-      return Dict(i)
+      i[0]+=1
+      return map_expression(i)
     end
   else
-    i[0]++
+    i[0]+=1
     return atom(x)
   end
 end
 
-sub load(s)
+function load(s)
   a = scan(s)
   i = [0,a]
   return expression(i)
 end
 
-sub is_atomic(a)
-  a.all(sub|x|
+function is_atomic(a)
+  a.all(fn|x|
     T = type(x)
-    return not(T is Tlist or T is Tdict) or size(x)==0
+    return not(T is List or T is Tdict) or size(x)==0
   end)
 end
 
-sub json_str_repr(s)
+function json_str_repr(s)
   a=["\d"]
   for c in s
     if c in json_repr_tab
@@ -563,7 +556,7 @@ sub json_str_repr(s)
   return a.join()
 end
 
-sub json_float_repr(x)
+function json_float_repr(x)
   if isnan(x)
     return "NaN" if mode_nan else "\dNaN\d"
   elif isinf(x)
@@ -577,15 +570,15 @@ sub json_float_repr(x)
   end
 end
 
-sub dump_rec(a,n,x)
+function dump_rec(a,n,x)
   T = type(x)
-  if T is Tint or T is Tbool or T is null
+  if T is Int or T is Bool or T is null
     a.push(x)
-  elif T is Tfloat
+  elif T is Float
     a.push(json_float_repr(x))
-  elif T is Tstr
+  elif T is String
     a.push(json_str_repr(x))
-  elif T is Tlist
+  elif T is List
     m = size(x)
     if is_atomic(x)
       a.push("[")
@@ -639,15 +632,15 @@ sub dump_rec(a,n,x)
   end
 end
 
-sub dump_rec_compressed(a,x)
+function dump_rec_compressed(a,x)
   T = type(x)
-  if T is Tint or T is Tbool or T is null
+  if T is Int or T is Bool or T is null
     a.push(x)
-  elif T is Tfloat
+  elif T is Float
     a.push(json_float_repr(x))
-  elif T is Tstr
+  elif T is String
     a.push(json_str_repr(x))
-  elif T is Tlist
+  elif T is List
     m = size(x)
     a.push("[")
     for i in 0..m-2
@@ -679,7 +672,7 @@ sub dump_rec_compressed(a,x)
   end
 end
 
-sub dump(x,*argv)
+function dump(x,*argv)
   t = argv[0] if size(argv)!=0 else {}
   global mode_nan
   mode_nan = "nan" in t

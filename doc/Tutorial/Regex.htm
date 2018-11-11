@@ -277,10 +277,10 @@ end
 <pre class="moss">
 use re
 
-sub tokenizer(d)
+function tokenizer(d)
   r = re.compile(d["r"])
   f = d["f"] if "f" in d else null
-  return sub|s|
+  return fn|s|
     a = r.list(s)
     return a if f is null else a.map(f)
   end
@@ -311,7 +311,7 @@ end
 <pre class="moss">
 use re
 
-sub isalpha(r)
+function isalpha(r)
   r = re.compile(r)
   return |s| r.match(s)
 end

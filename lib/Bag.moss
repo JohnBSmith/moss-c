@@ -1,74 +1,74 @@
 
-sub bag(d)
-  table[Bag]
-    d=dict(d.items().filter(|t| t[1]!=0))
-  end
+function bag(d)
+  table Bag {
+    d = dict(d.items().filter(|t| t[1]!=0))
+  }
 end
 
-Bag = table
-  str = sub||
+Bag = table{
+  str = function||
     str(self.d)
   end,
-  iter = sub||
+  iter = function||
     iter(self.d)
   end,
-  sub GET(x)
+  function get(x)
     self.d[x] if x in self.d else 0
   end,
-  sub RIN(b)
+  function rin(b)
     self in b.d and b.d[self]!=0
   end,
-  sub LE(b)
+  function le(b)
     d = self.d
     d.all(|x| d[x]<=b[x])
   end,
-  sub LT(b)
+  function lt(b)
     d = self.d
     d.all(|x| d[x]<b[x])
   end,
-  sub EQ(b)
+  function eq(b)
     self.d==b.d
   end,
-  sub ADD(a;b)
+  function add(a;b)
     m = set(a)|set(b)
     table[Bag]
       d=dict(m.map(|x| [x,a[x]+b[x]]))
     end
   end,
-  sub BOR(a;b)
+  function bor(a;b)
     m = set(a)|set(b)
     table[Bag]
       d=dict(m.map(|x| [x,max(a[x],b[x])]))
     end
   end,
-  sub BAND(b)
+  function band(b)
     a = self.d
     table[Bag]
-      d = dict(a.map(sub|x|
+      d = dict(a.map(fn|x|
         [x,min(a[x],b[x])]
       end).filter(|t| t[1]!=0))
     end
   end,
-  sub MPY(b)
+  function mul(b)
     a = self.d
     table[Bag]
-      d = dict(a.map(sub|x|
+      d = dict(a.map(fn|x|
         [x,a[x]*b[x]]
       end).filter(|t| t[1]!=0))
     end
   end,
-  sub SUB(b)
+  function sub(b)
     a = self.d
     table[Bag]
-      d = dict(a.map(sub|x|
+      d = dict(a.map(fn|x|
         [x,a[x]-b[x]]
       end).filter(|t| t[1]>0))
     end
   end,
-  sub count
+  function count
     self.d.values().sum()
   end
-end
+}
 
 
 

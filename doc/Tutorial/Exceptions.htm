@@ -26,7 +26,7 @@ is thrown an then catched.
 E = object()
 
 try
-  raise table[E] value="Some message" end
+  raise table E{value="Some message"}
 catch e: E
   print(e.value)
 end
@@ -64,7 +64,7 @@ a function call. We will write a protected call function
 additional information.
 </p>
 <pre class="moss">
-sub pcall(f,*argv)
+function pcall(f,*argv)
   try
     y = f.apply(argv)
     success = true
@@ -79,7 +79,7 @@ end
 information about failed success into an exception.
 </p>
 <pre class="moss">
-sub may_except(block)
+function may_except(block)
   success,y = block()
   if not success
     raise y

@@ -66,6 +66,7 @@ mt_tuple* mf_tuple_noinc(int argc, mt_object* v);
 void mf_tuple_delete(mt_tuple* t);
 int mf_object_get_memory(mt_object* x, mt_object* a,
   long size, const char* id);
+void mf_delete_load_tab();
 
 #endif
 

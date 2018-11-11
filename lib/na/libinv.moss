@@ -1,0 +1,30 @@
+
+begin
+  use na: inv
+  global zeroes
+
+  function zeroes_approx(f,a,b,h)
+    L = []
+    x = a
+    y1 = f(x)
+    while x<b
+      y2 = f(x)
+      if sgn(y1)!=sgn(y2)
+        L.push(x)
+      end
+      y1 = y2
+      x+=h
+    end
+    return L
+  end
+
+  # assumption: change of sign
+  function zeroes(f,a,b,h,N=60)
+    L = zeroes_approx(f,a,b,h)
+    return L.map(fn|x|
+      return inv(f,0,x-2*h,x+2*h,N)
+    end)
+  end
+end
+
+

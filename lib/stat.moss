@@ -1,7 +1,7 @@
 
 use math: sqrt
 
-sub sample(a)
+function sample(a)
   n = size(a)
   m = a.sum()/n
   sigma = sqrt(a.sum(|x| (x-m)^2)/(n-1))
@@ -13,15 +13,15 @@ sub sample(a)
   end
   max=a.max()
   min=a.min()
-  return table[Sample]
+  return table Sample{
     mean=m, sigma=sigma,
     max=max, min=min, range=max-min,
     median=median
-  end
+  }
 end
 
-Sample = table
-  str = sub STR||
+Sample = table{
+  function string
     ["mean: "+str(self.mean),
      "sigma: {E1}"%[self.sigma],
      "max: "+str(self.max),
@@ -29,9 +29,9 @@ Sample = table
      "range: "+str(self.range),
      "median: "+str(self.median)].join("\n")
   end
-end
+}
 
-sub bag(a)
+function bag(a)
   m={}
   for x in a
     if x in m then m[x]++ else m[x]=1 end
@@ -39,23 +39,23 @@ sub bag(a)
   return m
 end
 
-sub mode(a)
+function mode(a)
   return bag(a).max(|t| t[1])[0]
 end
 
-sub mean(a)
+function mean(a)
   a.sum()/size(a)
 end
 
-sub square_sum(a,m)
+function square_sum(a,m)
   a.sum(|x| (x-m)^2)
 end
 
-sub product_sum(a,b,mx,my)
-  map(a,b,sub|x,y| (x-mx)*(y-my) end).sum()
+function product_sum(a,b,mx,my)
+  map(a,b,|x,y| (x-mx)*(y-my)).sum()
 end
 
-sub linear_regression(a)
+function linear_regression(a)
   x,y = unzip(a)
   mx = mean(x)
   my = mean(y)
@@ -63,23 +63,23 @@ sub linear_regression(a)
   sy = square_sum(y,my)
   sxy = product_sum(x,y,mx,my)
   rxy = sxy/sqrt(sx*sy)
-  ax=sxy/sx; bx=my-sxy/sx*mx
-  ay=sxy/sy; by=mx-sxy/sy*my
+  ax = sxy/sx; bx = my-sxy/sx*mx
+  ay = sxy/sy; by = mx-sxy/sy*my
   fx = |x| ax*x+bx
   fy = |y| ay*y+by
   gx = |y| (y-bx)/ax
   gy = |x| (x-by)/ay
-  return table[linear_regression.type]
+  return table LinearRegression{
     mx=mx, my=my, r=rxy, c=[mx,my],
     sx=sx, sy=sy, sxy=sxy,
     ax=ax, ay=ay, bx=bx, by=by,
     fx=fx, fy=fy, gx=gx, gy=gy
-  end
+  }
 end
 
-linear_regression.type = table
-  str = sub STR||
+LinearRegression = table{
+  function string
     ["rxy: "+str(self.r)].join("\n")
   end
-end
+}
 

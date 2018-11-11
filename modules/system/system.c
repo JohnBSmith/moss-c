@@ -30,9 +30,9 @@ int mf_put(mt_object* x);
 mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 
 #ifdef _WIN32
-const char* mv_path = "C:/local/lib/moss";
+const char* mv_path = "C:/local/lib/mossc";
 #else
-const char* mv_path = "/usr/local/lib/moss";
+const char* mv_path = "/usr/local/lib/mossc";
 #endif
 
 static

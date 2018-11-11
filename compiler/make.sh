@@ -1,4 +1,4 @@
 
-gcc -c compiler.c -g -Wimplicit-function-declaration\
+gcc -c compiler.c -g -O3 -Wimplicit-function-declaration\
   -o ../bin/compiler.o -I../include
 

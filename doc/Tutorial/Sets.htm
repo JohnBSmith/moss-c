@@ -29,13 +29,11 @@ mathematics further. Sets together with the strongly related
 concepts <em>tuple, function, equivalence class</em> are some of the
 most general, and as such they have many hidden occurences, also in
 things of daily interest.
-</p>
 
 <p>Not all of the constructions in mathematics can be computed,
 as they involve infinite or very large sets. Nevertheless is seems
 beneficial to have sets as a datastructure, also due to didactic
 reasons.
-</p>
 
 <h2 id="construction">
 Construction</h2>
@@ -43,7 +41,6 @@ Construction</h2>
 <p>In Moss sets are noted down like in standard math notation.
 The function <code>set</code> converts an iterable object
 into a set.
-</p>
 
 <pre class="moss">
 &gt; A = {1,2,3,4}
@@ -142,7 +139,6 @@ cap = |a| a.reduce({},|x,y| x&amp;y)
 Cartesian products</h2>
 
 <p>Cartesian products are stated in the most simple manner.
-</p>
 
 <pre class="moss">
 &gt; A = [0,1]
@@ -155,22 +151,21 @@ Cartesian products</h2>
 
 <p>Currently there is no associative product,
 but it can be done in the follwing way.
-</p>
 
 <pre class="moss">
 prod = |*a| a.reduce(|x,y| (x*y).map(|t| t.chain()))
 </pre>
+
 <p>We will extend the functionality of the dictionary data type.
-</p>
 <pre class="moss">
-extend(Map,table
-  sub MPY(b)
+extend(Map,table{
+  function mul(b)
     set(list(self)*list(b))
   end,
-  sub POW(n)
+  function pow(n)
     set(list(self)^n)
   end
-end)
+})
 
 &gt; A = {0,1}
 &gt; B = {2,3}
@@ -186,7 +181,6 @@ Power sets</h2>
 
 <p>There is no built-in function for this purpose, but we
 can write one.
-</p>
 
 <pre class="moss">
 powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
@@ -197,15 +191,14 @@ powerset = |a| a.reduce([[]],|p,x| p+p.map(|s| s+[x]))
 </pre>
 
 <p>We will extend the functionality of the dictionary data type.
-</p>
 <pre class="moss">
-extend(Map,table
-  sub RPOW(a)
+extend(Map,table{
+  function rpow(a)
     if self==2
       return a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
     end
   end
-end)
+})
 
 &gt; 2^{1,2}
 {{}, {1}, {2}, {1,2}}
@@ -217,7 +210,6 @@ Equivalence classes</h2>
 
 <p>Division of a list by an equivalence relation <code>R</code> has
 the list of equivalence classes as a result.
-</p>
 
 <pre class="moss">
 &gt; R = |x,y| x%4==y%4
@@ -227,12 +219,11 @@ the list of equivalence classes as a result.
 
 <p>In reverse, a equivalence relation can be constituted from
 a list of equivalence classes (quotient set) <code>Q</code>.
-</p>
 
 <pre class="moss">
-eq = sub|Q|
-  d = Q.map(sub|c|
-    c.map(sub|x| [x,c[0]] end)
+eq = fn|Q|
+  d = Q.map(fn|c|
+    c.map(fn|x| [x,c[0]] end)
   end).chain().dict()
   return |x,y| d[x]==d[y]
 end
@@ -250,10 +241,9 @@ projection function <code>p</code>, so that
 
 <p>the list of equivalence classes should be computed
 in the following faster way.
-</p>
 
 <pre class="moss">
-partition = sub|a,p|
+partition = fn|a,p|
   d={}
   for x in a
     y = p(x)
@@ -271,10 +261,9 @@ end
 
 <p>The set of all functions from a domain to a codomain.
 A function will be represented as a dictionary.
-</p>
 <pre class="moss">
-extend(Map,table
-  sub POW(n)
+extend(Map,table{
+  function pow(n)
     if n: Int
       return set(list(self)^n)
     else
@@ -283,7 +272,7 @@ extend(Map,table
       return set(c.map(|t| (0..size(t)-1).dict(|i| [a[i],t[i]])))
     end
   end
-end)
+})
 
 &gt; {"a","b","c"}^{0,1}
 {{0: "a", 1: "a"},

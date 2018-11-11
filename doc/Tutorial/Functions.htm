@@ -55,7 +55,7 @@ and overwrite its old name. Instead of using a global variable we
 can use a private variable which will point to the function itself more
 directly. Then overwriting the old name becomes possible.
 <pre class="moss">
-sum = sub f|a,b| a if b==0 else f(succ(a),pred(b)) end
+sum = fn f|a,b| a if b==0 else f(succ(a),pred(b)) end
 
 # Now valid
 old_sum = sum
@@ -85,7 +85,7 @@ to know the subprogram just before the call.
 <p>One of the easiest examples is the function <code>map</code>
 which applies a given function to each element of a list.
 <pre class="moss">
-map = sub|a,f|
+map = fn|a,f|
   b=[]
   for x in a
     b.push(f(x))
@@ -103,7 +103,7 @@ print(map(A,F))
 <p>Interestingly, passing functions allows the construction of custom
 control structures. A basic for loop is written without much effort.
 <pre class="moss">
-For = sub|a,b,f|
+For = fn|a,b,f|
   i=a
   while i&lt;=b
     f(i)
@@ -111,7 +111,7 @@ For = sub|a,b,f|
   end
 end
 
-For(1,4,sub|i|
+For(1,4,fn|i|
   print(i, "^ = ", str(2^i).rjust(2,"0"))
 end)
 # 2^1 = 02
@@ -127,7 +127,7 @@ end)
 The first way one can think to do this, is to use the
 definition of the derivative directly.
 <pre class="moss">
-diff = sub|f,x| h=0.001
+diff = fn|f,x| h=0.001
   return (f(x+h)-f(x))/h
 end
 </pre>
@@ -135,7 +135,7 @@ end
 <p>This is a little bit naive. The following algorithm does it
 better, because it cancels out errors.
 <pre class="moss">
-diff = sub|f,x| h=0.001
+diff = fn|f,x| h=0.001
   return (f(x+h)-f(x-h)/(2*h)
 end
 </pre>
@@ -181,7 +181,7 @@ modify the variable <code>city</code> from inside of the function
 <code>stars</code>.
 
 <pre class="moss">
-sub stars(s)
+function stars(s)
   s="*"+s+"*"
 end
 
@@ -196,7 +196,7 @@ variable. Such a variable can be simulated as a list with only
 one element.
 
 <pre class="moss">
-sub stars(a)
+function stars(a)
   a[0]="*"+a[0]+"*"
 end
 
@@ -210,7 +210,7 @@ print(city[0])
 If there are many arguments, this has better readability.
 
 <pre class="moss">
-sub stars(s)
+function stars(s)
   s.value = "*"+s.value+"*"
 end
 
@@ -278,7 +278,7 @@ Named arguments</h2>
 <p>For convenience, such an dictionary can be unpacked, allowing
 named default arguments:
 <pre class="moss">
-sub p(d)
+function p(d)
   {x,y,sep=", "}=d
   return ["(",x,sep,y,")"].join()
 end
@@ -286,7 +286,7 @@ end
 
 <p>A default configuration could be given for everything:
 <pre class="moss">
-sub p(d={})
+function p(d={})
   {x="x", y="y", sep=", "}=d
   return ["(",x,sep,y,")"].join()
 end
@@ -346,7 +346,7 @@ printing program, that determines the table to print based on
 the number of arguments of a given boolean function.
 
 <pre class="moss">
-sub truth_table(f)
+function truth_table(f)
   a = [false,true]^f.argc()
   for x in a
     print((x+[f.apply(x)]).map(int))
@@ -425,13 +425,13 @@ Function.ADD = |g| |x| self(x)+g(x)
 <p>will no work as intended. Instead one has to state
 this as
 <pre class="moss">
-Function.ADD = |f;g| |x| f(x)+g(x)
+Function.add = |f;g| |x| f(x)+g(x)
 </pre>
 
 <p>wich, in this case, also looks clearly more likeable.
 One could have written:
 <pre class="moss">
-Function.ADD = sub|g|
+Function.add = fn|g|
   f = self
   return |x| f(x)+g(x)
 end
@@ -521,7 +521,7 @@ function calls. We could use a global variable instead of a
 local one.
 <pre class="moss">
 counter_c=0
-sub counter
+function counter
   counter_c++
   return counter_c
 end
@@ -531,7 +531,7 @@ end
 to the function. Here is the way to go.
 
 <pre class="moss">
-sub counter
+function counter
   counter.c++
   return counter.c
 end
@@ -555,7 +555,7 @@ of <code>counter</code>.
 begin
   global counter
   c=0
-  sub counter
+  function counter
     c++
     return c
   end
@@ -565,8 +565,8 @@ end
 <p>The last program can be turned into a function that creates
 a counter based on a start value.
 <pre class="moss">
-sub new_counter(c)
-  return sub||
+function new_counter(c)
+  return fn||
     c++
     return c
   end
@@ -620,13 +620,13 @@ it like in Scheme.
 
 <pre class="moss">
 # This won't work
-sub tree(x)
+function tree(x)
   table x=x, left=tree(x), right=tree(x+1) end
 end
 print(tree(0).right.right.right.x)
 
 # We have to use explicit lazy evaluation
-sub tree(x)
+function tree(x)
   table x=x, left=|| tree(x), right=|| tree(x+1) end
 end
 print(tree(0).right().right().right().x)
@@ -640,10 +640,10 @@ In this case, lazy expressions should have their own data type.
 lazy_type = table
   str = || "lazy expression"
 end
-sub delay(f)
+function delay(f)
   table[lazy_type] call=f end
 end
-sub force(x)
+function force(x)
   x.call() if type(x) is lazy_type else x
 end
 
@@ -654,7 +654,7 @@ print([force(2), force(t)])
 <p>But in most constructions, a value is never a function.
 In such cases we can simply check for a function.
 <pre class="moss">
-sub force(x)
+function force(x)
   x() if type(x) is Function else x
 end
 print([force(2), force(|| 1+2)])
@@ -703,10 +703,10 @@ method that assigns a value to a key, but implicitly converts
 the key into a string in before.
 <pre class="moss">
 extend(Map,table
-  sub get(key)
+  function get(key)
     return self[str(key)]
   end,
-  sub set_get(key,value)
+  function set_get(key,value)
     self[str(key)]=value
   end
 end)

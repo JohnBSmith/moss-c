@@ -237,11 +237,11 @@ in the following way.</p>
   <td><code>1i, 2+4i, -3.2i</code>
   <td>complex numbers
 <tr>
-  <td><code>Str</code>
+  <td><code>String</code>
   <td><code>"", "ab"</code>
   <td>strings of characters
 <tr>
-  <td><code>Bstr</code>
+  <td><code>Bytes</code>
   <td><code>b{}, b{41,42}</code>
   <td>strings of bytes
 <tr>
@@ -340,23 +340,23 @@ a sequence of statements, a longer syntax has to be used.
 f = |x| 2*x
 
 # (2) Longer syntax
-f = sub|x| 2*x end
+f = fn|x| 2*x end
 
 # (3) Full syntax
-f = sub|x| return 2*x end
+f = fn|x| return 2*x end
 
 # (4) Function with private name "f"
-f = sub f|x| return 2*x end
+f = fn f|x| return 2*x end
 
 # (5) Equivalent to (4)
-sub f(x) return 2*x end
+function f(x) return 2*x end
 </pre>
 
 <p>A function can contain statements and local variables.
 Here is an example, an approximation of the natural exponential
 function:
 <pre class="moss">
-sub exp(x)
+function exp(x)
   u = x/64
   y = 1 + u + u^2/2 + u^3/6 + u^4/24
   return y^64
@@ -764,7 +764,7 @@ s = "Phantom text"
 print(s)
 #*/
 
-/*01*/ stoi = sub|s| /*string to integer*/
+/*01*/ stoi = fn|s| /*string to integer*/
 /*02*/   s.reduce(0,|x,c| 10*x+ord(c)-48)
 /*03*/ end
 </pre>
@@ -1044,7 +1044,7 @@ some piece of functionality multiple times.
 </p>
 
 <pre class="moss">
-sub count(s,c)
+function count(s,c)
   k=0
   for x in s
     if x==c then k=k+1
@@ -1070,20 +1070,20 @@ statement has an alternative syntatic form.
 <pre class="moss">
 # (1) A function without a private name,
 # called anonymous.
-f = sub|x| 2*x end
+f = fn|x| 2*x end
 
 # (2) The same function, but with private name "f".
-f = sub f|x| 2*x end
+f = fn f|x| 2*x end
 
 # (3) Syntactic sugar for statement (2).
 # This is an assignment to the variable f,
 # but the assignment operation is invisible.
-sub f(x) 2*x end
+function f(x) 2*x end
 </pre>
 
-<p>So we could have written <code>count = sub|s,c|</code> or
-<code>count = sub count|s,c|</code> instead
-of <code>sub count(s,c)</code>.
+<p>So we could have written <code>count = fn|s,c|</code> or
+<code>count = fn count|s,c|</code> instead
+of <code>function count(s,c)</code>.
 </p>
 
 

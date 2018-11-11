@@ -1,0 +1,8 @@
+
+f = |x,a=null,m={}| [x,a,m]
+f(1)
+f(1)
+f(1)
+# segmentation fault
+
+

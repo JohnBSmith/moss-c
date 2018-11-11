@@ -408,7 +408,7 @@ until a character is found, that is not contained in
 
 <dt>m.update(m2)
 <dd>Insert all items of <code>m2</code> into
-<code>d</code>. Already in <code>m</code> contained items
+<code>m</code>. Already in <code>m</code> contained items
 are overwritten.</dd>
 
 <dt>m.extend(m2)
@@ -890,17 +890,17 @@ returned instead of exact long integers.
 </p>
 
 <dl class="code">
-<dt>diff(f,x), diff(f,x,n)
+<dt>diff(f,x,n=1)
 <dd>Derivative of <code>f</code> at <code>x</code>.
 The <code>n</code>-th derivative of <code>f</code> at <code>x</code>.
 
-<dt>integral(a,b,f), integral(a,b,f,N)
+<dt>integral(a,b,f,N=2)
 <dd>Definite integral.
 <pre class="moss">
 ln = |x| integral(1,x,|t| 1/t)
 </pre>
 
-<dt>vint(c,f), vint(c,f,N)
+<dt>vint(c,f,N=2)
 <dd>Contour integral of a complex function <code>f</code>
 by vertex path <code>c</code>. Integral of a complex valued
 function <code>f</code> by <code>c=[a,b]</code>.
@@ -910,7 +910,7 @@ ln = |z| vint([1, -1i if im(z)&lt;0 else 1i, z],|s| 1/s)
 cint = |gamma,f| vint([0,1],|t| f(gamma(t))*diff(gamma,t))
 </pre>
 
-<dt>inv(f,x,a,b)
+<dt>inv(f,x,a,b,N=60)
 <dd>Value of the inverse function of <code>f</code> at <code>x</code> for
 <code>f</code> strictly monotonic on the interval <code>[a,b]</code>.
 The bisection method is used.

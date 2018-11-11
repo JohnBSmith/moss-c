@@ -465,6 +465,30 @@ int array_ADD(mt_object* x, int argc, mt_object* v){
 }
 
 static
+int array_RADD(mt_object* x, int argc, mt_object* v){
+  if(argc!=1){
+    mf_argc_error(argc,1,1,"Array.RMPY");
+    return 1;
+  }
+  if(v[1].type!=mv_array){
+    mf_type_error1("in r*a: a (type: %s) is not an array.",&v[1]);
+    return 1;
+  }
+  int e=0;
+  addc = mf_float(&v[0],&e);
+  if(e){
+    mf_type_error1("in r+a: cannot convert r (type: %s) to float.",&v[0]);
+    return 1;
+  }
+  mt_array* a = (mt_array*)v[1].value.p;
+  mt_array* y = mf_array_map_dd(a,add);
+  if(y==NULL) return 1;
+  x->type = mv_array;
+  x->value.p = (mt_basic*)y;
+  return 0;
+}
+
+static
 int array_SUB(mt_object* x, int argc, mt_object* v){
   if(argc!=1){
     mf_argc_error(argc,1,1,"array.type.SUB");
@@ -1135,6 +1159,7 @@ mt_table* mf_la_load(){
   mf_insert_function(m,0,0,"str",array_str);
   mf_insert_function(m,0,0,"list",array_list);
   mf_insert_function(m,1,1,"ADD",array_ADD);
+  mf_insert_function(m,1,1,"RADD",array_RADD);
   mf_insert_function(m,1,1,"SUB",array_SUB);
   mf_insert_function(m,1,1,"MPY",array_MPY);
   mf_insert_function(m,1,1,"RMPY",array_RMPY);

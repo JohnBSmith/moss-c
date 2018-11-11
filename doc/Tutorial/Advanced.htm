@@ -29,7 +29,6 @@ string <code>s2</code> to a string <code>s1</code>. To bypass
 this problem one could write <code>s1=s1+s2</code>. But this
 sparks off another problem. To understand this we should have
 a look on the following statement:
-</p>
 
 <pre class="moss indent">
 s = s1+s2+s3+s4+s5+s6
@@ -41,7 +40,6 @@ This results in a huge amount of memory allocations and memory
 displacements. And the memory to displace gets longer and longer.
 The following program unveils the full painfullness of this
 approach.
-</p>
 
 <pre class="moss indent">
 n = 1000
@@ -55,14 +53,12 @@ end
 or <code>100000</code> and measure
 how long it takes. A better method is to use the
 method <code>join</code> that glues strings together:
-</p>
 
 <pre class="moss indent">
 s = [s1,s2,s3,s4,s5,s6].join()
 </pre>
 
 <p>Now one can use a list as a buffer.
-</p>
 
 <pre class="moss indent">
 a = []
@@ -77,7 +73,6 @@ Memoisation</h2>
 
 <p>We can directly obtain an implementation from the
 recursive definition of the Fibonacci-squence:
-</p>
 
 <pre class="moss indent">
 fib = |n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2)
@@ -86,27 +81,25 @@ fib = |n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2)
 <p>If <code>n</code> increases by one, the number of needed calls
 to <code>fib</code> is <em>multiplied</em> by a factor of two.
 Ok, let <code>N</code> be this number of needed calls. Then we have
-</p>
+
 <pre class="indent">
 N(n+1) = 2N(n).
 </pre>
+
 <p>Mathematics says, the solution of this equation is
 <code>N(n)=c+2^n</code>. That <code>c</code> is some uninteresting
 constant. If <code>t</code> is the amount of time
 a call would take, the computer spends <code>t*N(n)</code>
 for the computation.
-</p>
 
 <p>But <code>fib</code> is so simple, it is obvious, that
 the computation should take only <code>N(n)=c+n</code> calls.
-</p>
 
 <p>The following memoizing fixed point combinator achieves this.
-</p>
 <pre class="moss">
-fix = sub|F|
+fix = fn|F|
   m={}
-  return sub g|n|
+  return fn g|n|
     if n not in m then m[n]=F(g,n) end
     return m[n]
   end
@@ -122,7 +115,6 @@ fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
 Sets and dictionarys provide a simple way to state this operation.
 The first way to achieve unique is to convert the list into a set and
 then back into a list.
-</p>
 
 <pre class="moss indent">
 # (1)
@@ -131,7 +123,6 @@ uniq = |a| list(set(a))
 
 <p>If two non-equal elements have a different string representation
 we can use a dictionary construction instead of a set construction.
-</p>
 
 <pre class="moss indent">
 # (2)
@@ -161,7 +152,7 @@ At first, some auxiliary functionality is to be defined.
 <pre class="moss">
 dtab = {}
 
-sub define(m,d)
+function define(m,d)
   if m not in dtab
     dtab[m] = d
   else
@@ -170,7 +161,7 @@ sub define(m,d)
 end
 
 method = {
-  2: sub|m|
+  2: fn|m|
     f = dtab[m]
     return |x,y| f[[type(x),type(y)]](x,y)
   end

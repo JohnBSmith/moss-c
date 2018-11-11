@@ -29,19 +29,19 @@ is taken.
 <pre class="moss">
 use math: sqrt
 
-sub mean(a)
+function mean(a)
   a.sum()/size(a)
 end
 
-sub square_sum(a,m)
+function square_sum(a,m)
   a.sum(|x| (x-m)^2)
 end
 
-sub product_sum(a,b,mx,my)
-  map(a,b,sub|x,y| (x-mx)*(y-my) end).sum()
+function product_sum(a,b,mx,my)
+  map(a,b,fn|x,y| (x-mx)*(y-my) end).sum()
 end
 
-sub linear_regression(a)
+function linear_regression(a)
   x,y = unzip(a)
   mx = mean(x)
   my = mean(y)
@@ -49,14 +49,14 @@ sub linear_regression(a)
   sy = square_sum(y,my)
   sxy = product_sum(x,y,mx,my)
   rxy = sxy/sqrt(sx*sy)
-  return table
+  return table{
     mx=mx, my=my, r=rxy, c=[mx,my],
     ax=sxy/sx, bx=my-sxy/sx*mx,
     ay=sxy/sy, by=mx-sxy/sy*my
-  end
+  }
 end
 
-sub print_linear_regression(a)
+function print_linear_regression(a)
   t = linear_regression(a)
   print("y(x) = ax*x+bx = ax*(x-mx)+my")
   print("ax = ", t.ax)
@@ -85,7 +85,7 @@ use math: erf, sqrt
 use na: inv
 
 # F: a cumulative distribution function
-random = sub|F| r=rand()
+random = fn|F| r=rand()
   return || inv(F,r(),-1000,1000)
 end
 
@@ -179,7 +179,7 @@ use plotlib: system
 
 # Bifurcation diagramm
 w = rand()
-f = |r| (sub|x| r*x*(1-x) end^200)(w())
+f = |r| (fn|x| r*x*(1-x) end^200)(w())
 
 s = system({px=3, wx=1.25, wy=2})
 # s.interlace(f)

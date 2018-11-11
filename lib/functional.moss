@@ -1,7 +1,7 @@
 
-fix = sub|F|
-  m={}
-  return sub g|n|
+fix = fn|F|
+  m = {}
+  return fn g|n|
     if n not in m then m[n]=F(g,n) end
     return m[n]
   end
@@ -11,16 +11,16 @@ first = |f,*a| |*b| f.apply(a+b)
 last  = |f,*a| |*b| f.apply(b+a)
 fun = |a| |n| a[n]
 
-curry = sub|f,n|
+curry = fn|f,n|
   a=list(0..n-1)
-  g = sub|x| a[n-1]=x; f.apply(a) end
+  g = fn|x| a[n-1]=x; f.apply(a) end
   for i in 2..n
-    g = sub|x| a[n-i]=x; g end
+    g = fn|x| a[n-i]=x; g end
   end
   return g
 end
 
-uncurry = sub|f|
+uncurry = fn|f|
   |*a| a.reduce(f,|g,x| g(x))
 end
 

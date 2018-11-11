@@ -1,0 +1,71 @@
+
+ctab = {
+  "blue": [0,0,220],
+  "red": [160,0,0],
+  "green": [0,120,0],
+  "yellow": [200,180,0],
+  "purple": [140,0,140],
+  "white": [255,255,255],
+  "black": [0,0,0],
+  "gray": [120,120,120]
+}
+
+sub color(c)
+  if type(c) is Str
+    c = ctab[c]
+  end
+  put("\e[38;2;{};{};{}m" % c)
+end
+
+sub bcolor(c)
+  if type(c) is Str
+    c = ctab[c]
+  end
+  put("\e[48;2;{};{};{}m" % rgb)
+end
+
+sub color_default
+  put("\e[39m")
+end
+
+sub bcolor_default
+  put("\e[49m")
+end
+
+sub bold_on
+  put("\e[1m")
+end
+
+sub bold_off
+  put("\e[21m")
+end
+
+sub underline_on
+  put("\e[4m")
+end
+
+sub underline_off
+  put("\e[24m")
+end
+
+sub clear
+  put("\e[2J")
+end
+
+sub pos(x,y)
+  put("\e[{};{}H" % [x,y])
+end
+
+/*
+sub test
+  for c in list(ctab).sort()
+    color(c); print("Hamburg.")
+  end
+  color_default()
+end
+
+test()
+#*/
+
+
+

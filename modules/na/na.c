@@ -33,7 +33,7 @@ double double_double_apply(mt_function* f, double x, int* error){
   return u;
 }
 
-double invab(mt_function* f, double x, double a, double b, int* e){
+double invab(mt_function* f, double x, double a, double b, int N, int* e){
   double y,ya,yb,m,s,a1=a,b1=b;
   ya=double_double_apply(f,a,e);
   if(*e) return NAN;
@@ -42,7 +42,7 @@ double invab(mt_function* f, double x, double a, double b, int* e){
   s = copysign(1,yb-ya);
   if(s==0 || isnan(s)) s=1;
   int k;
-  for(k=0; k<60; k++){
+  for(k=0; k<N; k++){
     m=(a+b)/2;
     y=double_double_apply(f,m,e);
     if(*e) return NAN;
@@ -56,9 +56,19 @@ double invab(mt_function* f, double x, double a, double b, int* e){
 
 static
 int na_inv(mt_object* x, int argc, mt_object* v){
+  int N=60;
   if(argc!=4){
-    mf_argc_error(argc,4,4,"inv");
-    return 1;
+    if(argc==5){
+      if(v[5].type!=mv_int){
+        mf_type_error("Type error in inv(f,x,a,b,n=60): n is not an integer.");
+        return 1;
+      }else{
+        N = v[5].value.i;
+      }
+    }else{
+      mf_argc_error(argc,4,5,"inv");
+      return 1;
+    }
   }
   if(v[1].type!=mv_function){
     mf_type_error("Type error in inv(f,x,a,b): f is not a function.");
@@ -81,7 +91,7 @@ int na_inv(mt_object* x, int argc, mt_object* v){
     mf_type_error("Type error in inv(f,x,a,b): cannot convert b to float.");
     return 1;
   }
-  double y=invab(f,t,a,b,&e);
+  double y=invab(f,t,a,b,N,&e);
   if(e){
     mf_type_error("Type error in inv(f,x,a,b): cannot convert return value of f to float.");
     return 1;
@@ -757,7 +767,7 @@ mt_table* mf_na_load(){
   mt_table* na = mf_table(NULL);
   na->m=mf_empty_map();
   mt_map* m=na->m;
-  mf_insert_function(m,4,4,"inv",na_inv);
+  mf_insert_function(m,4,5,"inv",na_inv);
   mf_insert_function(m,2,2,"diff",na_diff);
   mf_insert_function(m,3,4,"integral",na_integral);
   mf_insert_function(m,3,4,"vint",na_vint);

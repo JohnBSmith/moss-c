@@ -326,8 +326,8 @@ double Hermite(long n, double x){
     double a,b,h;
     long k;
     a=1; b=2*x;
-    for(k=2; k<=n; k++){
-      h=2*x*b-2*(n-1)*a;
+    for(k=1; k<n; k++){
+      h=2*x*b-2*k*a;
       a=b; b=h;
     }
     return b;

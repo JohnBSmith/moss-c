@@ -1,8 +1,8 @@
 
-gcc -c -g vm.c -Wimplicit-function-declaration\
+gcc -O3 -c -g vm.c -Wimplicit-function-declaration\
   -o ../bin/vm.o -I../include
 cd ../bin
-gcc -o ../vm/moss\
+gcc -o ../vm/mossc\
   compiler.o vm.o vec.o str.o system.o bs.o tk.o global.o\
   random.o math.o cmath.o sys.o time.o na.o sf.o nt.o os.o\
   listobject.o stringobject.o bstringobject.o mapobject.o\

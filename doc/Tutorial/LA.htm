@@ -26,7 +26,6 @@
 features (operator overloading, multiindex array slices,
 slice assignments) to state formulas from linear algebra in a
 nicely looking form.
-</p>
 
 <p>Usually one wishes to calculate with lists like with vectors
 from the coordinate space, but that is not directly possible,
@@ -35,28 +34,27 @@ the grand scheme of things such an approach would be inefficient,
 because multidimensional arrays would be implemented as lists of
 lists. It is more memory efficient to store a
 multidimensional array as a strided array.
-</p>
 
 <p>What follows is the basic approach for matrices, implemented via
 strided arrays in row-major order.
-</p>
+
 <pre class="moss">
-sub matrix(*a)
-  return table[matrix.type]
+function matrix(*a)
+  return table Matrix{
     m = size(a),
     n = size(a[0]),
-    a=a.chain()
-  end
+    a = a.chain()
+  }
 end
 
-matrix.type = table
-  str = begin
+Matrix = table{
+  function string
     return "matrix("+self.a.join(",\s")+")"
   end,
-  sub get(i,j)
+  function get(i,j)
     return self.a[i*self.n+j]
   end
-end
+}
 
 # a[i*n+j]: row-major indexing (possible)
 # a[i+j*m]: column-major indexing (impossible)
@@ -65,7 +63,7 @@ end
 </pre>
 
 <p>Now we can do pretty indexing.
-</p>
+
 <pre class="moss">
 a = matrix(
   [1,2],
@@ -74,51 +72,53 @@ a = matrix(
 print(a[0,0], ", ", a[0,1])
 print(a[1,0], ", ", a[1,1])
 </pre>
+
 <p>It is very simple to implement scalar multiplication and
 vector addition.
-</p>
+
 <pre class="moss">
-matrix.type = table
+Matrix = table{
   # ...,
-  sub MPY(r)
-    return table[vector.type]
+  function mul(r)
+    return table Matrix{
       m=self.m, n=self.n,
       a=self.a.map(|x| r*x)
-    end
+    }
   end,
-  sub NEG
-    return table[vector.type]
+  function neg
+    return table Matrix{
       m=self.m, n=self.n,
       a=self.a.map(|x| -x)
-    end
+    }
   end,
-  sub ADD(w)
-    return table[vector.type]
+  function add(w)
+    return table Matrix{
       m=self.m, n=self.n,
       a=map(self.a,w.a,|x,y| x+y)
-    end
+    }
   end,
-  sub SUB(w)
-    return table[vector.type]
+  function sub(w)
+    return table Matrix{
       m=self.m, n=self.n,
       a=map(self.a,w.a,|x,y| x-y)
-    end
+    }
   end
-end
+}
 </pre>
 <p>Note that this matrix data type is type generic:
 the elements can be real numbers, complex numbers or long integers.
 Even matrices (each of a different signature) as elements of a matrix
 are possible. Such a structure is known as a block matrix.
-</p>
+
 
 <h2 id="ha">Array data type</h2>
+
 <p>Moss has built-in linear algebra support, based on a
 multidimensional array data type. These arrays are homogenous,
 that means all elements must have the same data type
 (float or complex). A general constructor <code>ha</code>
 (homogenous array) takes a list and builds such an array from it.
-</p>
+
 <pre class="moss">
 use la: hv, hm, ha
 
@@ -141,8 +141,9 @@ A = hm([1,2],[3,4])
 # Tranposition of A
 B = A.T()
 </pre>
+
 <p>One can do basic arithmetic.
-</p>
+
 <pre class="moss">
 # Linear combinations
 a = hv(1,2)
@@ -171,9 +172,11 @@ g = hm([10,2],[2,10])
 s = (g*a)*b
 # = g*a*b
 </pre>
+
 <p>Functions returning vectors or any objects
-<code>v</code> that support index operations <code>v[0],v[1]</code> can be directly graphed by <code>vplot</code>.
-</p>
+<code>v</code> that support index operations <code>v[0],v[1]</code>
+can be directly graphed by <code>vplot</code>.
+
 <pre class="moss">
 use plotlib: system
 use math: sin, cos
@@ -186,14 +189,14 @@ s.idle()
 
 <p>An advanced example: Calculation of the arc length of a curve
 <code>gamma</code> in polar coordinates.
-</p>
+
 <pre class="moss">
 use math: sqrt
 use na: diff, integral
 use la: hv, hm
 
 # General arc length calculation
-L = |g,t0,t1,gamma| integral(t0,t1,sub|t|
+L = |g,t0,t1,gamma| integral(t0,t1,fn|t|
   v = diff(gamma,t)
   return sqrt(g(gamma(t))*v*v)
 end)
@@ -209,7 +212,7 @@ print(L(g,0,2*pi,star))
 </pre>
 
 <p>A few more examples.
-</p>
+
 <pre class="moss">
 # Approximate calculation of the
 # exponential of a square matrix

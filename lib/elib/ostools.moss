@@ -1,7 +1,7 @@
 
 begin
+  use os
   global walk
-  os = load("os")
 
   sub walk_rec(n,hidden,id)
     a = os.ls(id)

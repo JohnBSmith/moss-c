@@ -1,5 +1,4 @@
 
-
 extend(Map,table
   sub MPY(b)
     set(list(self)*list(b))
@@ -72,5 +71,6 @@ sub affine_map(x1,x2,y1,y2)
   m = (y2-y1)/(x2-x1)
   return |x| y1+m*(x-x1)
 end
+
 
 

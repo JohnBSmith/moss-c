@@ -1,6 +1,6 @@
 
 
-# Sollte eine Ausnahme werfen.
+# Should throw an exception.
 
 sub main
   if false

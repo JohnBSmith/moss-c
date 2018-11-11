@@ -1,0 +1,47 @@
+
+begin
+public complex, Complex
+
+function complex(x,y)
+  return table Complex{re=x, im=y}
+end
+
+Complex = table{
+  function string()
+    return ["(", self.re, ", ", self.im, ")"].join()
+  end,
+  function add(a;b)
+    if type(b) is Complex
+      return complex(a.re+b.re,a.im+b.im)
+    else
+      return complex(a.re+b,a.im)
+    end
+  end,
+  function radd(a;b)
+    return complex(a+b.re,b.im)
+  end,
+  function mul(a;b)
+    if type(b) is Complex
+      return complex(a.re*b.re-a.im*b.im,
+        a.re*b.im+a.im*b.re)
+    else
+      return complex(a.re*b,a.im*b)
+    end
+  end,
+  function rmul(a;b)
+    return complex(a*b.re,a*b.im)
+  end,
+  function pow(a;n)
+    return (1..n).prod(|k| a)
+  end
+}
+end
+
+i = complex(0,1)
+print(i)
+print(i+1)
+
+
+
+
+

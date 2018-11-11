@@ -123,11 +123,11 @@ should not be made public. Let us have a look on the following
 program.
 
 <pre class="moss indent">
-sub tabulate_row(t)
+function tabulate_row(t)
   t.map(|x| str(x).rjust(4)).join("\s|")
 end
 
-sub tabulate(a)
+function tabulate(a)
   a.map(tabulate_row).join("\n")
 end
 </pre>
@@ -140,11 +140,11 @@ It is possible to express internal variables in Moss.
 begin
   global tabulate
 
-  sub tabulate_row(t)
+  function tabulate_row(t)
     t.map(|x| str(x).rjust(4)).join("\s|")
   end
 
-  sub tabulate(a)
+  function tabulate(a)
     a.map(tabulate_row).join("\n")
   end
 end
@@ -171,7 +171,7 @@ of time. Also a module might need a large amount of memory space.
 <pre class="moss indent">
 use math
 
-sub main
+function main
   print(math.exp(1))
 end
 </pre>
@@ -180,7 +180,7 @@ end
 if we call <code>main</code>:
 
 <pre class="moss indent">
-sub main
+function main
   use math
   print(math.exp(1))
 end
@@ -193,9 +193,9 @@ only once. The behavior can be described as follows.
 
 <pre class="moss indent">
 begin
-  global load
+  public load
   module_table = {}
-  sub load(name)
+  function load(name)
     path = __full_path__(name)
     if path in module_table
       m = module_table[path]
@@ -221,7 +221,7 @@ possible:
 # File m1.moss
 use sys
 
-sub main(argv)
+function main(argv)
   print("argv: ", argv)
 end
 

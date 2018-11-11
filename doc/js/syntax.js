@@ -9,11 +9,11 @@ function isdigit(s){
 }
 
 var keyword = {
-  "sub": 0, "end": 0, "begin": 0,
+  "fn": 0, "function": 0, "end": 0, "begin": 0,
   "if": 0, "then": 0, "elif": 0, "else": 0,
   "while": 0, "do": 0, "for": 0, "in": 0, "is": 0,
   "break": 0, "continue": 0,
-  "try": 0, "catch": 0, "global": 0,
+  "try": 0, "catch": 0, "global": 0, "public": 0,
   "not": 0, "and": 0, "or": 0, "table": 0, "of": 0,
   "raise": 0, "yield": 0, "return": 0,
   "true": 0, "false": 0, "null": 0,

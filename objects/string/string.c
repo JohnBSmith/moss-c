@@ -228,60 +228,60 @@ mt_string* mf_str(mt_object* x){
 
   switch(x->type){
   case mv_null:
-    s=mf_cstr_to_str("null");
+    s = mf_cstr_to_str("null");
     return s;
   case mv_bool:
-    s=mf_cstr_to_str(x->value.b? "true": "false");
+    s = mf_cstr_to_str(x->value.b? "true": "false");
     return s;
   case mv_int:
     snprintf(a,200,"%li",x->value.i);
-    s=mf_cstr_to_str(a);
+    s = mf_cstr_to_str(a);
     return s;
   case mv_float:
     print_float(a,x->value.f);
-    s=mf_cstr_to_str(a);
+    s = mf_cstr_to_str(a);
     return s;
   case mv_complex:
     print_complex(a,x->value.c.re,x->value.c.im);
-    s=mf_cstr_to_str(a);
+    s = mf_cstr_to_str(a);
     return s;
   case mv_long:
-    s=mf_long_to_string((mt_long*)x->value.p,10);
+    s = mf_long_to_string((mt_long*)x->value.p,10);
     return s;
   case mv_string:
-    s=(mt_string*)x->value.p;
+    s = (mt_string*)x->value.p;
     s->refcount++;
     return s;
   case mv_bstring:
-    s=mf_cstr_to_str("bstring");
+    s = mf_cstr_to_str("bstring");
     return s;
   case mv_list:
-    s=mf_list_to_string((mt_list*)x->value.p);
+    s = mf_list_to_string((mt_list*)x->value.p);
     return s;
   case mv_map:
-    s=mf_map_to_string((mt_map*)x->value.p);
+    s = mf_map_to_string((mt_map*)x->value.p);
     return s;
   case mv_function:
-    s=mf_cstr_to_str("function");
+    s = mf_cstr_to_str("function");
     return s;
   case mv_table:
     t = (mt_table*)x->value.p;
     if(t->name){
-      s=t->name;
+      s = t->name;
       s->refcount++;
       return s;
     }
     goto Default;
   default: Default:
     mf_type(&prototype,x);
-    e=mf_object_get_memory(&f,&prototype,3,"str");
+    e = mf_object_get_memory(&f,&prototype,6,"string");
     if(e){
-      s=mf_cstr_to_str("object");
+      s = mf_cstr_to_str("object");
       mf_dec_refcount(&prototype);
       return s;
     }
     if(f.type!=mv_function){
-      mf_type_error("Type error in str(x): x.str is not a function.");
+      mf_type_error("Type error in str(x): x.string is not a function.");
       goto error;
     }
     mt_object y;
@@ -289,7 +289,7 @@ mt_string* mf_str(mt_object* x){
       goto error;
     }
     if(y.type!=mv_string){
-      mf_type_error("Type error in str(x): return value of x.str() is not a string.");
+      mf_type_error("Type error in str(x): return value of x.string() is not a string.");
       mf_dec_refcount(&y);
       goto error;
     }
@@ -327,8 +327,8 @@ int mf_fstr(mt_object* x, int argc, mt_object* v){
     return 1;
   }
   if(s==NULL) return 1;
-  x->type=mv_string;
-  x->value.p=(mt_basic*)s;
+  x->type = mv_string;
+  x->value.p = (mt_basic*)s;
   return 0;
 }
 

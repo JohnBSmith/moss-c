@@ -11,7 +11,6 @@ typedef struct{
   int col;
   char type;
   char value;
-  char info;
   char* s;
   long size;
 } mt_token;

@@ -1,11 +1,11 @@
 
 
-sub error(s)
+function error(s)
   print(s)
-  # raise "error"
+  raise "error"
 end
 
-sub xy_test(rx,ry)
+function xy_test(rx,ry)
   for x in rx
     for y in ry
       if str(x*y)!=str(long(x)*long(y))
@@ -15,7 +15,7 @@ sub xy_test(rx,ry)
   end
 end
 
-sub pow_test(rx,ry)
+function pow_test(rx,ry)
   for x in rx
     for y in ry
       if str(x^y)!=str(long(x)^y)
@@ -25,7 +25,7 @@ sub pow_test(rx,ry)
   end
 end
 
-sub powmod(x,n,m)
+function powmod(x,n,m)
   y=1; x=x%m
   while n>0
     if n%2==0
@@ -37,7 +37,7 @@ sub powmod(x,n,m)
   return y
 end
 
-sub powmod_test(xn,rn,m)
+function powmod_test(xn,rn,m)
   for x in xn
     for n in rn
       if powmod(x,n,m)!=x^n%m
@@ -47,7 +47,7 @@ sub powmod_test(xn,rn,m)
   end
 end
 
-sub shuffle_test(i,n)
+function shuffle_test(i,n)
   a = list(i).map(long)
   p = a.prod()
   for x in n
@@ -57,7 +57,7 @@ sub shuffle_test(i,n)
   end
 end
 
-sub itos_test(r)
+function itos_test(r)
   for x in r
     if x!=long(str(x))
       error("Error: x!=long(str(x)).")
@@ -65,7 +65,7 @@ sub itos_test(r)
   end
 end
 
-sub fast
+function fast
   xy_test(0..200,0..200)
   xy_test(-100..100,-100..100)
   xy_test(0..100,0..1000)
@@ -84,7 +84,7 @@ sub fast
   shuffle_test((1..200).map(|x| 2^x),1000)
 end
 
-sub slow
+function slow
   /*
   xy_test(0..1000,0..1000)
   xy_test(-200..200,-200..200)

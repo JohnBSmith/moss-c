@@ -32,11 +32,11 @@ c = cos
 t = tan
 r = sqrt
 
-sub info(x)
+function info(x)
   print(record(x).keys().sort().join("\s"))
 end
 
 D = |f| |x| diff(f,x)
-D.POW = |n| |f| |x| diff(f,x,n)
+D.pow = |n| |f| |x| diff(f,x,n)
 
 

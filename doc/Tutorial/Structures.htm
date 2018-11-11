@@ -32,62 +32,62 @@ data type.
 </p>
 
 <pre class="moss">
-sub List(a)
-  y = table[List.type]
+function linked_list(a)
+  y = table LinkedList{
     first=null, last=null
-  end
+  }
   for x in a
     y.push(x)
   end
   return y
 end
 
-List.type = table
-  sub list
-    t=self.first
-    a=[]
+LinkedList = table{
+  function list
+    t = self.first
+    a = []
     while not t is null
       a.push(t.value)
-      t=t.next
+      t = t.next
     end
     return a
   end,
   
-  sub str
-    return "List(["+self.list().join(", ")+"])"
+  function str
+    return "linked_list(["+self.list().join(", ")+"])"
   end,
 
-  sub push(x)
+  function push(x)
     if self.first is null
-      self.last = table value=x, next=null end
-      self.first=self.last
+      self.last = table{value=x, next=null}
+      self.first = self.last
     else
-      self.last.next = table value=x, next=null end
-      self.last=self.last.next
+      self.last.next = table{value=x, next=null}
+      self.last = self.last.next
     end
   end,
 
-  sub shift(x)
-    t = table value=x, next=self.first end
-    self.first=t
+  function shift(x)
+    t = table{value=x, next=self.first}
+    self.first = t
   end,
 
-  sub unshift
+  function unshift
     if self.first is null
       return null
     else
-      value=self.first.value
-      self.first=self.first.next
+      value = self.first.value
+      self.first = self.first.next
       return value
     end
   end
-end of table
+}
 </pre>
 
 <p>It can be used as a queue data type.
 </p>
 <pre class="moss">
-&gt; q = List([])
+&gt; q = linked_list([])
 &gt; q.push(1)
 &gt; q.push(2)
 &gt; q.push(3)

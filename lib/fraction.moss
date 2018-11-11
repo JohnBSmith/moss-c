@@ -1,18 +1,16 @@
 
 use nt: gcd
 
-sub fraction(n,d)
+function fraction(n,d)
   t = gcd(n,d)
-  return table[Fraction]
-    n=n//t, d=d//t
-  end
+  return table Fraction{n=n//t, d=d//t}
 end
 
-Fraction = table
-  sub str
+Fraction = table{
+  function string
     [self.n, "/", self.d].join()
   end,
-  sub ADD(b)
+  function add(b)
     if b is in Int
       n = self.n+b*self.d
       d = self.d
@@ -23,10 +21,10 @@ Fraction = table
       return fraction(n,d)
     end
   end,
-  sub RADD(b)
+  function radd(b)
     return fraction(self*b.d+b.n,b.d)
   end,
-  sub SUB(b)
+  function sub(b)
     if b is in Int
       n = self.n-b*self.d
       d = self.d
@@ -37,10 +35,10 @@ Fraction = table
       return fraction(n,d)
     end
   end,
-  sub RSUB(b)
+  function rsub(b)
     return fraction(self*b.d-b.n,b.d)
   end,
-  sub MPY(b)
+  function mul(b)
     if b is in Int
       n = self.n*b
       d = self.d
@@ -51,10 +49,10 @@ Fraction = table
       return fraction(n,d)
     end
   end,
-  sub RMPY(b)
+  function rmul(b)
     return fraction(self*b.n,b.d)
   end,
-  sub DIV(b)
+  function div(b)
     if b is in Int
       n = self.n
       d = self.d*b
@@ -65,10 +63,10 @@ Fraction = table
       return fraction(n,d)
     end
   end,
-  sub RDIV(b)
+  function rdiv(b)
     return fraction(self*b.d,b.n)
   end,
-  sub POW(b)
+  function pow(b)
     if b>0
       return fraction(self.n^b, self.d^b)
     elif b<0
@@ -77,7 +75,7 @@ Fraction = table
       return fraction(1,1)
     end
   end
-end
+}
 
 u = fraction(1,1)
 

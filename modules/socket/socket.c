@@ -153,7 +153,7 @@ int mf_socket_receive(mt_object* x, int argc, mt_object* v){
   while(1){
     count = recv(s->id,buffer,4096,0);
     if(count<0){
-      mf_std_exception("s.receive(): error while reveiving message.");
+      mf_std_exception("s.receive(): error while receiving message.");
       mf_bs_delete(&bs);
       return 1;
     }else if(count==0){

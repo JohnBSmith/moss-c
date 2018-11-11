@@ -1,8 +1,7 @@
 
-sub deque(*argv)
-  T = deque.type
-  d = table[T] first=null, last=null end
-  destructor(d)=T.clear
+function deque(*argv)
+  d = table Deque{first=null, last=null}
+  destructor(d) = Deque.clear
   if size(argv)!=0
     for x in argv[0]
       d.push(x)
@@ -11,11 +10,11 @@ sub deque(*argv)
   return d
 end
 
-deque.type = table[Iterable]
-  sub empty
+Deque = table Iterable{
+  function empty
     self.last is null
   end,
-  sub push(x)
+  function push(x)
     if self.last is null
       self.last = [x,null,null]
       self.first = self.last
@@ -26,7 +25,7 @@ deque.type = table[Iterable]
       self.last=t
     end
   end,
-  sub shift(x)
+  function shift(x)
     if self.last is null
       self.last = [x,null,null]
       self.first = self.last
@@ -37,7 +36,7 @@ deque.type = table[Iterable]
       self.first=t
     end
   end,
-  sub pop
+  function pop
     if self.last is null
       raise "Empty deque"
     end
@@ -52,7 +51,7 @@ deque.type = table[Iterable]
       return last[0]
     end
   end,
-  sub unshift
+  function unshift
     if self.last is null
       raise "Empty deque"
     end
@@ -67,9 +66,9 @@ deque.type = table[Iterable]
       return first[0]
     end
   end,
-  sub iter
+  function iter
     p = self.first
-    return sub||
+    return fn||
       if p is null
         raise empty
       else
@@ -78,9 +77,9 @@ deque.type = table[Iterable]
       end
     end
   end,
-  sub reverse
+  function reverse
     p = self.last
-    return sub||
+    return fn||
       if p is null
         raise empty
       else
@@ -89,15 +88,15 @@ deque.type = table[Iterable]
       end
     end
   end,
-  sub str
+  function str
     return ["deque(",list(self.iter()),")"].join()
   end,
-  sub extend(a)
+  function extend(a)
     for x in a
       self.push(x)
     end
   end,
-  sub clear
+  function clear
     p = self.last
     self.last=null
     self.first=null
@@ -108,6 +107,6 @@ deque.type = table[Iterable]
       end
     end
   end
-end
+}
 
 
