@@ -10,7 +10,7 @@
 
 long mf_floor_mod(long x, long m);
 int mf_add_dec(mt_object* x, mt_object* a, mt_object* b);
-int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b);
+int mf_mul_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_eq(mt_object* x, mt_object* a, mt_object* b);
 int mf_lt(mt_object* x, mt_object* a, mt_object* b);
 int mf_gt(mt_object* x, mt_object* a, mt_object* b);
@@ -821,7 +821,7 @@ int mf_list_prod0(mt_object* x, mt_list* a){
     mf_copy_inc(&y,a->a);
     for(i=1; i<size; i++){
         mf_inc_refcount(a->a+i);
-        if(mf_mpy_dec(&y,&y,a->a+i)){
+        if(mf_mul_dec(&y,&y,a->a+i)){
             mf_traceback("prod");
             return 1;
         }
@@ -849,7 +849,7 @@ int mf_list_prod1(mt_object* x, mt_list* a, mt_function* f){
             mf_traceback("prod");
             return 1;
         }
-        if(mf_mpy_dec(&y,&y,&t)){
+        if(mf_mul_dec(&y,&y,&t)){
             mf_traceback("prod");
             return 1;
         }

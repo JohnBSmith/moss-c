@@ -30,7 +30,8 @@ void bstr_slice(bstring* s, char* a, int n){
 
 void bstr_get(bstring* s){
     char buffer[1000];
-    fgets(buffer,1000,stdin);
+    char* p = fgets(buffer,1000,stdin);
+    if(p==NULL) abort();
     int n = strlen(buffer)-1;
     s->size = n;
     s->a = mf_malloc(n+1);

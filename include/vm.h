@@ -5,7 +5,7 @@
 #include <objects/object.h>
 
 enum{
-  ADD, SUB, MPY, DIV, MOD, NEG, NOT,
+  ADD, SUB, MUL, DIV, MOD, NEG, NOT,
   EQ, NE, LT, GT, LE, GE, POW, IDIV,
   CONST_INT, CONST_FLOAT, CONST_NULL,
   CONST_BOOL, CONST_STR, CONST_BSTR, CONST_IMAG,

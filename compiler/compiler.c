@@ -168,6 +168,12 @@ void push_token_string(mt_vec* v, int line, int col, char type,
     t.line = line;
     t.col = col;
     t.type = type;
+
+    t.value = 0;
+    // ^Unnecessary because unreachable,
+    // but valgrind murmured at conditions
+    // if(t->type==A && t->value==B){...}.
+
     t.s = mf_malloc((size_t)(size+1));
     memcpy(t.s,a,(size_t)size);
     t.s[size] = 0;
@@ -4337,7 +4343,7 @@ int ast_compile_augmented(mt_vec* bv, ast_node* t){
     }else if(value==Top_asub){
         push_bc(bv,SUB,t);
     }else if(value==Top_ampy){
-        push_bc(bv,MPY,t);
+        push_bc(bv,MUL,t);
     }else if(value==Top_adiv){
         push_bc(bv,DIV,t);
     }else if(value==Top_aidiv){
@@ -4450,6 +4456,7 @@ ast_node* if_null(ast_node* t){
     y->a[0] = condition;
     t->refcount++;
     y->a[1] = t;
+    return y;
 }
 
 static
@@ -4724,7 +4731,7 @@ int ast_compile(mt_vec* bv, ast_node* t){
         case Top_mpy:
             if(ast_compile(bv,t->a[0])) return 1;
             if(ast_compile(bv,t->a[1])) return 1;
-            push_bc(bv,MPY,t);
+            push_bc(bv,MUL,t);
             break;
         case Top_div:
             if(ast_compile(bv,t->a[0])) return 1;
@@ -5126,8 +5133,8 @@ void dump_program(unsigned char* bv, int n){
         case SUB:
             i+=BC; printf("SUB\n");
             break;
-        case MPY:
-            i+=BC; printf("MPY\n");
+        case MUL:
+            i+=BC; printf("MUL\n");
             break;
         case DIV:
             i+=BC; printf("DIV\n");

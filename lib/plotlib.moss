@@ -8,21 +8,21 @@ use na
 gw=960; gw2=gw//2
 gh=640; gh2=gh//2
 
-sub setw(x,y)
+function setw(x,y)
   global gw,gh,gw2,gh2
   gw=x; gw2=gw//2
   gh=y; gh2=gh//2
 end
 
-sub vline(c,x)
+function vline(c,x)
   c.fill(x,0,2,gh-1)
 end
 
-sub hline(c,y)
+function hline(c,y)
   c.fill(0,y,gw-1,2)
 end
 
-sub vbars(c,y)
+function vbars(c,y)
   for t in vbars.a
     x = int(gw2+gw2/10*t)
     c.fill(x,y+2,2,2)
@@ -31,7 +31,7 @@ sub vbars(c,y)
   end
 end
 
-sub hbars(c,x)
+function hbars(c,x)
   for t in hbars.a
     y = int(gh2+gw2/10*t)
     c.fill(x+2,y,2,2)
@@ -43,7 +43,7 @@ end
 vbars.a = [-8..-2:2, 2..8:2].chain()
 hbars.a = [-8..-1, 1..8].chain()
 
-sub grid(c,a)
+function grid(c,a)
   c.cset(0.9,0.9,0.84,a)
   for x in -9..9
     vline(c,int(gw2+gw2/10*x))
@@ -56,7 +56,7 @@ sub grid(c,a)
   hline(c,gh2)
 end
 
-sub ftos(w,p,x)
+function ftos(w,p,x)
   a = abs(w)
   if abs(p)<10*a and (a<0.001 or a>10000000)
     return str(x,"-E",1)
@@ -64,9 +64,9 @@ sub ftos(w,p,x)
     n = 2+int(-lg(abs(w)))
     return str(x,"-f",n)
   end
-end of sub
+end
 
-sub labels(c,wx,wy,px,py)
+function labels(c,wx,wy,px,py)
   c.cset(0.4,0.4,0.4)
   vbars(c,gh2)
   hbars(c,gw2)
@@ -98,14 +98,14 @@ color_table = [
   [0, 0, 0]
 ]
 
-sub plot(f,d={})
+function plot(f,d={})
   s = system(d)
   s.plot(f,d)
   s.idle()
 end
 
-tplot = table
-  sub idle
+Plot = table{
+  function idle
     c = self.canvas
     c.flush()
     while c.key()!="q"
@@ -113,7 +113,7 @@ tplot = table
     end
   end,
   
-  sub plot(a,t={})
+  function plot(a,t={})
     if type(a) is Function
       a=[a]
     end
@@ -141,7 +141,7 @@ tplot = table
     end
   end,
 
-  sub vplot(f,t={})
+  function vplot(f,t={})
     {n=self.n, t1=0.0, t2=10.0} = t
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
@@ -163,7 +163,7 @@ tplot = table
     end
   end,
 
-  sub scatter(a,t={})
+  function scatter(a,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     c = self.canvas
@@ -179,7 +179,7 @@ tplot = table
     end
   end,
 
-  sub box(a,t={})
+  function box(a,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     c = self.canvas
@@ -195,11 +195,11 @@ tplot = table
     end
   end,
 
-  sub palette(i)
+  function palette(i)
     self.index=i
   end,
 
-  sub interlace(f,t={})
+  function interlace(f,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     x1 = px-wx
@@ -227,9 +227,9 @@ tplot = table
       end
       d=d/2
     end
-  end of sub,
+  end,
 
-  sub random(f,t={})
+  function random(f,t={})
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     x1 = px-wx
@@ -253,9 +253,9 @@ tplot = table
       end
       k++
     end
-  end of sub,
+  end,
 
-  sub ani(callback,*argv)
+  function ani(callback,*argv)
     self.n=500
     c = self.canvas
     a=0
@@ -275,15 +275,15 @@ tplot = table
     end
   end,
 
-  sub flush
+  function flush
     self.canvas.flush()
   end
-end of table
+}
 
-sub system(t={})
+function system(t={})
   c=gx.new(gw,gh,1)
   c.font(16)
-  s = table[tplot] canvas=c, index=0 end
+  s = table Plot{canvas=c, index=0}
   s.n  = t["n"]  if "n"  in t else 1000
   s.wx = t["wx"] if "wx" in t else 10.0
   s.wy = t["wy"] if "wy" in t else 10.0
@@ -307,11 +307,11 @@ sub system(t={})
   return s
 end
 
-sub sigmoid(x)
+function sigmoid(x)
   tanh(0.2*x)
 end
 
-sub cplot(f,t={})
+function cplot(f,t={})
   {wx=10.0, wy=10.0, px=0.0, py=0.0}=t
   a = gw//4; b = gh//4
   a2 = gw/8; b2 = gh/8
@@ -337,7 +337,7 @@ sub cplot(f,t={})
   end
 end
 
-sub contour_plot(f,t={})
+function contour_plot(f,t={})
   {wx=10.0, wy=10.0, wz=1.0, px=0.0, py=0.0}=t
   a = gw//4; b = gh//4
   a2 = gw/8; b2 = gh/8
@@ -364,10 +364,10 @@ sub contour_plot(f,t={})
   end
 end
 
-sub get_color_new(c1,c2)
+function get_color_new(c1,c2)
   r1,g1,b1 = c1
   r2,g2,b2 = c2
-  return sub|x|
+  return fn|x|
     x = x%2.0
     x = 2-x if x>1 else x
     r = (r2-r1)*x+r1
@@ -377,7 +377,7 @@ sub get_color_new(c1,c2)
   end
 end
 
-sub fractal(f,g)
+function fractal(f,g)
   W=1024; H=640
   canvas = gx.new(W,H,1)
   canvas.font(20)
@@ -444,6 +444,6 @@ sub fractal(f,g)
     time.sleep(0.1)
   end
   label out
-end of sub
+end
 
 

@@ -1,12 +1,12 @@
 
-extend(Map,table
-  sub MPY(b)
+extend(Map,table{
+  function mul(b)
     set(list(self)*list(b))
   end,
-  sub ADD(b)
+  function add(b)
     set(self.map(|x| [0,x])) | set(b.map(|x| [1,x])) 
   end,
-  sub POW(n)
+  function pow(n)
     if type(n) is int.type
       return set(list(self)^n)
     else
@@ -15,14 +15,14 @@ extend(Map,table
       return set(c.map(|t| (0..size(t)-1).dict(|i| [a[i],t[i]])))
     end
   end,
-  sub RPOW(a)
+  function rpow(a)
     if self==2
       return a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
     else
       return set(self)^a
     end
   end,
-  sub DIV(p)
+  function div(p)
     if p.argc()==2
       return set((list(self)/p).map(set))
     end
@@ -37,13 +37,13 @@ extend(Map,table
     end
     return set(d.values())
   end,
-  sub inv
+  function inv
     dict(self.items().map(|x,y| [y,x]))
   end
-end)
+})
 
-extend(Iterable,table
-  sub uniq(*argv)
+extend(Iterable,table{
+  function uniq(*argv)
     if size(argv)==0
       return list(set(self))
     else
@@ -51,23 +51,23 @@ extend(Iterable,table
       return list(self.dict(|x| [p(x),x]).values())
     end
   end,
-  sub cup
+  function cup
     self.reduce({},|x,y| x|y)
   end,
-  sub cap
+  function cap
     self.reduce(|x,y| x&y)
   end
-end)
+})
 
-extend(Function,table
-  sub MPY(g;f)
+extend(Function,table{
+  function mul(g;f)
     |x| g(f(x))
   end
-end)
+})
 
 clamp = |x,a,b| min(max(x,a),b)
 
-sub affine_map(x1,x2,y1,y2)
+function affine_map(x1,x2,y1,y2)
   m = (y2-y1)/(x2-x1)
   return |x| y1+m*(x-x1)
 end

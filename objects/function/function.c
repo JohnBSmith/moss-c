@@ -10,7 +10,7 @@ extern mt_object mv_exception;
 extern mt_basic* mv_empty;
 double mf_float(mt_object* x, int* error);
 int mf_add_dec(mt_object* x, mt_object* a, mt_object* b);
-int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b);
+int mf_mul_dec(mt_object* x, mt_object* a, mt_object* b);
 
 void mf_tuple_dec_refcount(mt_tuple* t);
 void mf_map_dec_refcount(mt_map* m);
@@ -992,7 +992,7 @@ int function_prod(mt_object* x, int argc, mt_object* v){
                 mf_traceback("prod");
                 return 1;
             }
-            if(mf_mpy_dec(&p,&p,&t)){
+            if(mf_mul_dec(&p,&p,&t)){
                 mf_traceback("prod");
                 return 1;
             }
@@ -1022,7 +1022,7 @@ int function_prod(mt_object* x, int argc, mt_object* v){
             return 1;
         }
         mf_dec_refcount(&t);
-        if(mf_mpy_dec(&p,&p,&y)){
+        if(mf_mul_dec(&p,&p,&y)){
             mf_traceback("prod");
             return 1;
         }

@@ -25,6 +25,7 @@ void mf_vtoken_delete(mt_vec* v);
 #define OPTION_c 2
 static int option;
 
+void* mf_init_library_path();
 extern char* mv_path;
 mt_list* mv_path_list;
 
@@ -99,6 +100,7 @@ void init_path_list(const char* self){
 
 static
 void init_path_info(int argc, char** argv){
+    mf_init_library_path();
     char path[400];
     if(argc>1){
         mf_get_path(path,400,strlen(argv[1]),argv[1]);
@@ -420,7 +422,7 @@ int main(int argc, char** argv){
     char* s;
     int size;
     int error = 0;
-    
+
     mf_vm_init();
     mf_vm_init_gvtab();
 

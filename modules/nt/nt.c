@@ -5,7 +5,7 @@
 #include <objects/list.h>
 int mf_eq(mt_object* x, mt_object* a, mt_object* b);
 int mf_mod(mt_object* x, mt_object* a, mt_object* b);
-int mf_mpy(mt_object* x, mt_object* a, mt_object* b);
+int mf_mul(mt_object* x, mt_object* a, mt_object* b);
 int mf_idiv(mt_object* x, mt_object* a, mt_object* b);
 
 static
@@ -39,7 +39,7 @@ int mf_gcd(mt_object* x, mt_object* a, mt_object* b){
 static
 int mf_lcm(mt_object* x, mt_object* a, mt_object* b){
     mt_object p,q;
-    if(mf_mpy(&p,a,b)) goto error;
+    if(mf_mul(&p,a,b)) goto error;
     if(mf_gcd(&q,a,b)){
         mf_dec_refcount(&p);
         goto error;

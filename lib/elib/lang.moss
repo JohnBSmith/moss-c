@@ -3,26 +3,26 @@
 # words of characters: {"a","ab"}
 # words of general symbols: {[], [1,2], [3]}
 
-extend(Map,table
-  sub MPY(L;b)
+extend(Map,table{
+  function mul(L;b)
     set((list(L)*list(b)).map(|x,y| x+y))
   end,
-  sub POW(L;n)
+  function pow(L;n)
     if n==0
       return {iter(L)()[1..0]}
     else
       return (1..n-1).reduce(L,|x,y| x*L)
     end
   end,
-  sub star(L;n)
+  function star(L;n)
     (0..n).map(|k| L^k).reduce({},|x,y| x|y)
   end,
-  sub plus(L;n)
+  function plus(L;n)
     (1..n).map(|k| L^k).reduce({},|x,y| x|y)
   end,
-  sub rev
+  function rev
     set(self.map(|x| x[..:-1]))
   end
-end)
+})
 
 

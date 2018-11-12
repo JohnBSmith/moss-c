@@ -1,8 +1,8 @@
 
 
-sub isconst(t,id)
+function isconst(t,id)
   T = type(t)
-  if T is Str
+  if T is String
     return t!=id
   elif T is List
     return t[1].all(|u| isconst(u,id))
@@ -10,9 +10,9 @@ sub isconst(t,id)
   return true
 end
 
-sub substitute(t,id,s)
+function substitute(t,id,s)
   T = type(t)
-  if T is Str
+  if T is String
     if t==id
       return s
     end
@@ -22,9 +22,9 @@ sub substitute(t,id,s)
   return t
 end
 
-sub diff(t,id)
+function diff(t,id)
   T = type(t)
-  if T is Str
+  if T is String
     return (1 if t==id else 0)
   elif T is Int
     return 0
@@ -66,7 +66,7 @@ associative = {
   "+", "*", "compose", "max", "min"
 }
 
-sub flatten(t)
+function flatten(t)
   T = type(t)
   if T is List
     op = t[0]
@@ -86,7 +86,7 @@ sub flatten(t)
   return t
 end
 
-sub simplify_sum(a)
+function simplify_sum(a)
   s=0; d={}
   for t in a
     t=simplify(t)
@@ -111,7 +111,7 @@ sub simplify_sum(a)
   return ["+",b+[s] if s!=0 else b]
 end
 
-sub simplify_prod(a)
+function simplify_prod(a)
   p=1; d={}
   for t in a
     t = simplify(t)
@@ -135,7 +135,7 @@ sub simplify_prod(a)
   return ["*",[p]+b if p!=1 else b]
 end
 
-sub simplify(t)
+function simplify(t)
   t = flatten(t)
   T = type(t)
   if T is List

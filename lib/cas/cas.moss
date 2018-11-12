@@ -2,25 +2,25 @@
 use syntax: scan, ast
 use basic
 
-sub q(s)
-  table[symbolic] t=ast(scan(s)) end
+function q(s)
+  table Symbolic{t=ast(scan(s))}
 end
 
-symbolic = table
-  sub str
+Symbolic = table{
+  function string
     syntax.ast_to_string(self.t)
   end
+}
+
+function diff(x,id)
+  table Symbolic{t=basic.diff(x.t,id)}
 end
 
-sub diff(x,id)
-  table[symbolic] t=basic.diff(x.t,id) end
+function substitute(x,id,y)
+  table Symbolic{t=basic.substitute(x.t,id,y.t)}
 end
 
-sub substitute(x,id,y)
-  table[symbolic] t=basic.substitute(x.t,id,y.t) end
-end
-
-sub compile_fn(id,x)
+function compile_fn(id,x)
   s = "|"+id+"|"+syntax.ast_to_string(x.t)
   return eval(s)
 end

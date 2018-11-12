@@ -1,79 +1,81 @@
 
-sub mod(m)
-  return sub|a|
-    table[Mod] a=a%m, m=m end
+function mod(m)
+  return fn|a|
+    table Mod{a=a%m, m=m}
   end
 end
 
-Mod = table
-  sub str
+Mod = table{
+  function string
     [self.a," mod ",self.m].join()
   end,
-  sub ADD(b)
+  function add(b)
     if type(b) is Mod
-      return table[Mod]
+      return table Mod{
         a=(self.a+b.a)%self.m,
         m=self.m
-      end
+      }
     else
-      return table[Mod]
+      return table Mod{
         a=(self.a+b)%self.m,
         m=self.m
-      end
+      }
     end
   end,
-  sub SUB(b)
-    table[Mod]
+  function sub(b)
+    table Mod{
       a=(self.a-b.a)%self.m,
       m=self.m
-    end
+    }
   end,
-  sub MPY(b)
-    table[Mod]
+  function mul(b)
+    table Mod{
       a=(self.a*b.a)%self.m,
       m=self.m
-    end
+    }
   end,
-  sub RMPY(b)
-    table[Mod]
+  function RMPY(b)
+    table Mod{
       a=(self*b.a)%b.m,
       m=b.m
-    end
+    }
   end,
-  sub POW(n)
+  function POW(n)
     if type(n) is Mod
-      return table[Mod]
+      return table Mod{
         a=pow(self.a,n.a,self.m),
         m=self.m
-      end
+      }
     else
-      return table[Mod]
+      return table Mod{
         a=pow(self.a,n,self.m),
         m=self.m
-      end
+      }
     end
   end,
-  sub RPOW(n)
-    table[Mod]
+  function rpow(n)
+    table Mod{
       a=pow(self,n.a,n.m),
       m=n.m
-    end
+    }
   end,
-  sub sqrt
+  function sqrt
     m=self.m; a=self.a
-    (0..m-1).filter(sub|x|
+    (0..m-1).filter(fn|x|
       x=x%m
       return x*x%m==a
     end).list()
   end,
-  sub preimage(f)
+  function preimage(f)
     m=self.m; a=self
-    (0..m-1).filter(sub|x|
-      x=table[Mod] a=x%m, m=m end
+    (0..m-1).filter(fn|x|
+      x = table Mod{a=x%m, m=m}
       return f(x).a==a.a
     end).list()
   end
-end of table
+}
+
+
 
 
 

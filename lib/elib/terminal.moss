@@ -10,54 +10,54 @@ ctab = {
   "gray": [120,120,120]
 }
 
-sub color(c)
-  if type(c) is Str
+function color(c)
+  if type(c) is String
     c = ctab[c]
   end
   put("\e[38;2;{};{};{}m" % c)
 end
 
-sub bcolor(c)
-  if type(c) is Str
+function bcolor(c)
+  if type(c) is String
     c = ctab[c]
   end
   put("\e[48;2;{};{};{}m" % rgb)
 end
 
-sub color_default
+function color_default
   put("\e[39m")
 end
 
-sub bcolor_default
+function bcolor_default
   put("\e[49m")
 end
 
-sub bold_on
+function bold_on
   put("\e[1m")
 end
 
-sub bold_off
+function bold_off
   put("\e[21m")
 end
 
-sub underline_on
+function underline_on
   put("\e[4m")
 end
 
-sub underline_off
+function underline_off
   put("\e[24m")
 end
 
-sub clear
+function clear
   put("\e[2J")
 end
 
-sub pos(x,y)
+function pos(x,y)
   put("\e[{};{}H" % [x,y])
 end
 
 /*
-sub test
+function test
   for c in list(ctab).sort()
     color(c); print("Hamburg.")
   end

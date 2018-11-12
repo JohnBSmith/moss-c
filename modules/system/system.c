@@ -29,10 +29,22 @@
 int mf_put(mt_object* x);
 mt_string* mf_str_decode_utf8(long size, const unsigned char* a);
 
+char MV_PATH[256] = "";
+char* mv_path = MV_PATH;
+
 #ifdef _WIN32
-const char* mv_path = "C:/local/lib/mossc";
+void mf_init_library_path(){
+    strcpy(mv_path,"C:/local/lib/mossc");
+}
 #else
-const char* mv_path = "/usr/local/lib/mossc";
+void mf_init_library_path(){
+    char *home_path = getenv("HOME");
+    if(home_path == NULL || strlen(home_path)>200){
+        abort();
+    }
+    strcpy(mv_path,home_path);
+    strcat(mv_path,"/.mossc/lib");
+}
 #endif
 
 static

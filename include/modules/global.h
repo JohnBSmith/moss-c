@@ -3,7 +3,7 @@
 
 int mf_add_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_sub_dec(mt_object* x, mt_object* a, mt_object* b);
-int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b);
+int mf_mul_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_div_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_idiv_dec(mt_object* x, mt_object* a, mt_object* b);
 int mf_mod_dec(mt_object* x, mt_object* a, mt_object* b);

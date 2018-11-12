@@ -2,7 +2,7 @@
 use syntax: scan, ast, ast_print, ast_to_string, cas_error
 use basic: diff, substitute
 
-sub main
+function main
   while true
     s = input("> ")
     if s=="" then

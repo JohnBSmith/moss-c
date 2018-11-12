@@ -632,7 +632,7 @@ struct{
     int n;
     const char* s;
 } byte_code_tab[] = {
-    {ADD, "ADD"}, {SUB, "SUB"}, {MPY, "MPY"}, {DIV, "DIV"},
+    {ADD, "ADD"}, {SUB, "SUB"}, {MUL, "MUL"}, {DIV, "DIV"},
     {MOD, "MOD"}, {NEG, "NEG"}, {NOT, "NOT"},
     {EQ, "EQ"}, {NE, "NE"}, {LT, "LT"}, {GT, "GT"}, {LE, "LE"}, {GE, "GE"},
     {POW, "POW"}, {CONST_INT, "CONST_INT"},
@@ -995,11 +995,11 @@ int mf_vm_eval(unsigned char* a, long ip){
             }
             ip+=BC;
             break;
-        case MPY:
+        case MUL:
             assert(sp>1);
             stack_pointer = sp;
             sp--;
-            if(mf_mpy_dec(stack+sp-1,stack+sp-1,stack+sp)){
+            if(mf_mul_dec(stack+sp-1,stack+sp-1,stack+sp)){
                 sp--; goto error;
             }
             ip+=BC;

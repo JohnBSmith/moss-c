@@ -10,7 +10,10 @@ a = [
   "cas/basic", "cas/syntax"
 ]
 
-m = a.dict(|x| [x,load(PATH+x)])
+m = a.dict(fn|x|
+  print(x)
+  [x,load(PATH+x)]
+end)
 
 
 

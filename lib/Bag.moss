@@ -6,10 +6,10 @@ function bag(d)
 end
 
 Bag = table{
-  str = function||
+  string = fn||
     str(self.d)
   end,
-  iter = function||
+  iter = fn||
     iter(self.d)
   end,
   function get(x)
@@ -31,39 +31,39 @@ Bag = table{
   end,
   function add(a;b)
     m = set(a)|set(b)
-    table[Bag]
+    table Bag{
       d=dict(m.map(|x| [x,a[x]+b[x]]))
-    end
+    }
   end,
   function bor(a;b)
     m = set(a)|set(b)
-    table[Bag]
+    table Bag{
       d=dict(m.map(|x| [x,max(a[x],b[x])]))
-    end
+    }
   end,
   function band(b)
     a = self.d
-    table[Bag]
+    table Bag{
       d = dict(a.map(fn|x|
         [x,min(a[x],b[x])]
       end).filter(|t| t[1]!=0))
-    end
+    }
   end,
   function mul(b)
     a = self.d
-    table[Bag]
+    table Bag{
       d = dict(a.map(fn|x|
         [x,a[x]*b[x]]
       end).filter(|t| t[1]!=0))
-    end
+    }
   end,
   function sub(b)
     a = self.d
-    table[Bag]
+    table Bag{
       d = dict(a.map(fn|x|
         [x,a[x]-b[x]]
       end).filter(|t| t[1]>0))
-    end
+    }
   end,
   function count
     self.d.values().sum()

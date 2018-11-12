@@ -1,8 +1,8 @@
 
-sub cat(*argv)
+function cat(*argv)
   g = iter(argv)
   i=null
-  return sub||
+  return fn||
     while true
       x=g.next()
       if x is empty then break end
@@ -17,10 +17,10 @@ sub cat(*argv)
   end
 end
 
-sub cycle(a)
+function cycle(a)
   list = list(a)
   i=0; n=size(list)
-  return sub||
+  return fn||
     while true
       yield list[i]
       i=(i+1)%n
@@ -28,9 +28,9 @@ sub cycle(a)
   end
 end
 
-sub izip(*argv)
+function izip(*argv)
   a = argv.map(iter)
-  return sub||
+  return fn||
     return a.map(|i| i())
   end
 end

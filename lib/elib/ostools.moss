@@ -1,9 +1,10 @@
 
 begin
-  use os
-  global walk
+  public walk
 
-  sub walk_rec(n,hidden,id)
+  use os
+
+  function walk_rec(n,hidden,id)
     a = os.ls(id)
     b = []
     t = [id,
@@ -20,7 +21,7 @@ begin
     return b
   end
 
-  sub walk(id,d={})
+  function walk(id,d={})
     {depth=-1, hidden=false} = d
     return walk_rec(depth,hidden,id)
   end

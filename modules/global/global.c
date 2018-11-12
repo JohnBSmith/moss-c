@@ -476,10 +476,12 @@ int mf_isa(mt_object* x, void* prototype){
     return 0;
 }
 
+#define USE_BUILTIN_OVERFLOW
+
 #ifdef USE_BUILTIN_OVERFLOW
 #define add_overflow __builtin_add_overflow
 #define sub_overflow __builtin_sub_overflow
-#define mpy_overflow __builtin_mpy_overflow
+#define mul_overflow __builtin_mul_overflow
 #else
 
 // Have a look at
@@ -501,28 +503,40 @@ int sub_overflow(long a, long b, long* c){
     return 0;
 }
 
+// See "SEI CERT C Coding Standard", 2016 edition.
+// Chapter 5: Integers, section 5.3.5: Multiplication.
 static
-int mpy_overflow(long a, long b, long* c){
-    if(b==LONG_MIN && a<0) return 1;
-    long y = a*b;
-    if(b!=0 && y/b!=a) return 1;
-    *c=y;
+int mul_overflow(long a, long b, long* c){
+    if(a>0){
+        if(b>0){  
+            if(a>LONG_MAX/b) return 1;
+        }else{
+            if(b<LONG_MIN/a) return 1;
+        }
+    }else{
+        if(b>0){
+            if(a<LONG_MIN/b) return 1;
+        }else{
+            if(a!=0 && b<LONG_MAX/a) return 1;
+        }
+    }
+    *c = a*b;
     return 0;
 }
 #endif
 
 static
 int pow_overflow(long a, long n, long* c){
-    long y=1;
+    long y = 1;
     while(n){
         if(n&1){
-            if(mpy_overflow(y,a,&y)) return 1;
+            if(mul_overflow(y,a,&y)) return 1;
         }
         n>>=1;
         if(n==0) break;
-        if(mpy_overflow(a,a,&a)) return 1;
+        if(mul_overflow(a,a,&a)) return 1;
     }
-    *c=y;
+    *c = y;
     return 0;
 }
 
@@ -955,7 +969,7 @@ int mf_sub_dec(mt_object* x, mt_object* a, mt_object* b){
     return 1;
 }
 
-int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b){
+int mf_mul_dec(mt_object* x, mt_object* a, mt_object* b){
     double re,im,re1,re2,im1,im2;
     mt_string* sx;
     mt_list* list;
@@ -964,7 +978,7 @@ int mf_mpy_dec(mt_object* x, mt_object* a, mt_object* b){
     case mv_int:
         switch(b->type){
         case mv_int:
-            if(mpy_overflow(a->value.i,b->value.i,&y)){
+            if(mul_overflow(a->value.i,b->value.i,&y)){
                 mt_long *aL,*bL,*xL;
                 aL = mf_int_to_long(a->value.i);
                 bL = mf_int_to_long(b->value.i);
@@ -2350,10 +2364,10 @@ int mf_sub(mt_object* x, mt_object* a, mt_object* b){
     return mf_sub_dec(x,a,b);
 }
 
-int mf_mpy(mt_object* x, mt_object* a, mt_object* b){
+int mf_mul(mt_object* x, mt_object* a, mt_object* b){
     mf_inc_refcount(a);
     mf_inc_refcount(b);
-    return mf_mpy_dec(x,a,b);
+    return mf_mul_dec(x,a,b);
 }
 
 int mf_idiv(mt_object* x, mt_object* a, mt_object* b){
@@ -4311,7 +4325,9 @@ char* read_file(int* fsize, const unsigned char* id){
     size = ftell(file);
     data = mf_malloc(size);
     fseek(file,0,SEEK_SET);
-    fread(data,1,size,file);
+    if(size!=fread(data,1,size,file)){
+        return NULL;
+    }
     fclose(file);
     *fsize = size;
     return data;

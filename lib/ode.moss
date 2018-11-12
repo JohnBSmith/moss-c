@@ -1,7 +1,7 @@
 
 use na: interpolate
 
-sub runge_kutta_first_order(t)
+function runge_kutta_first_order(t)
   g = t["g"]
   h = (t["h"] if "h" in t else 0.001)
   w = (t["w"] if "w" in t else 10)
@@ -38,7 +38,7 @@ sub runge_kutta_first_order(t)
   return interpolate(a)
 end
 
-sub runge_kutta_system(t)
+function runge_kutta_system(t)
   g = t["g"]
   h = (t["h"] if "h" in t else 0.001)
   w = (t["w"] if "w" in t else 10)
@@ -78,12 +78,12 @@ sub runge_kutta_system(t)
   if h<0
     a.rev()
   end
-  return list(size(y0)).map(sub|k|
+  return list(size(y0)).map(fn|k|
     interpolate(a.map(|t| [t[0],t[1][k]]))
   end)
 end
 
-sub runge_kutta(t)
+function runge_kutta(t)
   m = size(t["y0"])
   g=t["g"]; m1=m-1
   t["g"] = |x,y| y[1..m1]+[g(x,y)]

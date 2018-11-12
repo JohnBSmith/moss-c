@@ -2,31 +2,31 @@
 use syntax: scan, ast, ast_to_string
 use basic
 
-vtab={}
+vtab = {}
 
 meta_tab = {
-  sub diff(a)
+  function diff(a)
     basic.diff(a[0],a[1])
   end,
-  sub substitute(a)
+  function substitute(a)
     basic.substitute(a[0],a[1],a[2])
   end,
-  "=": sub assignment|a|
-    vtab[a[0]]=a[1]
+  "=": fn assignment|a|
+    vtab[a[0]] = a[1]
   end,
-  sub simplify(a)
+  function simplify(a)
     basic.simplify(a[0])
   end,
-  sub flatten(a)
+  function flatten(a)
     basic.flatten(a[0])
   end
 }
 
-sub cas_eval(t)
+function cas_eval(t)
   T = type(t)
-  if T is Str and t in vtab
-    t=vtab[t]
-    T=type(t)
+  if T is String and t in vtab
+    t = vtab[t]
+    T = type(t)
   end
   if T is List
     if t[0]=="="
@@ -43,7 +43,7 @@ sub cas_eval(t)
   return t
 end
 
-sub main
+function main
   while true
     v = scan(input("> "))
     t = ast(v)

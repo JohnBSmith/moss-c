@@ -10,7 +10,7 @@ extern mt_function* function_self;
 double mf_float(mt_object* x, int* error);
 int mf_add(mt_object* x, mt_object* a, mt_object* b);
 int mf_sub(mt_object* x, mt_object* a, mt_object* b);
-int mf_mpy(mt_object* x, mt_object* a, mt_object* b);
+int mf_mul(mt_object* x, mt_object* a, mt_object* b);
 mt_function* mf_new_function(unsigned char* address);
 void mf_function_dec_refcount(mt_function* f);
 
@@ -125,7 +125,7 @@ int diff_sum(mt_object* x, mt_function* f, mt_object* r, int size,
         if(mf_call(f,&y,1,argv)) goto error;
         mf_dec_refcount(argv+1);
         t.value.f = a[i][1];
-        if(mf_mpy(&wy,&y,&t)) goto error;
+        if(mf_mul(&wy,&y,&t)) goto error;
         mf_dec_refcount(&y);
         if(s.type==mv_null){
             mf_copy(&s,&wy);
@@ -135,7 +135,7 @@ int diff_sum(mt_object* x, mt_function* f, mt_object* r, int size,
         }
     }
     t.value.f = d;
-    if(mf_mpy(&s,&s,&t)) goto error;
+    if(mf_mul(&s,&s,&t)) goto error;
     mf_copy(x,&s);
     return 0;
     error:
@@ -483,7 +483,7 @@ static
 int real_fp(mt_object* x, int argc, mt_object* v){
     mt_object argv[2];
     argv[0].type = mv_null;
-    if(mf_mpy(argv+1,&integral_arguments->d,v+1)){
+    if(mf_mul(argv+1,&integral_arguments->d,v+1)){
         mf_traceback("vint");
         return 1;
     }
@@ -503,7 +503,7 @@ static
 int imag_fp(mt_object* x, int argc, mt_object* v){
     mt_object argv[2];
     argv[0].type = mv_null;
-    if(mf_mpy(argv+1,&integral_arguments->d,v+1)){
+    if(mf_mul(argv+1,&integral_arguments->d,v+1)){
         mf_traceback("vint");
         return 1;
     }
@@ -543,7 +543,7 @@ int vint_step(mt_object* z, mt_function* f, mt_object a, mt_object b, int n){
     z->type = mv_complex;
     z->value.c.re = re;
     z->value.c.im = im;
-    mf_mpy(z,z,&args.d);
+    mf_mul(z,z,&args.d);
     mf_function_dec_refcount(ref);
     mf_function_dec_refcount(imf);
     integral_arguments = pargs;
